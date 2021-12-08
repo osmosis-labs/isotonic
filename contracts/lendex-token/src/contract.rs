@@ -26,10 +26,10 @@ pub fn instantiate(
         name: msg.name,
         symbol: msg.symbol,
         decimals: msg.decimals,
-        total_supply: Uint128::zero(),
         controller: deps.api.addr_validate(&msg.controller)?,
     };
     TOKEN_INFO.save(deps.storage, &token_info)?;
+    TOTAL_SUPPLY.save(deps.storage, &Uint128::zero())?;
 
     Ok(Response::new())
 }

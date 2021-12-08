@@ -10,9 +10,9 @@ pub struct TokenInfo {
     pub name: String,
     pub symbol: String,
     pub decimals: u8,
-    pub total_supply: Uint128,
     pub controller: Addr,
 }
 
 pub const TOKEN_INFO: Item<TokenInfo> = Item::new("token_info");
+pub const TOTAL_SUPPLY: Item<Uint128> = Item::new("total_supply");
 pub const BALANCES: Map<&Addr, Uint128> = Map::new("balance");
