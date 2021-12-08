@@ -120,6 +120,7 @@ fn transfer(
     Ok(res)
 }
 
+/// Handler for `ExecuteMsg::Send`
 fn send(
     deps: DepsMut,
     env: Env,
@@ -148,6 +149,7 @@ fn send(
     Ok(res)
 }
 
+/// Handler for `ExecuteMsg::Mint`
 pub fn mint(
     deps: DepsMut,
     info: MessageInfo,
@@ -177,6 +179,33 @@ pub fn mint(
     Ok(res)
 }
 
+/// Handler for `ExecuteMsg::Burn`
+pub fn burn(deps: DepsMut, info: MessageInfo, amount: Uint128) -> Result<Response, ContractError> {
+    let controller = CONTROLLER.load(deps.storage)?;
+    if info.sender != controller {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    BALANCES.update(
+        deps.storage,
+        &info.sender,
+        |balance: Option<Uint128>| -> StdResult<_> {
+            Ok(balance.unwrap_or_default().checked_sub(amount)?)
+        },
+    )?;
+
+    TOTAL_SUPPLY.update(deps.storage, |supply| -> StdResult<_> {
+        supply.checked_sub(amount).map_err(Into::into)
+    })?;
+
+    let res = Response::new()
+        .add_attribute("action", "burn")
+        .add_attribute("from", info.sender.to_string())
+        .add_attribute("amount", amount);
+    Ok(res)
+}
+
+/// Execution entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
@@ -194,7 +223,7 @@ pub fn execute(
             msg,
         } => send(deps, env, info, contract, amount, msg),
         Mint { recipient, amount } => mint(deps, info, recipient, amount),
-        _ => todo!(),
+        Burn { amount } => burn(deps, info, amount),
     }
 }
 
