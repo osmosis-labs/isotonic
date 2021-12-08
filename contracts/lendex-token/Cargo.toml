@@ -25,3 +25,5 @@ thiserror = { version = "1.0.26" }
 
 [dev-dependencies]
 cosmwasm-schema = { version = "1.0.0-beta" }
+cw-multi-test = "0.10"
+anyhow = "1"
