@@ -8,7 +8,7 @@ use cw20::Cw20ReceiveMsg;
 
 use crate::error::ContractError;
 use crate::msg::{CanTransferResp, ControllerQuery, ExecuteMsg, InstantiateMsg, QueryMsg};
-use crate::state::{TokenInfo, BALANCES, TOKEN_INFO, TOTAL_SUPPLY};
+use crate::state::{TokenInfo, BALANCES, CONTROLLER, TOKEN_INFO, TOTAL_SUPPLY};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:lendex-token";
@@ -27,10 +27,10 @@ pub fn instantiate(
         name: msg.name,
         symbol: msg.symbol,
         decimals: msg.decimals,
-        controller: deps.api.addr_validate(&msg.controller)?,
     };
     TOKEN_INFO.save(deps.storage, &token_info)?;
     TOTAL_SUPPLY.save(deps.storage, &Uint128::zero())?;
+    CONTROLLER.save(deps.storage, &deps.api.addr_validate(&msg.controller)?)?;
 
     Ok(Response::new())
 }
@@ -42,9 +42,9 @@ fn can_transfer(
     account: String,
     amount: Uint128,
 ) -> Result<(), ContractError> {
-    let token_info = TOKEN_INFO.load(deps.storage)?;
+    let controller = CONTROLLER.load(deps.storage)?;
     let can_transfer: CanTransferResp = deps.querier.query_wasm_smart(
-        token_info.controller,
+        controller,
         &ControllerQuery::CanTransfer {
             token: env.contract.address.to_string(),
             account,
@@ -148,6 +148,35 @@ fn send(
     Ok(res)
 }
 
+pub fn mint(
+    deps: DepsMut,
+    info: MessageInfo,
+    recipient: String,
+    amount: Uint128,
+) -> Result<Response, ContractError> {
+    let controller = CONTROLLER.load(deps.storage)?;
+    if info.sender != controller {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    let recipient_addr = deps.api.addr_validate(&recipient)?;
+    BALANCES.update(
+        deps.storage,
+        &recipient_addr,
+        |balance: Option<Uint128>| -> StdResult<_> { Ok(balance.unwrap_or_default() + amount) },
+    )?;
+
+    TOTAL_SUPPLY.update(deps.storage, |supply| -> StdResult<_> {
+        Ok(supply + amount)
+    })?;
+
+    let res = Response::new()
+        .add_attribute("action", "mint")
+        .add_attribute("to", recipient)
+        .add_attribute("amount", amount);
+    Ok(res)
+}
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
@@ -164,6 +193,7 @@ pub fn execute(
             amount,
             msg,
         } => send(deps, env, info, contract, amount, msg),
+        Mint { recipient, amount } => mint(deps, info, recipient, amount),
         _ => todo!(),
     }
 }
