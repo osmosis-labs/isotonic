@@ -8,7 +8,7 @@ workflows:
   build:
     jobs:
       - lint
-      - wasm-build
+      - wasm_build
   deploy:
     jobs:
       - build_and_upload_contracts:
@@ -28,7 +28,7 @@ jobs:
   contract_lendex_token:
     docker:
       - image: rust:1.57.0
-    working_directory: ~/project/contracts/lendex_token
+    working_directory: ~/project/contracts/lendex-token
     steps:
       - checkout:
           path: ~/project
@@ -97,7 +97,6 @@ jobs:
       - run:
           name: Clippy linting on workspace
           command: cargo clippy --tests -- -D warnings
-
       - run:
           name: Check formatting of workspace
           command: cargo fmt -- --check
@@ -113,7 +112,7 @@ jobs:
   # We don't run the wasm build per contract build, and then reuse a lot of the same dependencies, so this speeds up CI time
   # for all the other tests.
   # We also sanity-check the resultant wasm files.
-  wasm-build:
+  wasm_build:
     docker:
       - image: rust:1.57.0
     steps:
