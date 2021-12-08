@@ -3,12 +3,29 @@
   "title": "InstantiateMsg",
   "type": "object",
   "required": [
-    "count"
+    "controller",
+    "decimals",
+    "name",
+    "symbol"
   ],
   "properties": {
-    "count": {
+    "controller": {
+      "description": "Controller is contract allowed to ming, burn, rebase, and must be checked with to enable transfer",
+      "type": "string"
+    },
+    "decimals": {
+      "description": "Token precision for displaying",
       "type": "integer",
-      "format": "int32"
+      "format": "uint8",
+      "minimum": 0.0
+    },
+    "name": {
+      "description": "Token name",
+      "type": "string"
+    },
+    "symbol": {
+      "description": "Token symbol",
+      "type": "string"
     }
   }
 }
