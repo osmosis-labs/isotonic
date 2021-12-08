@@ -65,10 +65,10 @@ pub enum CanTransferResp {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     /// Returns the current balance of the given address, 0 if unset.
-    /// Return type: BalanceResponse.
+    /// Return type: `cw20::BalanceResponse`.
     Balance { address: String },
     /// Returns metadata on the contract - name, decimals, supply, etc.
-    /// Return type: TokenInfoResponse.
+    /// Return type: `TokenInfoResponse`.
     TokenInfo {},
 }
 

@@ -4,10 +4,12 @@ use cosmwasm_std::{
     to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
 };
 use cw2::set_contract_version;
-use cw20::Cw20ReceiveMsg;
+use cw20::{BalanceResponse, Cw20ReceiveMsg};
 
 use crate::error::ContractError;
-use crate::msg::{CanTransferResp, ControllerQuery, ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{
+    CanTransferResp, ControllerQuery, ExecuteMsg, InstantiateMsg, QueryMsg, TokenInfoResponse,
+};
 use crate::state::{TokenInfo, BALANCES, CONTROLLER, TOKEN_INFO, TOTAL_SUPPLY};
 
 // version info for migration info
@@ -18,7 +20,7 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
@@ -227,9 +229,37 @@ pub fn execute(
     }
 }
 
+/// Handler for `QueryMsg::Balance`
+pub fn query_balance(deps: Deps, address: String) -> StdResult<BalanceResponse> {
+    let address = deps.api.addr_validate(&address)?;
+    let balance = BALANCES
+        .may_load(deps.storage, &address)?
+        .unwrap_or_default();
+    Ok(BalanceResponse { balance })
+}
+
+/// Handler for `QueryMsg::TokenInfo`
+pub fn query_token_info(deps: Deps) -> StdResult<TokenInfoResponse> {
+    let token_info = TOKEN_INFO.load(deps.storage)?;
+    let total_supply = TOTAL_SUPPLY.load(deps.storage)?;
+
+    Ok(TokenInfoResponse {
+        name: token_info.name,
+        symbol: token_info.symbol,
+        decimals: token_info.decimals,
+        total_supply,
+    })
+}
+
+/// `QueryMsg` entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    todo!()
+    use QueryMsg::*;
+
+    match msg {
+        Balance { address } => to_binary(&query_balance(deps, address)?),
+        TokenInfo {} => to_binary(&query_token_info(deps)?),
+    }
 }
 
 #[cfg(test)]
