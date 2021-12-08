@@ -45,7 +45,7 @@ pub enum ControllerQuery {
         token: String,
         /// Address that wishes to transfer
         account: String,
-        /// The amount we wish to transfer from theri account
+        /// The amount we wish to transfer from their account
         amount: Uint128,
     },
 }
