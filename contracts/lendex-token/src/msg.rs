@@ -22,8 +22,6 @@ pub enum ExecuteMsg {
     /// Requires check for transfer possibility by `ControllerQuery::CanTransfer` call to
     /// controller.
     Transfer { recipient: String, amount: Uint128 },
-    /// Reserved for controller
-    Burn { amount: Uint128 },
     /// Send is a base message to transfer tokens to a contract and trigger an action
     /// on the receiving contract.
     /// Requires check for transfer possibility by `ControllerQuery::CanTransfer` call to
@@ -35,6 +33,8 @@ pub enum ExecuteMsg {
     },
     /// Reserved for controller
     Mint { recipient: String, amount: Uint128 },
+    /// Reserved for controller
+    Burn { amount: Uint128 },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
