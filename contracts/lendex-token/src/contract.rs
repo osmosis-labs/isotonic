@@ -299,3 +299,75 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         Multiplier {} => to_binary(&query_multiplier(deps)?),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+
+    use super::*;
+
+    #[test]
+    fn rebase_works() {
+        let mut deps = mock_dependencies();
+        let controller = "controller";
+        let instantiate_msg = InstantiateMsg {
+            name: "Cash Token".to_string(),
+            symbol: "CASH".to_string(),
+            decimals: 9,
+            controller: controller.to_string(),
+        };
+        let info = mock_info("creator", &[]);
+        let env = mock_env();
+        let res = instantiate(deps.as_mut(), env, info, instantiate_msg).unwrap();
+        assert_eq!(0, res.messages.len());
+
+        // Multiplier is 1.0 at first
+        assert_eq!(Decimal::one(), MULTIPLIER.load(&deps.storage).unwrap());
+
+        // We rebase by 1.2, multiplier is 1.2
+        let info = mock_info(controller, &[]);
+        rebase(deps.as_mut(), info.clone(), Decimal::percent(120)).unwrap();
+        assert_eq!(
+            Decimal::percent(120),
+            MULTIPLIER.load(&deps.storage).unwrap()
+        );
+
+        // We rebase by 1.2, multiplier is 1.44
+        rebase(deps.as_mut(), info, Decimal::percent(120)).unwrap();
+        assert_eq!(
+            Decimal::percent(144),
+            MULTIPLIER.load(&deps.storage).unwrap()
+        );
+    }
+
+    #[test]
+    fn rebase_query_works() {
+        let mut deps = mock_dependencies();
+        let controller = "controller";
+        let instantiate_msg = InstantiateMsg {
+            name: "Cash Token".to_string(),
+            symbol: "CASH".to_string(),
+            decimals: 9,
+            controller: controller.to_string(),
+        };
+        let info = mock_info("creator", &[]);
+        let env = mock_env();
+        let res = instantiate(deps.as_mut(), env, info, instantiate_msg).unwrap();
+        assert_eq!(0, res.messages.len());
+
+        let info = mock_info(controller, &[]);
+        rebase(deps.as_mut(), info.clone(), Decimal::percent(120)).unwrap();
+        assert_eq!(
+            Decimal::percent(120),
+            MULTIPLIER.load(&deps.storage).unwrap()
+        );
+
+        let res = query_multiplier(deps.as_ref()).unwrap();
+        assert_eq!(
+            MultiplierResponse {
+                multiplier: Decimal::percent(120)
+            },
+            res
+        );
+    }
+}
