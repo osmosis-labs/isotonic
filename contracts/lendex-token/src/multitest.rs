@@ -1,4 +1,5 @@
 pub mod controller;
+pub mod receiver;
 pub mod suite;
 
 use crate::msg::TokenInfoResponse;
@@ -58,7 +59,7 @@ mod minting {
         let err = suite.mint(minter, lender, Uint128::new(100)).unwrap_err();
 
         assert_eq!(ContractError::Unauthorized {}, err.downcast().unwrap());
-        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(0));
+        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::zero());
         assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
         assert_eq!(suite.query_balance(minter).unwrap(), Uint128::zero());
     }
@@ -175,12 +176,12 @@ mod transfer {
             err.downcast().unwrap()
         );
         assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(100));
-        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::new(0));
+        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::zero());
         assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
     }
 
     #[test]
-    fn not_enought_transferable() {
+    fn not_enough_transferable() {
         let lender = "lender";
         let receiver = "receiver";
         let mut suite = SuiteBuilder::new()
@@ -203,7 +204,7 @@ mod transfer {
             err.downcast().unwrap()
         );
         assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(200));
-        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::new(0));
+        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::zero());
         assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
     }
 
@@ -224,12 +225,166 @@ mod transfer {
 
         assert_eq!(
             ContractError::CannotTransfer {
-                max_transferable: Uint128::new(0),
+                max_transferable: Uint128::zero(),
             },
             err.downcast().unwrap()
         );
         assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(200));
-        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::new(0));
+        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::zero());
+        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+    }
+}
+
+mod send {
+    use super::*;
+    use crate::multitest::receiver::Cw20ExecMsg;
+    use cosmwasm_std::to_binary;
+
+    #[test]
+    fn proper() {
+        let lender = "lender";
+        let mut suite = SuiteBuilder::new()
+            .with_transferable(lender, Uint128::new(100))
+            .build();
+        let controller = suite.controller();
+        let controller = controller.as_str();
+        let receiver = suite.receiver();
+        let receiver = receiver.as_str();
+
+        // Preparation to have anything to transfer
+        suite.mint(controller, lender, Uint128::new(100)).unwrap();
+
+        let exec = to_binary(&Cw20ExecMsg::Valid {}).unwrap();
+
+        suite
+            .send(lender, receiver, Uint128::new(40), exec)
+            .unwrap();
+
+        assert_eq!(suite.query_receiver().unwrap(), 1);
+        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(60));
+        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::new(40));
+        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+    }
+
+    #[test]
+    fn remote_call_fails() {
+        let lender = "lender";
+        let mut suite = SuiteBuilder::new()
+            .with_transferable(lender, Uint128::new(100))
+            .build();
+        let controller = suite.controller();
+        let controller = controller.as_str();
+        let receiver = suite.receiver();
+        let receiver = receiver.as_str();
+
+        // Preparation to have anything to transfer
+        suite.mint(controller, lender, Uint128::new(100)).unwrap();
+
+        let exec = to_binary(&Cw20ExecMsg::Invalid {}).unwrap();
+
+        let err = suite
+            .send(lender, receiver, Uint128::new(40), exec)
+            .unwrap_err();
+
+        assert_eq!("Invalid message on receiver", err.to_string());
+        assert_eq!(suite.query_receiver().unwrap(), 0);
+        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(100));
+        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::zero());
+        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+    }
+
+    #[test]
+    fn overflow() {
+        let lender = "lender";
+        let mut suite = SuiteBuilder::new()
+            .with_transferable(lender, Uint128::new(200))
+            .build();
+        let controller = suite.controller();
+        let controller = controller.as_str();
+        let receiver = suite.receiver();
+        let receiver = receiver.as_str();
+
+        // Preparation to have anything to transfer
+        suite.mint(controller, lender, Uint128::new(100)).unwrap();
+
+        let exec = to_binary(&Cw20ExecMsg::Valid {}).unwrap();
+
+        let err = suite
+            .send(lender, receiver, Uint128::new(140), exec)
+            .unwrap_err();
+
+        assert_eq!(
+            ContractError::InsufficientTokens {
+                available: Uint128::new(100),
+                needed: Uint128::new(140)
+            },
+            err.downcast().unwrap()
+        );
+        assert_eq!(suite.query_receiver().unwrap(), 0);
+        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(100));
+        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::zero());
+        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+    }
+
+    #[test]
+    fn not_enough_transferable() {
+        let lender = "lender";
+        let mut suite = SuiteBuilder::new()
+            .with_transferable(lender, Uint128::new(100))
+            .build();
+        let controller = suite.controller();
+        let controller = controller.as_str();
+        let receiver = suite.receiver();
+        let receiver = receiver.as_str();
+
+        // Preparation to have anything to transfer
+        suite.mint(controller, lender, Uint128::new(200)).unwrap();
+
+        let exec = to_binary(&Cw20ExecMsg::Valid {}).unwrap();
+
+        let err = suite
+            .send(lender, receiver, Uint128::new(140), exec)
+            .unwrap_err();
+
+        assert_eq!(
+            ContractError::CannotTransfer {
+                max_transferable: Uint128::new(100),
+            },
+            err.downcast().unwrap()
+        );
+        assert_eq!(suite.query_receiver().unwrap(), 0);
+        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(200));
+        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::zero());
+        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+    }
+
+    #[test]
+    fn no_transferable() {
+        let lender = "lender";
+        let mut suite = Suite::new();
+        let controller = suite.controller();
+        let controller = controller.as_str();
+        let receiver = suite.receiver();
+        let receiver = receiver.as_str();
+
+        // Preparation to have anything to transfer
+        suite.mint(controller, lender, Uint128::new(200)).unwrap();
+
+        let exec = to_binary(&Cw20ExecMsg::Valid {}).unwrap();
+
+        let err = suite
+            .send(lender, receiver, Uint128::new(140), exec)
+            .unwrap_err();
+
+        assert_eq!(
+            ContractError::CannotTransfer {
+                max_transferable: Uint128::zero(),
+            },
+            err.downcast().unwrap()
+        );
+        assert_eq!(suite.query_receiver().unwrap(), 0);
+        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(200));
+        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::zero());
         assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
     }
 }

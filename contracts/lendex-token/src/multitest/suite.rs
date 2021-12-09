@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::msg::{BalanceResponse, ExecuteMsg, InstantiateMsg, QueryMsg, TokenInfoResponse};
 use crate::multitest::controller::Controller;
+use crate::multitest::receiver::{QueryResp as ReceiverQueryResp, Receiver};
 use anyhow::{anyhow, Result as AnyResult};
 use cosmwasm_std::{Addr, Binary, Empty, Uint128};
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
@@ -94,10 +95,16 @@ impl SuiteBuilder {
             )
             .unwrap();
 
+        let receiver_id = app.store_code(Box::new(Receiver::new()));
+        let receiver = app
+            .instantiate_contract(receiver_id, owner, &Empty {}, &[], "Receiver", None)
+            .unwrap();
+
         Suite {
             app,
             controller,
             lendex,
+            receiver,
         }
     }
 }
@@ -110,6 +117,8 @@ pub struct Suite {
     controller: Addr,
     /// Address of lendex contract
     lendex: Addr,
+    /// Address of cw1 contract
+    receiver: Addr,
 }
 
 impl Suite {
@@ -121,6 +130,11 @@ impl Suite {
     /// Gives controller address back
     pub fn controller(&self) -> Addr {
         self.controller.clone()
+    }
+
+    /// Gives receiver address back
+    pub fn receiver(&self) -> Addr {
+        self.receiver.clone()
     }
 
     /// Executes transfer on lendex contract
@@ -214,5 +228,16 @@ impl Suite {
             .wrap()
             .query_wasm_smart(self.lendex.clone(), &QueryMsg::TokenInfo {})
             .map_err(|err| anyhow!(err))
+    }
+
+    /// Queries receiver for count of valid messages it received
+    pub fn query_receiver(&self) -> AnyResult<u128> {
+        let resp: ReceiverQueryResp = self
+            .app
+            .wrap()
+            .query_wasm_smart(self.receiver.clone(), &Empty {})
+            .map_err(|err| anyhow!(err))?;
+
+        Ok(resp.counter.into())
     }
 }
