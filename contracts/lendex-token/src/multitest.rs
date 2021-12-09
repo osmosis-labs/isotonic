@@ -49,6 +49,20 @@ mod minting {
     }
 
     #[test]
+    fn zero_amount() {
+        let mut suite = Suite::new();
+        let lender = "lender";
+        let controller = suite.controller();
+        let controller = controller.as_str();
+
+        let err = suite.mint(controller, lender, Uint128::zero()).unwrap_err();
+
+        assert_eq!(ContractError::InvalidZeroAmount {}, err.downcast().unwrap());
+        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::zero());
+        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+    }
+
+    #[test]
     fn by_non_controller() {
         let mut suite = Suite::new();
         let lender = "lender";
@@ -83,6 +97,24 @@ mod burning {
         suite.burn(controller, Uint128::new(50)).unwrap();
 
         assert_eq!(suite.query_balance(controller).unwrap(), Uint128::new(50));
+    }
+
+    #[test]
+    fn zero_amount() {
+        let mut suite = Suite::new();
+        let controller = suite.controller();
+        let controller = controller.as_str();
+
+        // Preparation to have anything to burn
+        suite
+            .mint(controller, controller, Uint128::new(100))
+            .unwrap();
+
+        // Actually burning
+        let err = suite.burn(controller, Uint128::zero()).unwrap_err();
+
+        assert_eq!(ContractError::InvalidZeroAmount {}, err.downcast().unwrap());
+        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::new(100));
     }
 
     #[test]
@@ -148,6 +180,29 @@ mod transfer {
 
         assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(60));
         assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::new(40));
+        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+    }
+
+    #[test]
+    fn zero_amount() {
+        let lender = "lender";
+        let receiver = "receiver";
+        let mut suite = SuiteBuilder::new()
+            .with_transferable(lender, Uint128::new(100))
+            .build();
+        let controller = suite.controller();
+        let controller = controller.as_str();
+
+        // Preparation to have anything to transfer
+        suite.mint(controller, lender, Uint128::new(100)).unwrap();
+
+        let err = suite
+            .transfer(lender, receiver, Uint128::zero())
+            .unwrap_err();
+
+        assert_eq!(ContractError::InvalidZeroAmount {}, err.downcast().unwrap());
+        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(100));
+        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::zero());
         assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
     }
 
@@ -263,6 +318,33 @@ mod send {
         assert_eq!(suite.query_receiver().unwrap(), 1);
         assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(60));
         assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::new(40));
+        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+    }
+
+    #[test]
+    fn zero_amount() {
+        let lender = "lender";
+        let mut suite = SuiteBuilder::new()
+            .with_transferable(lender, Uint128::new(100))
+            .build();
+        let controller = suite.controller();
+        let controller = controller.as_str();
+        let receiver = suite.receiver();
+        let receiver = receiver.as_str();
+
+        // Preparation to have anything to transfer
+        suite.mint(controller, lender, Uint128::new(100)).unwrap();
+
+        let exec = to_binary(&Cw20ExecMsg::Valid {}).unwrap();
+
+        let err = suite
+            .send(lender, receiver, Uint128::zero(), exec)
+            .unwrap_err();
+
+        assert_eq!(ContractError::InvalidZeroAmount {}, err.downcast().unwrap());
+        assert_eq!(suite.query_receiver().unwrap(), 0);
+        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(100));
+        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::zero());
         assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
     }
 

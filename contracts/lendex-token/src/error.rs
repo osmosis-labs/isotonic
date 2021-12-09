@@ -10,7 +10,7 @@ pub enum ContractError {
     Unauthorized {},
 
     #[error("Cannot process zero tokens")]
-    InvalidZeroAmount,
+    InvalidZeroAmount {},
 
     #[error("Cannot transfer tokens - controller refuses to transfer more than {max_transferable} tokens")]
     CannotTransfer { max_transferable: Uint128 },
