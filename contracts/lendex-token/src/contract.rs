@@ -356,7 +356,7 @@ mod tests {
         assert_eq!(0, res.messages.len());
 
         let info = mock_info(controller, &[]);
-        rebase(deps.as_mut(), info.clone(), Decimal::percent(120)).unwrap();
+        rebase(deps.as_mut(), info, Decimal::percent(120)).unwrap();
         assert_eq!(
             Decimal::percent(120),
             MULTIPLIER.load(&deps.storage).unwrap()
