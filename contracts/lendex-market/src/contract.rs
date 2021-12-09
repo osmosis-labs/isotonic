@@ -18,17 +18,25 @@ pub fn instantiate(
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    let state = State {
-        count: msg.count,
-        owner: info.sender.clone(),
-    };
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    STATE.save(deps.storage, &state)?;
+
+    let ltoken = lendex_token::msg::InstantiateMsg {
+        name: "Lent".to_owned() + &msg.name,
+        symbol: "L".to_owned() + &msg.symbol,
+        decimals: msg.decimals,
+        controller: "TBD".to_owned(),
+    };
+    let btoken = lendex_token::msg::InstantiateMsg {
+        name: "Borrowed".to_owned() + &msg.name,
+        symbol: "B".to_owned() + &msg.symbol,
+        decimals: msg.decimals,
+        controller: "TBD".to_owned(),
+    };
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
         .add_attribute("owner", info.sender)
-        .add_attribute("count", msg.count.to_string()))
+    )
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

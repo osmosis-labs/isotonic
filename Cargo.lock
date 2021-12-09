@@ -409,6 +409,7 @@ dependencies = [
  "cosmwasm-storage",
  "cw-storage-plus",
  "cw2",
+ "lendex-token",
  "schemars",
  "serde",
  "thiserror",
