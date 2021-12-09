@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{BalanceResponse, ExecuteMsg, InstantiateMsg, QueryMsg, TokenInfoResponse};
 use crate::multitest::controller::Controller;
 use anyhow::{anyhow, Result as AnyResult};
 use cosmwasm_std::{Addr, Binary, Empty, Uint128};
-use cw20::{BalanceResponse, TokenInfoResponse};
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
 
 fn contract_lendex() -> Box<dyn Contract<Empty>> {
@@ -31,7 +30,7 @@ pub struct SuiteBuilder {
 }
 
 impl SuiteBuilder {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             name: "lendex".to_owned(),
             symbol: "LDX".to_owned(),
@@ -40,13 +39,28 @@ impl SuiteBuilder {
         }
     }
 
-    fn with_transfeable(mut self, sender: String, amount: Uint128) -> Self {
-        *self.transferable.entry(sender).or_default() += amount;
+    pub fn with_name(mut self, name: impl ToString) -> Self {
+        self.name = name.to_string();
+        self
+    }
+
+    pub fn with_symbol(mut self, symbol: impl ToString) -> Self {
+        self.symbol = symbol.to_string();
+        self
+    }
+
+    pub fn with_decimals(mut self, decimals: u8) -> Self {
+        self.decimals = decimals;
+        self
+    }
+
+    pub fn with_transfeable(mut self, sender: impl ToString, amount: Uint128) -> Self {
+        *self.transferable.entry(sender.to_string()).or_default() += amount;
         self
     }
 
     #[track_caller]
-    fn build(self) -> Suite {
+    pub fn build(self) -> Suite {
         let mut app = App::default();
         let owner = Addr::unchecked("owner");
 
@@ -82,7 +96,6 @@ impl SuiteBuilder {
 
         Suite {
             app,
-            owner,
             controller,
             lendex,
         }
@@ -93,8 +106,6 @@ impl SuiteBuilder {
 pub struct Suite {
     /// The multitest app
     app: App,
-    /// Owner address used for admministrative messages
-    owner: Addr,
     /// Address of controller contract
     controller: Addr,
     /// Address of lendex contract
@@ -107,8 +118,13 @@ impl Suite {
         SuiteBuilder::new().build()
     }
 
+    /// Gives controller address back
+    pub fn controller(&self) -> Addr {
+        self.controller.clone()
+    }
+
     /// Executes transfer on lendex contract
-    fn transfer(
+    pub fn transfer(
         &mut self,
         sender: &str,
         recipient: &str,
@@ -128,7 +144,7 @@ impl Suite {
     }
 
     /// Executes send on lendex contract
-    fn send(
+    pub fn send(
         &mut self,
         sender: &str,
         recipient: &str,
@@ -150,7 +166,12 @@ impl Suite {
     }
 
     /// Executes mint on lendex contract
-    fn mint(&mut self, sender: &str, recipient: &str, amount: Uint128) -> AnyResult<AppResponse> {
+    pub fn mint(
+        &mut self,
+        sender: &str,
+        recipient: &str,
+        amount: Uint128,
+    ) -> AnyResult<AppResponse> {
         self.app
             .execute_contract(
                 Addr::unchecked(sender),
@@ -165,7 +186,7 @@ impl Suite {
     }
 
     /// Executes burn on lendex contract
-    fn burn(&mut self, sender: &str, amount: Uint128) -> AnyResult<AppResponse> {
+    pub fn burn(&mut self, sender: &str, amount: Uint128) -> AnyResult<AppResponse> {
         self.app
             .execute_contract(
                 Addr::unchecked(sender),
@@ -177,7 +198,7 @@ impl Suite {
     }
 
     /// Queries lendex contract for balance
-    fn query_balance(&self, address: &str) -> AnyResult<Uint128> {
+    pub fn query_balance(&self, address: &str) -> AnyResult<Uint128> {
         let resp: BalanceResponse = self.app.wrap().query_wasm_smart(
             self.lendex.clone(),
             &QueryMsg::Balance {
@@ -188,7 +209,7 @@ impl Suite {
     }
 
     /// Queries lendex contract for token info
-    fn query_token_info(&self) -> AnyResult<TokenInfoResponse> {
+    pub fn query_token_info(&self) -> AnyResult<TokenInfoResponse> {
         self.app
             .wrap()
             .query_wasm_smart(self.lendex.clone(), &QueryMsg::TokenInfo {})

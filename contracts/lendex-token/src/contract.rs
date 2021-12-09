@@ -4,14 +4,13 @@ use cosmwasm_std::{
     to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
 };
 use cw2::set_contract_version;
-use cw20::{BalanceResponse, Cw20ReceiveMsg};
 
 use std::cmp::Ordering;
 
 use crate::error::ContractError;
 use crate::msg::{
-    ControllerQuery, ExecuteMsg, InstantiateMsg, QueryMsg, TokenInfoResponse,
-    TransferableAmountResp,
+    BalanceResponse, ControllerQuery, Cw20ReceiveMsg, ExecuteMsg, InstantiateMsg, QueryMsg,
+    TokenInfoResponse, TransferableAmountResp,
 };
 use crate::state::{TokenInfo, BALANCES, CONTROLLER, TOKEN_INFO, TOTAL_SUPPLY};
 
@@ -85,11 +84,15 @@ fn transfer_tokens(
     BALANCES.update(
         deps.storage,
         &sender_addr,
-        |balance: Option<Uint128>| -> StdResult<_> {
-            balance
-                .unwrap_or_default()
-                .checked_sub(amount)
-                .map_err(Into::into)
+        |balance: Option<Uint128>| -> Result<_, ContractError> {
+            let balance = balance.unwrap_or_default();
+            balance.checked_sub(amount).map_err(|_| {
+                ContractError::InsufficientTokens {
+                    available: balance.clone(),
+                    needed: amount.clone(),
+                }
+                .into()
+            })
         },
     )?;
 
@@ -191,13 +194,25 @@ pub fn burn(deps: DepsMut, info: MessageInfo, amount: Uint128) -> Result<Respons
     BALANCES.update(
         deps.storage,
         &info.sender,
-        |balance: Option<Uint128>| -> StdResult<_> {
-            Ok(balance.unwrap_or_default().checked_sub(amount)?)
+        |balance: Option<Uint128>| -> Result<_, ContractError> {
+            let balance = balance.unwrap_or_default();
+            Ok(balance
+                .checked_sub(amount)
+                .map_err(|_| ContractError::InsufficientTokens {
+                    available: balance.clone(),
+                    needed: amount.clone(),
+                })?)
         },
     )?;
 
-    TOTAL_SUPPLY.update(deps.storage, |supply| -> StdResult<_> {
-        supply.checked_sub(amount).map_err(Into::into)
+    TOTAL_SUPPLY.update(deps.storage, |supply| -> Result<_, ContractError> {
+        supply.checked_sub(amount).map_err(|_| {
+            ContractError::InsufficientTokens {
+                available: supply.clone(),
+                needed: amount.clone(),
+            }
+            .into()
+        })
     })?;
 
     let res = Response::new()
