@@ -54,7 +54,7 @@ impl SuiteBuilder {
         self
     }
 
-    pub fn with_transfeable(mut self, sender: impl ToString, amount: Uint128) -> Self {
+    pub fn with_transferable(mut self, sender: impl ToString, amount: Uint128) -> Self {
         *self.transferable.entry(sender.to_string()).or_default() += amount;
         self
     }

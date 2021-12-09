@@ -5,8 +5,6 @@ use cosmwasm_std::{
 };
 use cw2::set_contract_version;
 
-use std::cmp::Ordering;
-
 use crate::error::ContractError;
 use crate::msg::{
     BalanceResponse, ControllerQuery, Cw20ReceiveMsg, ExecuteMsg, InstantiateMsg, QueryMsg,

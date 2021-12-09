@@ -1,8 +1,9 @@
-use std::alloc::alloc;
 use std::collections::HashMap;
 
 use anyhow::{anyhow, Result as AnyResult};
-use cosmwasm_std::{from_slice, to_binary, Empty, Response, Uint128};
+use cosmwasm_std::{
+    from_slice, to_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Reply, Response, Uint128,
+};
 use cw_multi_test::Contract;
 
 use crate::msg::{ControllerQuery, TransferableAmountResp};
@@ -33,30 +34,25 @@ impl Controller {
 impl Contract<Empty> for Controller {
     fn instantiate(
         &self,
-        _deps: cosmwasm_std::DepsMut,
-        _env: cosmwasm_std::Env,
-        _info: cosmwasm_std::MessageInfo,
+        _deps: DepsMut,
+        _env: Env,
+        _info: MessageInfo,
         _msg: Vec<u8>,
-    ) -> anyhow::Result<cosmwasm_std::Response<Empty>> {
+    ) -> anyhow::Result<Response<Empty>> {
         Ok(Response::default())
     }
 
     fn execute(
         &self,
-        deps: cosmwasm_std::DepsMut,
-        env: cosmwasm_std::Env,
-        info: cosmwasm_std::MessageInfo,
-        msg: Vec<u8>,
-    ) -> AnyResult<cosmwasm_std::Response<Empty>> {
+        _deps: DepsMut,
+        _env: Env,
+        _info: MessageInfo,
+        _msg: Vec<u8>,
+    ) -> AnyResult<Response<Empty>> {
         Err(anyhow!("Controller stub execution"))
     }
 
-    fn query(
-        &self,
-        deps: cosmwasm_std::Deps,
-        env: cosmwasm_std::Env,
-        msg: Vec<u8>,
-    ) -> anyhow::Result<cosmwasm_std::Binary> {
+    fn query(&self, _deps: Deps, _env: Env, msg: Vec<u8>) -> anyhow::Result<Binary> {
         use ControllerQuery::*;
 
         let msg: ControllerQuery = from_slice(&msg)?;
@@ -68,30 +64,15 @@ impl Contract<Empty> for Controller {
         }
     }
 
-    fn sudo(
-        &self,
-        deps: cosmwasm_std::DepsMut,
-        env: cosmwasm_std::Env,
-        msg: Vec<u8>,
-    ) -> anyhow::Result<cosmwasm_std::Response<Empty>> {
+    fn sudo(&self, _deps: DepsMut, _env: Env, _msg: Vec<u8>) -> anyhow::Result<Response<Empty>> {
         Err(anyhow!("Controller stub sudo"))
     }
 
-    fn migrate(
-        &self,
-        deps: cosmwasm_std::DepsMut,
-        env: cosmwasm_std::Env,
-        msg: Vec<u8>,
-    ) -> AnyResult<cosmwasm_std::Response<Empty>> {
+    fn migrate(&self, _deps: DepsMut, _env: Env, _msg: Vec<u8>) -> AnyResult<Response<Empty>> {
         Err(anyhow!("Controller stub migrate"))
     }
 
-    fn reply(
-        &self,
-        deps: cosmwasm_std::DepsMut,
-        env: cosmwasm_std::Env,
-        msg: cosmwasm_std::Reply,
-    ) -> anyhow::Result<cosmwasm_std::Response<Empty>> {
+    fn reply(&self, _deps: DepsMut, _env: Env, _msg: Reply) -> anyhow::Result<Response<Empty>> {
         Err(anyhow!("Controller stub reply"))
     }
 }
