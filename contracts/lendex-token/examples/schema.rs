@@ -3,8 +3,7 @@ use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
-use cw20::BalanceResponse;
-use lendex_token::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, TokenInfoResponse};
+use lendex_token::msg::{BalanceResponse, ExecuteMsg, InstantiateMsg, QueryMsg, TokenInfoResponse};
 
 fn main() {
     let mut out_dir = current_dir().unwrap();
