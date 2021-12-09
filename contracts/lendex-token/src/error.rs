@@ -1,7 +1,7 @@
 use cosmwasm_std::{StdError, Uint128};
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
@@ -10,8 +10,20 @@ pub enum ContractError {
     Unauthorized {},
 
     #[error("Cannot process zero tokens")]
-    InvalidZeroAmount,
+    InvalidZeroAmount {},
 
     #[error("Cannot transfer tokens - controller refuses to transfer more than {max_transferable} tokens")]
     CannotTransfer { max_transferable: Uint128 },
+
+    #[error("Performing operation while there is not enough tokens, {available} tokens available, {needed} needed")]
+    InsufficientTokens { available: Uint128, needed: Uint128 },
+}
+
+impl ContractError {
+    pub fn insufficient_tokens(available: impl Into<Uint128>, needed: impl Into<Uint128>) -> Self {
+        Self::InsufficientTokens {
+            available: available.into(),
+            needed: needed.into(),
+        }
+    }
 }

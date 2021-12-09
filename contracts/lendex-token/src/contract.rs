@@ -4,11 +4,11 @@ use cosmwasm_std::{
     to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
 };
 use cw2::set_contract_version;
-use cw20::{BalanceResponse, Cw20ReceiveMsg};
 
 use crate::error::ContractError;
 use crate::msg::{
-    CanTransferResp, ControllerQuery, ExecuteMsg, InstantiateMsg, QueryMsg, TokenInfoResponse,
+    BalanceResponse, ControllerQuery, Cw20ReceiveMsg, ExecuteMsg, InstantiateMsg, QueryMsg,
+    TokenInfoResponse, TransferableAmountResp,
 };
 use crate::state::{TokenInfo, BALANCES, CONTROLLER, TOKEN_INFO, TOTAL_SUPPLY};
 
@@ -45,23 +45,20 @@ fn can_transfer(
     amount: Uint128,
 ) -> Result<(), ContractError> {
     let controller = CONTROLLER.load(deps.storage)?;
-    let can_transfer: CanTransferResp = deps.querier.query_wasm_smart(
+    let transferable: TransferableAmountResp = deps.querier.query_wasm_smart(
         controller,
-        &ControllerQuery::CanTransfer {
+        &ControllerQuery::TransferableAmount {
             token: env.contract.address.to_string(),
             account,
-            amount,
         },
     )?;
 
-    match can_transfer {
-        CanTransferResp::None => Err(ContractError::CannotTransfer {
-            max_transferable: Uint128::zero(),
-        }),
-        CanTransferResp::Partial(max_transferable) => {
-            Err(ContractError::CannotTransfer { max_transferable })
-        }
-        CanTransferResp::Whole => Ok(()),
+    if amount <= transferable.transferable {
+        Ok(())
+    } else {
+        Err(ContractError::CannotTransfer {
+            max_transferable: transferable.transferable,
+        })
     }
 }
 
@@ -85,11 +82,11 @@ fn transfer_tokens(
     BALANCES.update(
         deps.storage,
         &sender_addr,
-        |balance: Option<Uint128>| -> StdResult<_> {
+        |balance: Option<Uint128>| -> Result<_, ContractError> {
+            let balance = balance.unwrap_or_default();
             balance
-                .unwrap_or_default()
                 .checked_sub(amount)
-                .map_err(Into::into)
+                .map_err(|_| ContractError::insufficient_tokens(balance, amount))
         },
     )?;
 
@@ -163,6 +160,10 @@ pub fn mint(
         return Err(ContractError::Unauthorized {});
     }
 
+    if amount == Uint128::zero() {
+        return Err(ContractError::InvalidZeroAmount {});
+    }
+
     let recipient_addr = deps.api.addr_validate(&recipient)?;
     BALANCES.update(
         deps.storage,
@@ -188,16 +189,25 @@ pub fn burn(deps: DepsMut, info: MessageInfo, amount: Uint128) -> Result<Respons
         return Err(ContractError::Unauthorized {});
     }
 
+    if amount == Uint128::zero() {
+        return Err(ContractError::InvalidZeroAmount {});
+    }
+
     BALANCES.update(
         deps.storage,
         &info.sender,
-        |balance: Option<Uint128>| -> StdResult<_> {
-            Ok(balance.unwrap_or_default().checked_sub(amount)?)
+        |balance: Option<Uint128>| -> Result<_, ContractError> {
+            let balance = balance.unwrap_or_default();
+            balance
+                .checked_sub(amount)
+                .map_err(|_| ContractError::insufficient_tokens(balance, amount))
         },
     )?;
 
-    TOTAL_SUPPLY.update(deps.storage, |supply| -> StdResult<_> {
-        supply.checked_sub(amount).map_err(Into::into)
+    TOTAL_SUPPLY.update(deps.storage, |supply| -> Result<_, ContractError> {
+        supply
+            .checked_sub(amount)
+            .map_err(|_| ContractError::insufficient_tokens(supply, amount))
     })?;
 
     let res = Response::new()
@@ -261,6 +271,3 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         TokenInfo {} => to_binary(&query_token_info(deps)?),
     }
 }
-
-#[cfg(test)]
-mod tests {}

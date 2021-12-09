@@ -2,6 +2,8 @@ use cosmwasm_std::{Binary, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+pub use cw20::{BalanceResponse, Cw20ReceiveMsg, TokenInfoResponse};
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     /// Token name
@@ -40,25 +42,18 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ControllerQuery {
-    CanTransfer {
+    TransferableAmount {
         /// Lendex contract address that calls "CanTransfer"
         token: String,
         /// Address that wishes to transfer
         account: String,
-        /// The amount we wish to transfer from their account
-        amount: Uint128,
     },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum CanTransferResp {
-    /// No tokens can be transferred
-    None,
-    /// Whole requested amount can be transferred
-    Whole,
-    /// Can transfer tokens, but only limited amount
-    Partial(Uint128),
+pub struct TransferableAmountResp {
+    pub transferable: Uint128,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -70,12 +65,4 @@ pub enum QueryMsg {
     /// Returns metadata on the contract - name, decimals, supply, etc.
     /// Return type: `TokenInfoResponse`.
     TokenInfo {},
-}
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
-pub struct TokenInfoResponse {
-    pub name: String,
-    pub symbol: String,
-    pub decimals: u8,
-    pub total_supply: Uint128,
 }
