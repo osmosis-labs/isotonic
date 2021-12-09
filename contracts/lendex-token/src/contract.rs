@@ -84,12 +84,12 @@ fn transfer_tokens(
         &sender_addr,
         |balance: Option<Uint128>| -> Result<_, ContractError> {
             let balance = balance.unwrap_or_default();
-            balance.checked_sub(amount).map_err(|_| {
-                ContractError::InsufficientTokens {
+            balance
+                .checked_sub(amount)
+                .map_err(|_| ContractError::InsufficientTokens {
                     available: balance,
                     needed: amount,
-                }
-            })
+                })
         },
     )?;
 
@@ -201,22 +201,22 @@ pub fn burn(deps: DepsMut, info: MessageInfo, amount: Uint128) -> Result<Respons
         &info.sender,
         |balance: Option<Uint128>| -> Result<_, ContractError> {
             let balance = balance.unwrap_or_default();
-            balance.checked_sub(amount).map_err(|_| {
-                ContractError::InsufficientTokens {
+            balance
+                .checked_sub(amount)
+                .map_err(|_| ContractError::InsufficientTokens {
                     available: balance,
                     needed: amount,
-                }
-            })
+                })
         },
     )?;
 
     TOTAL_SUPPLY.update(deps.storage, |supply| -> Result<_, ContractError> {
-        supply.checked_sub(amount).map_err(|_| {
-            ContractError::InsufficientTokens {
+        supply
+            .checked_sub(amount)
+            .map_err(|_| ContractError::InsufficientTokens {
                 available: supply,
                 needed: amount,
-            }
-        })
+            })
     })?;
 
     let res = Response::new()
