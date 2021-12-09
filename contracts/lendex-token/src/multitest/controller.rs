@@ -24,7 +24,7 @@ impl Controller {
         }
     }
 
-    fn transferable(&self, account: &String) -> TransferableAmountResp {
+    fn transferable(&self, account: &str) -> TransferableAmountResp {
         TransferableAmountResp {
             transferable: self.allowances.get(account).cloned().unwrap_or_default(),
         }
