@@ -1,7 +1,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
+    to_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
 };
 use cw2::set_contract_version;
 
@@ -10,7 +10,7 @@ use crate::msg::{
     BalanceResponse, ControllerQuery, Cw20ReceiveMsg, ExecuteMsg, InstantiateMsg, QueryMsg,
     TokenInfoResponse, TransferableAmountResp,
 };
-use crate::state::{TokenInfo, BALANCES, CONTROLLER, TOKEN_INFO, TOTAL_SUPPLY};
+use crate::state::{TokenInfo, BALANCES, CONTROLLER, MULTIPLIER, TOKEN_INFO, TOTAL_SUPPLY};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:lendex-token";
@@ -33,6 +33,7 @@ pub fn instantiate(
     TOKEN_INFO.save(deps.storage, &token_info)?;
     TOTAL_SUPPLY.save(deps.storage, &Uint128::zero())?;
     CONTROLLER.save(deps.storage, &deps.api.addr_validate(&msg.controller)?)?;
+    MULTIPLIER.save(deps.storage, &Decimal::one())?;
 
     Ok(Response::new())
 }
@@ -217,6 +218,24 @@ pub fn burn(deps: DepsMut, info: MessageInfo, amount: Uint128) -> Result<Respons
     Ok(res)
 }
 
+/// Handler for `ExecuteMsg::Rebase`
+pub fn rebase(deps: DepsMut, info: MessageInfo, ratio: Decimal) -> Result<Response, ContractError> {
+    let controller = CONTROLLER.load(deps.storage)?;
+    if info.sender != controller {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    MULTIPLIER.update(deps.storage, |multiplier: Decimal| -> StdResult<_> {
+        Ok(multiplier * ratio)
+    })?;
+
+    let res = Response::new()
+        .add_attribute("action", "rebase")
+        .add_attribute("ratio", ratio.to_string());
+
+    Ok(res)
+}
+
 /// Execution entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
@@ -236,6 +255,7 @@ pub fn execute(
         } => send(deps, env, info, contract, amount, msg),
         Mint { recipient, amount } => mint(deps, info, recipient, amount),
         Burn { amount } => burn(deps, info, amount),
+        Rebase { ratio } => rebase(deps, info, ratio),
     }
 }
 

@@ -1,4 +1,4 @@
-use cosmwasm_std::{Binary, Uint128};
+use cosmwasm_std::{Binary, Decimal, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -37,6 +37,9 @@ pub enum ExecuteMsg {
     Mint { recipient: String, amount: Uint128 },
     /// Reserved for controller
     Burn { amount: Uint128 },
+    /// Can only be called by the controller.
+    /// multiplier *= ratio
+    Rebase { ratio: Decimal },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
