@@ -5,7 +5,7 @@ use anyhow::{anyhow, Result as AnyResult};
 use cosmwasm_std::{from_slice, to_binary, Empty, Response, Uint128};
 use cw_multi_test::Contract;
 
-use crate::msg::{CanTransferResp, ControllerQuery};
+use crate::msg::{ControllerQuery, TransferableAmountResp};
 
 /// Controller contract stub allowing to easy testing the transfer without actual controller
 /// contract
@@ -23,12 +23,9 @@ impl Controller {
         }
     }
 
-    fn can_transfer(&self, account: &String, amount: Uint128) -> CanTransferResp {
-        match self.allowances.get(account) {
-            None => CanTransferResp::None,
-            Some(allowed) if allowed == &Uint128::zero() => CanTransferResp::None,
-            Some(allowed) if allowed >= &amount => CanTransferResp::Whole,
-            Some(allowed) => CanTransferResp::Partial(allowed.clone()),
+    fn transferable(&self, account: &String) -> TransferableAmountResp {
+        TransferableAmountResp {
+            transferable: self.allowances.get(account).cloned().unwrap_or_default(),
         }
     }
 }
@@ -65,9 +62,9 @@ impl Contract<Empty> for Controller {
         let msg: ControllerQuery = from_slice(&msg)?;
 
         match msg {
-            CanTransfer {
-                account, amount, ..
-            } => to_binary(&self.can_transfer(&account, amount)).map_err(Into::into),
+            TransferableAmount { account, .. } => {
+                to_binary(&self.transferable(&account)).map_err(Into::into)
+            }
         }
     }
 

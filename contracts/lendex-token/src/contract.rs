@@ -6,9 +6,12 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use cw20::{BalanceResponse, Cw20ReceiveMsg};
 
+use std::cmp::Ordering;
+
 use crate::error::ContractError;
 use crate::msg::{
-    CanTransferResp, ControllerQuery, ExecuteMsg, InstantiateMsg, QueryMsg, TokenInfoResponse,
+    ControllerQuery, ExecuteMsg, InstantiateMsg, QueryMsg, TokenInfoResponse,
+    TransferableAmountResp,
 };
 use crate::state::{TokenInfo, BALANCES, CONTROLLER, TOKEN_INFO, TOTAL_SUPPLY};
 
@@ -45,23 +48,20 @@ fn can_transfer(
     amount: Uint128,
 ) -> Result<(), ContractError> {
     let controller = CONTROLLER.load(deps.storage)?;
-    let can_transfer: CanTransferResp = deps.querier.query_wasm_smart(
+    let transferable: TransferableAmountResp = deps.querier.query_wasm_smart(
         controller,
-        &ControllerQuery::CanTransfer {
+        &ControllerQuery::TransferableAmount {
             token: env.contract.address.to_string(),
             account,
-            amount,
         },
     )?;
 
-    match can_transfer {
-        CanTransferResp::None => Err(ContractError::CannotTransfer {
-            max_transferable: Uint128::zero(),
-        }),
-        CanTransferResp::Partial(max_transferable) => {
-            Err(ContractError::CannotTransfer { max_transferable })
-        }
-        CanTransferResp::Whole => Ok(()),
+    if amount <= transferable.transferable {
+        Ok(())
+    } else {
+        Err(ContractError::CannotTransfer {
+            max_transferable: transferable.transferable,
+        })
     }
 }
 

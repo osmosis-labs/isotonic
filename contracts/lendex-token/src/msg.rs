@@ -40,25 +40,18 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ControllerQuery {
-    CanTransfer {
+    TransferableAmount {
         /// Lendex contract address that calls "CanTransfer"
         token: String,
         /// Address that wishes to transfer
         account: String,
-        /// The amount we wish to transfer from their account
-        amount: Uint128,
     },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum CanTransferResp {
-    /// No tokens can be transferred
-    None,
-    /// Whole requested amount can be transferred
-    Whole,
-    /// Can transfer tokens, but only limited amount
-    Partial(Uint128),
+pub struct TransferableAmountResp {
+    pub transferable: Uint128,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
