@@ -18,3 +18,12 @@ pub enum ContractError {
     #[error("Performing operation while there is not enough tokens, {available} tokens available, {needed} needed")]
     InsufficientTokens { available: Uint128, needed: Uint128 },
 }
+
+impl ContractError {
+    pub fn insufficient_tokens(available: impl Into<Uint128>, needed: impl Into<Uint128>) -> Self {
+        Self::InsufficientTokens {
+            available: available.into(),
+            needed: needed.into(),
+        }
+    }
+}

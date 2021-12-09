@@ -132,10 +132,7 @@ mod burning {
         let err = suite.burn(controller, Uint128::new(150)).unwrap_err();
 
         assert_eq!(
-            ContractError::InsufficientTokens {
-                available: Uint128::new(100),
-                needed: Uint128::new(150)
-            },
+            ContractError::insufficient_tokens(100u128, 150u128),
             err.downcast().unwrap()
         );
         assert_eq!(suite.query_balance(controller).unwrap(), Uint128::new(100));
@@ -224,10 +221,7 @@ mod transfer {
             .unwrap_err();
 
         assert_eq!(
-            ContractError::InsufficientTokens {
-                available: Uint128::new(100),
-                needed: Uint128::new(140)
-            },
+            ContractError::insufficient_tokens(100u128, 140u128),
             err.downcast().unwrap()
         );
         assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(100));
@@ -396,10 +390,7 @@ mod send {
             .unwrap_err();
 
         assert_eq!(
-            ContractError::InsufficientTokens {
-                available: Uint128::new(100),
-                needed: Uint128::new(140)
-            },
+            ContractError::insufficient_tokens(100u128, 140u128),
             err.downcast().unwrap()
         );
         assert_eq!(suite.query_receiver().unwrap(), 0);

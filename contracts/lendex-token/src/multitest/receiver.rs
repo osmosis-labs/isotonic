@@ -12,8 +12,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum Cw20ExecMsg {
-    Valid {},
-    Invalid {},
+    Valid,
+    Invalid,
 }
 
 /// Execute message
