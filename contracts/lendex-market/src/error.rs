@@ -8,6 +8,10 @@ pub enum ContractError {
 
     #[error("Unauthorized")]
     Unauthorized {},
-    // Add any other custom errors you like here.
-    // Look at https://docs.rs/thiserror/1.0.21/thiserror/ for details.
+
+    #[error("Unrecognised reply id: {0}")]
+    UnrecognisedReply(u64),
+
+    #[error("Invalid reply from submessage {id}, {err}")]
+    ReplyParseFailure { id: u64, err: String },
 }

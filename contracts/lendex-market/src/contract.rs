@@ -1,155 +1,139 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{
+    to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult, SubMsg,
+    WasmMsg,
+};
+use cw0::parse_reply_instantiate_data;
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::msg::{CountResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
-use crate::state::{State, STATE};
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, TokenInstantiateResponse};
+use crate::state::{Config, CONFIG};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:lendex-market";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+const LTOKEN_INIT_REPLY_ID: u64 = 1;
+const BTOKEN_INIT_REPLY_ID: u64 = 2;
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    let ltoken = lendex_token::msg::InstantiateMsg {
+    let ltoken_msg = lendex_token::msg::InstantiateMsg {
         name: "Lent".to_owned() + &msg.name,
         symbol: "L".to_owned() + &msg.symbol,
         decimals: msg.decimals,
         controller: "TBD".to_owned(),
     };
-    let btoken = lendex_token::msg::InstantiateMsg {
+    let ltoken_instantiate = WasmMsg::Instantiate {
+        admin: Some(env.contract.address.to_string()),
+        code_id: msg.token_id,
+        msg: to_binary(&ltoken_msg)?,
+        funds: vec![],
+        label: format!("ltoken_contract_{}", env.contract.address),
+    };
+    let btoken_msg = lendex_token::msg::InstantiateMsg {
         name: "Borrowed".to_owned() + &msg.name,
         symbol: "B".to_owned() + &msg.symbol,
         decimals: msg.decimals,
         controller: "TBD".to_owned(),
     };
+    let btoken_instantiate = WasmMsg::Instantiate {
+        admin: Some(env.contract.address.to_string()),
+        code_id: msg.token_id,
+        msg: to_binary(&btoken_msg)?,
+        funds: vec![],
+        label: format!("btoken_contract_{}", env.contract.address),
+    };
+
+    let cfg = Config {
+        // those will be overwritten in a response
+        ltoken_contract: Addr::unchecked(""),
+        btoken_contract: Addr::unchecked(""),
+    };
+    CONFIG.save(deps.storage, &cfg)?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
         .add_attribute("owner", info.sender)
-    )
+        .add_submessage(SubMsg::reply_on_success(
+            ltoken_instantiate,
+            LTOKEN_INIT_REPLY_ID,
+        ))
+        .add_submessage(SubMsg::reply_on_success(
+            btoken_instantiate,
+            BTOKEN_INIT_REPLY_ID,
+        )))
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+    match msg.id {
+        LTOKEN_INIT_REPLY_ID | BTOKEN_INIT_REPLY_ID => token_instantiate_reply(deps, env, msg),
+        _ => Err(ContractError::UnrecognisedReply(msg.id)),
+    }
+}
+
+pub fn token_instantiate_reply(
+    deps: DepsMut,
+    _env: Env,
+    msg: Reply,
+) -> Result<Response, ContractError> {
+    let id = msg.id;
+    let res =
+        parse_reply_instantiate_data(msg).map_err(|err| ContractError::ReplyParseFailure {
+            id,
+            err: err.to_string(),
+        })?;
+
+    let addr = deps.api.addr_validate(&res.contract_address)?;
+    if id == LTOKEN_INIT_REPLY_ID {
+        CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
+            config.ltoken_contract = addr.clone();
+            Ok(config)
+        })?
+    } else {
+        CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
+            config.btoken_contract = addr.clone();
+            Ok(config)
+        })?
+    };
+
+    let data = TokenInstantiateResponse {
+        token_contract: addr,
+    };
+
+    let resp = Response::new().set_data(to_binary(&data)?);
+
+    Ok(resp)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: DepsMut,
+    _deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
-    msg: ExecuteMsg,
+    _info: MessageInfo,
+    _msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    match msg {
-        ExecuteMsg::Increment {} => try_increment(deps),
-        ExecuteMsg::Reset { count } => try_reset(deps, info, count),
-    }
-}
-
-pub fn try_increment(deps: DepsMut) -> Result<Response, ContractError> {
-    STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
-        state.count += 1;
-        Ok(state)
-    })?;
-
-    Ok(Response::new().add_attribute("method", "try_increment"))
-}
-pub fn try_reset(deps: DepsMut, info: MessageInfo, count: i32) -> Result<Response, ContractError> {
-    STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
-        if info.sender != state.owner {
-            return Err(ContractError::Unauthorized {});
-        }
-        state.count = count;
-        Ok(state)
-    })?;
-    Ok(Response::new().add_attribute("method", "reset"))
+    Ok(Response::new())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {
-        QueryMsg::GetCount {} => to_binary(&query_count(deps)?),
-    }
+pub fn query(deps: Deps, _env: Env, _msg: QueryMsg) -> StdResult<Binary> {
+    to_binary(&query_count(deps)?)
 }
 
-fn query_count(deps: Deps) -> StdResult<CountResponse> {
-    let state = STATE.load(deps.storage)?;
-    Ok(CountResponse { count: state.count })
+fn query_count(_deps: Deps) -> StdResult<()> {
+    Ok(())
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{coins, from_binary};
-
-    #[test]
-    fn proper_initialization() {
-        let mut deps = mock_dependencies();
-
-        let msg = InstantiateMsg { count: 17 };
-        let info = mock_info("creator", &coins(1000, "earth"));
-
-        // we can just call .unwrap() to assert this was a success
-        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-        assert_eq!(0, res.messages.len());
-
-        // it worked, let's query the state
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-        let value: CountResponse = from_binary(&res).unwrap();
-        assert_eq!(17, value.count);
-    }
-
-    #[test]
-    fn increment() {
-        let mut deps = mock_dependencies();
-
-        let msg = InstantiateMsg { count: 17 };
-        let info = mock_info("creator", &coins(2, "token"));
-        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-        // beneficiary can release it
-        let info = mock_info("anyone", &coins(2, "token"));
-        let msg = ExecuteMsg::Increment {};
-        let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-        // should increase counter by 1
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-        let value: CountResponse = from_binary(&res).unwrap();
-        assert_eq!(18, value.count);
-    }
-
-    #[test]
-    fn reset() {
-        let mut deps = mock_dependencies();
-
-        let msg = InstantiateMsg { count: 17 };
-        let info = mock_info("creator", &coins(2, "token"));
-        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-        // beneficiary can release it
-        let unauth_info = mock_info("anyone", &coins(2, "token"));
-        let msg = ExecuteMsg::Reset { count: 5 };
-        let res = execute(deps.as_mut(), mock_env(), unauth_info, msg);
-        match res {
-            Err(ContractError::Unauthorized {}) => {}
-            _ => panic!("Must return unauthorized error"),
-        }
-
-        // only the original creator can reset the counter
-        let auth_info = mock_info("creator", &coins(2, "token"));
-        let msg = ExecuteMsg::Reset { count: 5 };
-        let _res = execute(deps.as_mut(), mock_env(), auth_info, msg).unwrap();
-
-        // should now be 5
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-        let value: CountResponse = from_binary(&res).unwrap();
-        assert_eq!(5, value.count);
-    }
-}
+mod tests {}
