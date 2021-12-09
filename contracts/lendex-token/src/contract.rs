@@ -7,8 +7,8 @@ use cw2::set_contract_version;
 
 use crate::error::ContractError;
 use crate::msg::{
-    BalanceResponse, ControllerQuery, Cw20ReceiveMsg, ExecuteMsg, InstantiateMsg, QueryMsg,
-    TokenInfoResponse, TransferableAmountResp,
+    BalanceResponse, ControllerQuery, Cw20ReceiveMsg, ExecuteMsg, InstantiateMsg,
+    MultiplierResponse, QueryMsg, TokenInfoResponse, TransferableAmountResp,
 };
 use crate::state::{TokenInfo, BALANCES, CONTROLLER, MULTIPLIER, TOKEN_INFO, TOTAL_SUPPLY};
 
@@ -281,6 +281,13 @@ pub fn query_token_info(deps: Deps) -> StdResult<TokenInfoResponse> {
     })
 }
 
+/// Handler for `QueryMsg::Multiplier`
+pub fn query_multiplier(deps: Deps) -> StdResult<MultiplierResponse> {
+    let multiplier = MULTIPLIER.load(deps.storage)?;
+
+    Ok(MultiplierResponse { multiplier })
+}
+
 /// `QueryMsg` entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
@@ -289,5 +296,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         Balance { address } => to_binary(&query_balance(deps, address)?),
         TokenInfo {} => to_binary(&query_token_info(deps)?),
+        Multiplier {} => to_binary(&query_multiplier(deps)?),
     }
 }

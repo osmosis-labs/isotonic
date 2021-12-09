@@ -2,7 +2,7 @@ use cosmwasm_std::{Binary, Decimal, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-pub use cw20::{BalanceResponse, Cw20ReceiveMsg, TokenInfoResponse};
+pub use cw20::{BalanceResponse, Cw20ReceiveMsg};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -68,4 +68,19 @@ pub enum QueryMsg {
     /// Returns metadata on the contract - name, decimals, supply, etc.
     /// Return type: `TokenInfoResponse`.
     TokenInfo {},
+    /// Returns the global multiplier factor.
+    Multiplier {},
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct TokenInfoResponse {
+    pub name: String,
+    pub symbol: String,
+    pub decimals: u8,
+    pub total_supply: Uint128,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct MultiplierResponse {
+    pub multiplier: Decimal,
 }
