@@ -3,12 +3,34 @@
   "title": "QueryMsg",
   "oneOf": [
     {
+      "description": "Returns the current balance of the given address, 0 if unset. Return type: `cw20::BalanceResponse`.",
       "type": "object",
       "required": [
-        "get_count"
+        "balance"
       ],
       "properties": {
-        "get_count": {
+        "balance": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns metadata on the contract - name, decimals, supply, etc. Return type: `TokenInfoResponse`.",
+      "type": "object",
+      "required": [
+        "token_info"
+      ],
+      "properties": {
+        "token_info": {
           "type": "object"
         }
       },

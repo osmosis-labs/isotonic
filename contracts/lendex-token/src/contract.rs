@@ -1,11 +1,16 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{
+    to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
+};
 use cw2::set_contract_version;
+use cw20::{BalanceResponse, Cw20ReceiveMsg};
 
 use crate::error::ContractError;
-use crate::msg::{CountResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
-use crate::state::{State, STATE};
+use crate::msg::{
+    CanTransferResp, ControllerQuery, ExecuteMsg, InstantiateMsg, QueryMsg, TokenInfoResponse,
+};
+use crate::state::{TokenInfo, BALANCES, CONTROLLER, TOKEN_INFO, TOTAL_SUPPLY};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:lendex-token";
@@ -15,133 +20,247 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    let state = State {
-        count: msg.count,
-        owner: info.sender.clone(),
-    };
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    STATE.save(deps.storage, &state)?;
 
-    Ok(Response::new()
-        .add_attribute("method", "instantiate")
-        .add_attribute("owner", info.sender)
-        .add_attribute("count", msg.count.to_string()))
+    let token_info = TokenInfo {
+        name: msg.name,
+        symbol: msg.symbol,
+        decimals: msg.decimals,
+    };
+    TOKEN_INFO.save(deps.storage, &token_info)?;
+    TOTAL_SUPPLY.save(deps.storage, &Uint128::zero())?;
+    CONTROLLER.save(deps.storage, &deps.api.addr_validate(&msg.controller)?)?;
+
+    Ok(Response::new())
 }
 
+/// Ensures, that tokens can be transferred from given account
+fn can_transfer(
+    deps: Deps,
+    env: &Env,
+    account: String,
+    amount: Uint128,
+) -> Result<(), ContractError> {
+    let controller = CONTROLLER.load(deps.storage)?;
+    let can_transfer: CanTransferResp = deps.querier.query_wasm_smart(
+        controller,
+        &ControllerQuery::CanTransfer {
+            token: env.contract.address.to_string(),
+            account,
+            amount,
+        },
+    )?;
+
+    match can_transfer {
+        CanTransferResp::None => Err(ContractError::CannotTransfer {
+            max_transferable: Uint128::zero(),
+        }),
+        CanTransferResp::Partial(max_transferable) => {
+            Err(ContractError::CannotTransfer { max_transferable })
+        }
+        CanTransferResp::Whole => Ok(()),
+    }
+}
+
+/// Performs tokens transfer.
+fn transfer_tokens(
+    deps: DepsMut,
+    env: Env,
+    sender: String,
+    recipient: Addr,
+    amount: Uint128,
+) -> Result<(), ContractError> {
+    if amount == Uint128::zero() {
+        return Err(ContractError::InvalidZeroAmount {});
+    }
+
+    // This can be unchecked, as if it is invalid, the controller would refuse transfer.
+    // Converting before `can_transfer` check to avoid obsolete string clone.
+    let sender_addr = Addr::unchecked(&sender);
+    can_transfer(deps.as_ref(), &env, sender, amount)?;
+
+    BALANCES.update(
+        deps.storage,
+        &sender_addr,
+        |balance: Option<Uint128>| -> StdResult<_> {
+            balance
+                .unwrap_or_default()
+                .checked_sub(amount)
+                .map_err(Into::into)
+        },
+    )?;
+
+    BALANCES.update(
+        deps.storage,
+        &recipient,
+        |balance: Option<Uint128>| -> StdResult<_> { Ok(balance.unwrap_or_default() + amount) },
+    )?;
+
+    Ok(())
+}
+
+/// Handler for `ExecuteMsg::Transfer`
+fn transfer(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    recipient: String,
+    amount: Uint128,
+) -> Result<Response, ContractError> {
+    let recipient_addr = deps.api.addr_validate(&recipient)?;
+    transfer_tokens(deps, env, info.sender.to_string(), recipient_addr, amount)?;
+
+    let res = Response::new()
+        .add_attribute("action", "transfer")
+        .add_attribute("from", info.sender)
+        .add_attribute("to", recipient)
+        .add_attribute("amount", amount);
+
+    Ok(res)
+}
+
+/// Handler for `ExecuteMsg::Send`
+fn send(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    recipient: String,
+    amount: Uint128,
+    msg: Binary,
+) -> Result<Response, ContractError> {
+    let recipient_addr = deps.api.addr_validate(&recipient)?;
+    transfer_tokens(deps, env, info.sender.to_string(), recipient_addr, amount)?;
+
+    let res = Response::new()
+        .add_attribute("action", "send")
+        .add_attribute("from", &info.sender)
+        .add_attribute("to", &recipient)
+        .add_attribute("amount", amount)
+        .add_message(
+            Cw20ReceiveMsg {
+                sender: info.sender.into(),
+                amount,
+                msg,
+            }
+            .into_cosmos_msg(recipient)?,
+        );
+
+    Ok(res)
+}
+
+/// Handler for `ExecuteMsg::Mint`
+pub fn mint(
+    deps: DepsMut,
+    info: MessageInfo,
+    recipient: String,
+    amount: Uint128,
+) -> Result<Response, ContractError> {
+    let controller = CONTROLLER.load(deps.storage)?;
+    if info.sender != controller {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    let recipient_addr = deps.api.addr_validate(&recipient)?;
+    BALANCES.update(
+        deps.storage,
+        &recipient_addr,
+        |balance: Option<Uint128>| -> StdResult<_> { Ok(balance.unwrap_or_default() + amount) },
+    )?;
+
+    TOTAL_SUPPLY.update(deps.storage, |supply| -> StdResult<_> {
+        Ok(supply + amount)
+    })?;
+
+    let res = Response::new()
+        .add_attribute("action", "mint")
+        .add_attribute("to", recipient)
+        .add_attribute("amount", amount);
+    Ok(res)
+}
+
+/// Handler for `ExecuteMsg::Burn`
+pub fn burn(deps: DepsMut, info: MessageInfo, amount: Uint128) -> Result<Response, ContractError> {
+    let controller = CONTROLLER.load(deps.storage)?;
+    if info.sender != controller {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    BALANCES.update(
+        deps.storage,
+        &info.sender,
+        |balance: Option<Uint128>| -> StdResult<_> {
+            Ok(balance.unwrap_or_default().checked_sub(amount)?)
+        },
+    )?;
+
+    TOTAL_SUPPLY.update(deps.storage, |supply| -> StdResult<_> {
+        supply.checked_sub(amount).map_err(Into::into)
+    })?;
+
+    let res = Response::new()
+        .add_attribute("action", "burn")
+        .add_attribute("from", info.sender.to_string())
+        .add_attribute("amount", amount);
+    Ok(res)
+}
+
+/// Execution entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
+    use ExecuteMsg::*;
+
     match msg {
-        ExecuteMsg::Increment {} => try_increment(deps),
-        ExecuteMsg::Reset { count } => try_reset(deps, info, count),
+        Transfer { recipient, amount } => transfer(deps, env, info, recipient, amount),
+        Send {
+            contract,
+            amount,
+            msg,
+        } => send(deps, env, info, contract, amount, msg),
+        Mint { recipient, amount } => mint(deps, info, recipient, amount),
+        Burn { amount } => burn(deps, info, amount),
     }
 }
 
-pub fn try_increment(deps: DepsMut) -> Result<Response, ContractError> {
-    STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
-        state.count += 1;
-        Ok(state)
-    })?;
-
-    Ok(Response::new().add_attribute("method", "try_increment"))
-}
-pub fn try_reset(deps: DepsMut, info: MessageInfo, count: i32) -> Result<Response, ContractError> {
-    STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
-        if info.sender != state.owner {
-            return Err(ContractError::Unauthorized {});
-        }
-        state.count = count;
-        Ok(state)
-    })?;
-    Ok(Response::new().add_attribute("method", "reset"))
+/// Handler for `QueryMsg::Balance`
+pub fn query_balance(deps: Deps, address: String) -> StdResult<BalanceResponse> {
+    let address = deps.api.addr_validate(&address)?;
+    let balance = BALANCES
+        .may_load(deps.storage, &address)?
+        .unwrap_or_default();
+    Ok(BalanceResponse { balance })
 }
 
+/// Handler for `QueryMsg::TokenInfo`
+pub fn query_token_info(deps: Deps) -> StdResult<TokenInfoResponse> {
+    let token_info = TOKEN_INFO.load(deps.storage)?;
+    let total_supply = TOTAL_SUPPLY.load(deps.storage)?;
+
+    Ok(TokenInfoResponse {
+        name: token_info.name,
+        symbol: token_info.symbol,
+        decimals: token_info.decimals,
+        total_supply,
+    })
+}
+
+/// `QueryMsg` entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {
-        QueryMsg::GetCount {} => to_binary(&query_count(deps)?),
-    }
-}
+    use QueryMsg::*;
 
-fn query_count(deps: Deps) -> StdResult<CountResponse> {
-    let state = STATE.load(deps.storage)?;
-    Ok(CountResponse { count: state.count })
+    match msg {
+        Balance { address } => to_binary(&query_balance(deps, address)?),
+        TokenInfo {} => to_binary(&query_token_info(deps)?),
+    }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{coins, from_binary};
-
-    #[test]
-    fn proper_initialization() {
-        let mut deps = mock_dependencies();
-
-        let msg = InstantiateMsg { count: 17 };
-        let info = mock_info("creator", &coins(1000, "earth"));
-
-        // we can just call .unwrap() to assert this was a success
-        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-        assert_eq!(0, res.messages.len());
-
-        // it worked, let's query the state
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-        let value: CountResponse = from_binary(&res).unwrap();
-        assert_eq!(17, value.count);
-    }
-
-    #[test]
-    fn increment() {
-        let mut deps = mock_dependencies();
-
-        let msg = InstantiateMsg { count: 17 };
-        let info = mock_info("creator", &coins(2, "token"));
-        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-        // beneficiary can release it
-        let info = mock_info("anyone", &coins(2, "token"));
-        let msg = ExecuteMsg::Increment {};
-        let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-        // should increase counter by 1
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-        let value: CountResponse = from_binary(&res).unwrap();
-        assert_eq!(18, value.count);
-    }
-
-    #[test]
-    fn reset() {
-        let mut deps = mock_dependencies();
-
-        let msg = InstantiateMsg { count: 17 };
-        let info = mock_info("creator", &coins(2, "token"));
-        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-        // beneficiary can release it
-        let unauth_info = mock_info("anyone", &coins(2, "token"));
-        let msg = ExecuteMsg::Reset { count: 5 };
-        let res = execute(deps.as_mut(), mock_env(), unauth_info, msg);
-        match res {
-            Err(ContractError::Unauthorized {}) => {}
-            _ => panic!("Must return unauthorized error"),
-        }
-
-        // only the original creator can reset the counter
-        let auth_info = mock_info("creator", &coins(2, "token"));
-        let msg = ExecuteMsg::Reset { count: 5 };
-        let _res = execute(deps.as_mut(), mock_env(), auth_info, msg).unwrap();
-
-        // should now be 5
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-        let value: CountResponse = from_binary(&res).unwrap();
-        assert_eq!(5, value.count);
-    }
-}
+mod tests {}
