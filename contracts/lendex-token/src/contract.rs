@@ -164,6 +164,10 @@ pub fn mint(
         return Err(ContractError::Unauthorized {});
     }
 
+    if amount == Uint128::zero() {
+        return Err(ContractError::InvalidZeroAmount {});
+    }
+
     let recipient_addr = deps.api.addr_validate(&recipient)?;
     BALANCES.update(
         deps.storage,
@@ -189,17 +193,22 @@ pub fn burn(deps: DepsMut, info: MessageInfo, amount: Uint128) -> Result<Respons
         return Err(ContractError::Unauthorized {});
     }
 
+    if amount == Uint128::zero() {
+        return Err(ContractError::InvalidZeroAmount {});
+    }
+
     BALANCES.update(
         deps.storage,
         &info.sender,
         |balance: Option<Uint128>| -> Result<_, ContractError> {
             let balance = balance.unwrap_or_default();
-            Ok(balance
-                .checked_sub(amount)
-                .map_err(|_| ContractError::InsufficientTokens {
+            balance.checked_sub(amount).map_err(|_| {
+                ContractError::InsufficientTokens {
                     available: balance.clone(),
                     needed: amount.clone(),
-                })?)
+                }
+                .into()
+            })
         },
     )?;
 
@@ -274,6 +283,3 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         TokenInfo {} => to_binary(&query_token_info(deps)?),
     }
 }
-
-#[cfg(test)]
-mod tests {}
