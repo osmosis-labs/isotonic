@@ -1,8 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::Addr;
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     /// Name used to create the sub-tokens `Lent ${name}` and `Borrowed ${name}`
@@ -15,12 +13,6 @@ pub struct InstantiateMsg {
     pub token_id: u64,
     /// Native denom for the base asset
     pub base_asset: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
-#[serde(rename_all = "snake_case")]
-pub struct TokenInstantiateResponse {
-    pub token_contract: Addr,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

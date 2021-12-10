@@ -8,7 +8,7 @@ use cw0::parse_reply_instantiate_data;
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, TokenInstantiateResponse};
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::state::{Config, CONFIG};
 
 // version info for migration info
@@ -28,7 +28,7 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let ltoken_msg = lendex_token::msg::InstantiateMsg {
-        name: "Lent".to_owned() + &msg.name,
+        name: "Lent ".to_owned() + &msg.name,
         symbol: "L".to_owned() + &msg.symbol,
         decimals: msg.decimals,
         controller: env.contract.address.to_string(),
@@ -41,7 +41,7 @@ pub fn instantiate(
         label: format!("ltoken_contract_{}", env.contract.address),
     };
     let btoken_msg = lendex_token::msg::InstantiateMsg {
-        name: "Borrowed".to_owned() + &msg.name,
+        name: "Borrowed ".to_owned() + &msg.name,
         symbol: "B".to_owned() + &msg.symbol,
         decimals: msg.decimals,
         controller: env.contract.address.to_string(),
@@ -99,26 +99,24 @@ pub fn token_instantiate_reply(
             err: err.to_string(),
         })?;
 
+    let mut response = Response::new();
+
     let addr = deps.api.addr_validate(&res.contract_address)?;
     if id == LTOKEN_INIT_REPLY_ID {
         CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
             config.ltoken_contract = addr.clone();
+            response = Response::new().add_attribute("ltoken", addr);
             Ok(config)
         })?
     } else {
         CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
             config.btoken_contract = addr.clone();
+            response = Response::new().add_attribute("btoken", addr);
             Ok(config)
         })?
     };
 
-    let data = TokenInstantiateResponse {
-        token_contract: addr,
-    };
-
-    let resp = Response::new().set_data(to_binary(&data)?);
-
-    Ok(resp)
+    Ok(response)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
