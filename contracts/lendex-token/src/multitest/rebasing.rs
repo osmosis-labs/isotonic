@@ -19,7 +19,7 @@ fn queries() {
     assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(100));
     assert_eq!(
         suite.query_token_info().unwrap().total_supply,
-        DisplayAmount::unchecked(100u128.into())
+        DisplayAmount::raw(100u128)
     );
 
     // Rebase by 1.2. The "displayed" tokens are now at 120. The multiplier is at 1.2.
@@ -28,7 +28,7 @@ fn queries() {
     assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(120));
     assert_eq!(
         suite.query_token_info().unwrap().total_supply,
-        DisplayAmount::unchecked(120u128.into())
+        DisplayAmount::raw(120u128)
     );
 
     // Another rebase by 1.2. The "displayed" tokens are now at 144. The multiplier is at 1.44.
@@ -37,7 +37,7 @@ fn queries() {
     assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(144));
     assert_eq!(
         suite.query_token_info().unwrap().total_supply,
-        DisplayAmount::unchecked(144u128.into())
+        DisplayAmount::raw(144u128)
     );
 }
 

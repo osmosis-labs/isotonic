@@ -109,7 +109,7 @@ fn transfer(
     amount: DisplayAmount,
 ) -> Result<Response, ContractError> {
     let multiplier = MULTIPLIER.load(deps.storage)?;
-    let amount = amount.unpack(multiplier);
+    let amount = amount.to_stored_amount(multiplier);
 
     let recipient_addr = deps.api.addr_validate(&recipient)?;
     transfer_tokens(deps, env, info.sender.to_string(), recipient_addr, amount)?;
@@ -133,7 +133,7 @@ fn send(
     msg: Binary,
 ) -> Result<Response, ContractError> {
     let multiplier = MULTIPLIER.load(deps.storage)?;
-    let amount = amount.unpack(multiplier);
+    let amount = amount.to_stored_amount(multiplier);
 
     let recipient_addr = deps.api.addr_validate(&recipient)?;
     transfer_tokens(deps, env, info.sender.to_string(), recipient_addr, amount)?;
@@ -164,7 +164,7 @@ pub fn mint(
 ) -> Result<Response, ContractError> {
     let controller = CONTROLLER.load(deps.storage)?;
     let multiplier = MULTIPLIER.load(deps.storage)?;
-    let amount = amount.unpack(multiplier);
+    let amount = amount.to_stored_amount(multiplier);
 
     if info.sender != controller {
         return Err(ContractError::Unauthorized {});
@@ -200,7 +200,7 @@ pub fn burn(
 ) -> Result<Response, ContractError> {
     let controller = CONTROLLER.load(deps.storage)?;
     let multiplier = MULTIPLIER.load(deps.storage)?;
-    let amount = amount.unpack(multiplier);
+    let amount = amount.to_stored_amount(multiplier);
 
     if info.sender != controller {
         return Err(ContractError::Unauthorized {});

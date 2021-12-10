@@ -153,7 +153,7 @@ impl Suite {
                 self.lendex.clone(),
                 &ExecuteMsg::Transfer {
                     recipient: recipient.to_owned(),
-                    amount: DisplayAmount::unchecked(amount),
+                    amount: DisplayAmount::raw(amount),
                 },
                 &[],
             )
@@ -174,7 +174,7 @@ impl Suite {
                 self.lendex.clone(),
                 &ExecuteMsg::Send {
                     contract: recipient.to_owned(),
-                    amount: DisplayAmount::unchecked(amount),
+                    amount: DisplayAmount::raw(amount),
                     msg,
                 },
                 &[],
@@ -195,7 +195,7 @@ impl Suite {
                 self.lendex.clone(),
                 &ExecuteMsg::Mint {
                     recipient: recipient.to_owned(),
-                    amount: DisplayAmount::unchecked(amount),
+                    amount: DisplayAmount::raw(amount),
                 },
                 &[],
             )
@@ -209,7 +209,7 @@ impl Suite {
                 Addr::unchecked(sender),
                 self.lendex.clone(),
                 &ExecuteMsg::Burn {
-                    amount: DisplayAmount::unchecked(amount),
+                    amount: DisplayAmount::raw(amount),
                 },
                 &[],
             )
@@ -236,7 +236,7 @@ impl Suite {
                 address: address.to_owned(),
             },
         )?;
-        Ok(resp.balance.unpack_unchecked())
+        Ok(resp.balance.unpack_raw())
     }
 
     /// Queries lendex contract for token info

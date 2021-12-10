@@ -114,16 +114,18 @@ impl DisplayAmount {
         Self(Uint128::zero())
     }
 
-    pub const fn unchecked(amount: Uint128) -> Self {
-        Self(amount)
+    /// A helper to construct this from a raw value for tests.
+    pub fn raw(amount: impl Into<Uint128>) -> Self {
+        Self(amount.into())
     }
 
-    pub fn unpack(self, multiplier: Decimal) -> Uint128 {
+    pub fn to_stored_amount(self, multiplier: Decimal) -> Uint128 {
         // self.0 / multiplier
         self.0 * multiplier.denominator() / multiplier.numerator()
     }
 
-    pub fn unpack_unchecked(self) -> Uint128 {
+    /// A helper to get the raw inner value for tests.
+    pub fn unpack_raw(self) -> Uint128 {
         self.0
     }
 }
