@@ -1,4 +1,6 @@
-use cosmwasm_std::{Binary, Decimal, Fraction, Uint128};
+use std::convert::TryInto;
+
+use cosmwasm_std::{Binary, Decimal, Fraction, Uint128, Uint256};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -121,7 +123,10 @@ impl DisplayAmount {
 
     pub fn to_stored_amount(self, multiplier: Decimal) -> Uint128 {
         // self.0 / multiplier
-        self.0 * multiplier.denominator() / multiplier.numerator()
+        let result256 =
+            self.0.full_mul(multiplier.denominator()) / Uint256::from(multiplier.numerator());
+
+        result256.try_into().unwrap()
     }
 
     /// A helper to get the raw inner value for tests.
