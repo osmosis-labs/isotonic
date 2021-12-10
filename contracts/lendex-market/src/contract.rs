@@ -58,6 +58,11 @@ pub fn instantiate(
         // those will be overwritten in a response
         ltoken_contract: Addr::unchecked(""),
         btoken_contract: Addr::unchecked(""),
+        name: msg.name,
+        symbol: msg.symbol,
+        decimals: msg.decimals,
+        token_id: msg.token_id,
+        base_asset: msg.base_asset,
     };
     CONFIG.save(deps.storage, &cfg)?;
 
@@ -127,13 +132,9 @@ pub fn execute(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, _msg: QueryMsg) -> StdResult<Binary> {
-    to_binary(&query_count(deps)?)
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    use QueryMsg::*;
+    match msg {
+        Configuration {} => to_binary(&CONFIG.load(deps.storage)?),
+    }
 }
-
-fn query_count(_deps: Deps) -> StdResult<()> {
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {}
