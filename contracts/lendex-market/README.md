@@ -21,4 +21,6 @@ TBD
 
 ## Queries
 
-TBD
+`Configuration {}` - returns current configuration, for example addresses of both btoken and ltokens
+
+`TransferableAmount { token, account }` - queries token of given `token` address for amount available to transfer from account of address `account`. Note: `btoken`'s address will always return 0

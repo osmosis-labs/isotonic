@@ -404,11 +404,16 @@ dependencies = [
 name = "lendex-market"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
+ "cw-multi-test",
  "cw-storage-plus",
+ "cw0",
  "cw2",
+ "cw20",
+ "lendex-token",
  "schemars",
  "serde",
  "thiserror",
