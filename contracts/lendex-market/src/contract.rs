@@ -8,7 +8,7 @@ use cw0::parse_reply_instantiate_data;
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, TransferableAmountResponse};
 use crate::state::{Config, CONFIG};
 
 // version info for migration info
@@ -134,5 +134,63 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     use QueryMsg::*;
     match msg {
         Configuration {} => to_binary(&CONFIG.load(deps.storage)?),
+        TransferableAmount { token, account } => {
+            let token = deps.api.addr_validate(&token)?;
+            to_binary(&query::transferable_amount(deps, token, account)?)
+        }
+    }
+}
+
+mod query {
+    use super::*;
+
+    use cosmwasm_std::{
+        from_slice, to_binary, to_vec, ContractResult, Empty, QueryRequest, StdError, SystemResult,
+        Uint128, WasmQuery,
+    };
+    use cw20::BalanceResponse;
+    use lendex_token::msg::QueryMsg;
+
+    pub fn transferable_amount(
+        deps: Deps,
+        token: Addr,
+        account: String,
+    ) -> StdResult<TransferableAmountResponse> {
+        let config = CONFIG.load(deps.storage)?;
+        if token == config.ltoken_contract {
+            Ok(TransferableAmountResponse {
+                transferable: Uint128::zero(),
+            })
+        } else if token == config.btoken_contract {
+            let balance_query = QueryRequest::<Empty>::Wasm(WasmQuery::Smart {
+                contract_addr: token.to_string(),
+                msg: to_binary(&QueryMsg::Balance { address: account })?,
+            });
+
+            // FIXME: https://github.com/CosmWasm/cosmwasm/issues/1178
+            let response = match deps.querier.raw_query(&to_vec(&balance_query)?) {
+                SystemResult::Err(system_err) => Err(StdError::generic_err(format!(
+                    "Querier system error: {}",
+                    system_err
+                ))),
+                SystemResult::Ok(ContractResult::Err(contract_err)) => Err(StdError::generic_err(
+                    format!("Querier contract error: {}", contract_err),
+                )),
+                SystemResult::Ok(ContractResult::Ok(value)) => Ok(value),
+            }?;
+
+            let response = from_slice::<Option<BalanceResponse>>(&response)?.ok_or_else(|| {
+                StdError::generic_err("Contract query provided no results!".to_owned())
+            })?;
+
+            Ok(TransferableAmountResponse {
+                transferable: response.balance,
+            })
+        } else {
+            Err(StdError::generic_err(format!(
+                "Unrecognized token: {}",
+                token.to_string()
+            )))
+        }
     }
 }

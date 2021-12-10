@@ -1,6 +1,8 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use cosmwasm_std::Uint128;
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     /// Name used to create the sub-tokens `Lent ${name}` and `Borrowed ${name}`
@@ -24,4 +26,16 @@ pub enum ExecuteMsg {}
 pub enum QueryMsg {
     /// Returns current configuration
     Configuration {},
+    TransferableAmount {
+        /// Lendex contract address that calls "CanTransfer"
+        token: String,
+        /// Address that wishes to transfer
+        account: String,
+    },
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct TransferableAmountResponse {
+    pub transferable: Uint128,
 }

@@ -412,6 +412,7 @@ dependencies = [
  "cw-storage-plus",
  "cw0",
  "cw2",
+ "cw20",
  "lendex-token",
  "schemars",
  "serde",
