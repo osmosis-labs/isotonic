@@ -2,7 +2,7 @@ pub mod controller;
 pub mod receiver;
 pub mod suite;
 
-use crate::msg::TokenInfoResponse;
+use crate::msg::{DisplayAmount, TokenInfoResponse};
 use crate::ContractError;
 use cosmwasm_std::Uint128;
 use suite::{Suite, SuiteBuilder};
@@ -24,7 +24,7 @@ fn fresh_queries() {
             name: "Lendex".to_owned(),
             symbol: "LDX".to_owned(),
             decimals: 9,
-            total_supply: Uint128::zero(),
+            total_supply: DisplayAmount::zero(),
         }
     );
 

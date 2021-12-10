@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use crate::msg::{BalanceResponse, ExecuteMsg, InstantiateMsg, QueryMsg, TokenInfoResponse};
+use crate::msg::{
+    BalanceResponse, DisplayAmount, ExecuteMsg, InstantiateMsg, QueryMsg, TokenInfoResponse,
+};
 use crate::multitest::controller::Controller;
 use crate::multitest::receiver::{QueryResp as ReceiverQueryResp, Receiver};
 use anyhow::{anyhow, Result as AnyResult};
@@ -150,7 +152,7 @@ impl Suite {
                 self.lendex.clone(),
                 &ExecuteMsg::Transfer {
                     recipient: recipient.to_owned(),
-                    amount,
+                    amount: DisplayAmount::unchecked(amount),
                 },
                 &[],
             )
@@ -171,7 +173,7 @@ impl Suite {
                 self.lendex.clone(),
                 &ExecuteMsg::Send {
                     contract: recipient.to_owned(),
-                    amount,
+                    amount: DisplayAmount::unchecked(amount),
                     msg,
                 },
                 &[],
@@ -192,7 +194,7 @@ impl Suite {
                 self.lendex.clone(),
                 &ExecuteMsg::Mint {
                     recipient: recipient.to_owned(),
-                    amount,
+                    amount: DisplayAmount::unchecked(amount),
                 },
                 &[],
             )
@@ -205,7 +207,9 @@ impl Suite {
             .execute_contract(
                 Addr::unchecked(sender),
                 self.lendex.clone(),
-                &ExecuteMsg::Burn { amount },
+                &ExecuteMsg::Burn {
+                    amount: DisplayAmount::unchecked(amount),
+                },
                 &[],
             )
             .map_err(|err| anyhow!(err))
@@ -219,7 +223,7 @@ impl Suite {
                 address: address.to_owned(),
             },
         )?;
-        Ok(resp.balance)
+        Ok(resp.balance.unpack_unchecked())
     }
 
     /// Queries lendex contract for token info

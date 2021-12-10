@@ -7,7 +7,7 @@ use cw2::set_contract_version;
 
 use crate::error::ContractError;
 use crate::msg::{
-    BalanceResponse, ControllerQuery, Cw20ReceiveMsg, ExecuteMsg, InstantiateMsg,
+    BalanceResponse, ControllerQuery, Cw20ReceiveMsg, DisplayAmount, ExecuteMsg, InstantiateMsg,
     MultiplierResponse, QueryMsg, TokenInfoResponse, TransferableAmountResp,
 };
 use crate::state::{TokenInfo, BALANCES, CONTROLLER, MULTIPLIER, TOKEN_INFO, TOTAL_SUPPLY};
@@ -106,8 +106,11 @@ fn transfer(
     env: Env,
     info: MessageInfo,
     recipient: String,
-    amount: Uint128,
+    amount: DisplayAmount,
 ) -> Result<Response, ContractError> {
+    let multiplier = MULTIPLIER.load(deps.storage)?;
+    let amount = amount.unpack(multiplier);
+
     let recipient_addr = deps.api.addr_validate(&recipient)?;
     transfer_tokens(deps, env, info.sender.to_string(), recipient_addr, amount)?;
 
@@ -126,9 +129,12 @@ fn send(
     env: Env,
     info: MessageInfo,
     recipient: String,
-    amount: Uint128,
+    amount: DisplayAmount,
     msg: Binary,
 ) -> Result<Response, ContractError> {
+    let multiplier = MULTIPLIER.load(deps.storage)?;
+    let amount = amount.unpack(multiplier);
+
     let recipient_addr = deps.api.addr_validate(&recipient)?;
     transfer_tokens(deps, env, info.sender.to_string(), recipient_addr, amount)?;
 
@@ -154,9 +160,12 @@ pub fn mint(
     deps: DepsMut,
     info: MessageInfo,
     recipient: String,
-    amount: Uint128,
+    amount: DisplayAmount,
 ) -> Result<Response, ContractError> {
     let controller = CONTROLLER.load(deps.storage)?;
+    let multiplier = MULTIPLIER.load(deps.storage)?;
+    let amount = amount.unpack(multiplier);
+
     if info.sender != controller {
         return Err(ContractError::Unauthorized {});
     }
@@ -184,8 +193,15 @@ pub fn mint(
 }
 
 /// Handler for `ExecuteMsg::Burn`
-pub fn burn(deps: DepsMut, info: MessageInfo, amount: Uint128) -> Result<Response, ContractError> {
+pub fn burn(
+    deps: DepsMut,
+    info: MessageInfo,
+    amount: DisplayAmount,
+) -> Result<Response, ContractError> {
     let controller = CONTROLLER.load(deps.storage)?;
+    let multiplier = MULTIPLIER.load(deps.storage)?;
+    let amount = amount.unpack(multiplier);
+
     if info.sender != controller {
         return Err(ContractError::Unauthorized {});
     }
@@ -261,17 +277,22 @@ pub fn execute(
 
 /// Handler for `QueryMsg::Balance`
 pub fn query_balance(deps: Deps, address: String) -> StdResult<BalanceResponse> {
+    let multiplier = MULTIPLIER.load(deps.storage)?;
+
     let address = deps.api.addr_validate(&address)?;
-    let balance = BALANCES
+    let stored_balance = BALANCES
         .may_load(deps.storage, &address)?
         .unwrap_or_default();
+    let balance = DisplayAmount::from_stored_amount(multiplier, stored_balance);
     Ok(BalanceResponse { balance })
 }
 
 /// Handler for `QueryMsg::TokenInfo`
 pub fn query_token_info(deps: Deps) -> StdResult<TokenInfoResponse> {
+    let multiplier = MULTIPLIER.load(deps.storage)?;
     let token_info = TOKEN_INFO.load(deps.storage)?;
-    let total_supply = TOTAL_SUPPLY.load(deps.storage)?;
+    let total_supply =
+        DisplayAmount::from_stored_amount(multiplier, TOTAL_SUPPLY.load(deps.storage)?);
 
     Ok(TokenInfoResponse {
         name: token_info.name,
