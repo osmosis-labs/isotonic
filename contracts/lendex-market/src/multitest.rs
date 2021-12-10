@@ -31,6 +31,8 @@ fn query_transferable_amount() {
     let resp = suite.query_transferable_amount(btoken, "actor").unwrap();
     assert_eq!(Uint128::zero(), resp);
 
+    // TODO: Mint tokens and query this again during/after
+    // https://github.com/confio/lendex/issues/6
     let ltoken = suite.ltoken();
     let resp = suite.query_transferable_amount(ltoken, "actor").unwrap();
     assert_eq!(Uint128::zero(), resp);

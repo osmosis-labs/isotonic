@@ -1,6 +1,6 @@
 # Market contract
 
-The Market contract is the entry point for all lending and borrowing for one base asset. It fulfills role of Lending Pool (check Lendex protocol's documentation for details).
+The Market contract is the entry point for all lending and borrowing for one base asset.
 
 ## Instantiate
 

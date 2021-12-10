@@ -144,10 +144,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 mod query {
     use super::*;
 
-    use cosmwasm_std::{
-        from_slice, to_binary, to_vec, ContractResult, Empty, QueryRequest, StdError, SystemResult,
-        Uint128, WasmQuery,
-    };
+    use cosmwasm_std::{StdError, Uint128};
     use cw20::BalanceResponse;
     use lendex_token::msg::QueryMsg;
 
@@ -157,34 +154,17 @@ mod query {
         account: String,
     ) -> StdResult<TransferableAmountResponse> {
         let config = CONFIG.load(deps.storage)?;
-        if token == config.ltoken_contract {
+        if token == config.btoken_contract {
             Ok(TransferableAmountResponse {
                 transferable: Uint128::zero(),
             })
-        } else if token == config.btoken_contract {
-            let balance_query = QueryRequest::<Empty>::Wasm(WasmQuery::Smart {
-                contract_addr: token.to_string(),
-                msg: to_binary(&QueryMsg::Balance { address: account })?,
-            });
-
-            // FIXME: https://github.com/CosmWasm/cosmwasm/issues/1178
-            let response = match deps.querier.raw_query(&to_vec(&balance_query)?) {
-                SystemResult::Err(system_err) => Err(StdError::generic_err(format!(
-                    "Querier system error: {}",
-                    system_err
-                ))),
-                SystemResult::Ok(ContractResult::Err(contract_err)) => Err(StdError::generic_err(
-                    format!("Querier contract error: {}", contract_err),
-                )),
-                SystemResult::Ok(ContractResult::Ok(value)) => Ok(value),
-            }?;
-
-            let response = from_slice::<Option<BalanceResponse>>(&response)?.ok_or_else(|| {
-                StdError::generic_err("Contract query provided no results!".to_owned())
-            })?;
+        } else if token == config.ltoken_contract {
+            let resp: BalanceResponse = deps
+                .querier
+                .query_wasm_smart(&token, &QueryMsg::Balance { address: account })?;
 
             Ok(TransferableAmountResponse {
-                transferable: response.balance,
+                transferable: resp.balance,
             })
         } else {
             Err(StdError::generic_err(format!(
