@@ -1,9 +1,9 @@
 use anyhow::Result as AnyResult;
 
-use cosmwasm_std::{Addr, Empty};
+use cosmwasm_std::{Addr, Empty, Uint128};
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 
-use crate::msg::{InstantiateMsg, QueryMsg};
+use crate::msg::{InstantiateMsg, QueryMsg, TransferableAmountResponse};
 use crate::state::Config;
 
 fn contract_market() -> Box<dyn Contract<Empty>> {
@@ -74,7 +74,18 @@ impl SuiteBuilder {
             )
             .unwrap();
 
-        Suite { app, contract }
+        // query for token contracts
+        let config: Config = app
+            .wrap()
+            .query_wasm_smart(contract.clone(), &QueryMsg::Configuration {})
+            .unwrap();
+
+        Suite {
+            app,
+            contract,
+            ltoken_contract: config.ltoken_contract,
+            btoken_contract: config.btoken_contract,
+        }
     }
 }
 
@@ -84,9 +95,23 @@ pub struct Suite {
     app: App,
     /// Address of Market contract
     contract: Addr,
+    /// Address of LToken contract
+    ltoken_contract: Addr,
+    /// Address of BToken contract
+    btoken_contract: Addr,
 }
 
 impl Suite {
+    /// Gives btoken contract address back
+    pub fn btoken(&self) -> Addr {
+        self.btoken_contract.clone()
+    }
+
+    /// Gives ltoken contract address back
+    pub fn ltoken(&self) -> Addr {
+        self.ltoken_contract.clone()
+    }
+
     /// Queries market contract for configuration
     pub fn query_config(&self) -> AnyResult<Config> {
         let resp: Config = self
@@ -94,5 +119,20 @@ impl Suite {
             .wrap()
             .query_wasm_smart(self.contract.clone(), &QueryMsg::Configuration {})?;
         Ok(resp)
+    }
+
+    pub fn query_transferable_amount(
+        &self,
+        token: impl ToString,
+        account: impl ToString,
+    ) -> AnyResult<Uint128> {
+        let resp: TransferableAmountResponse = self.app.wrap().query_wasm_smart(
+            self.contract.clone(),
+            &QueryMsg::TransferableAmount {
+                token: token.to_string(),
+                account: account.to_string(),
+            },
+        )?;
+        Ok(resp.transferable)
     }
 }
