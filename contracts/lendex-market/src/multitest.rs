@@ -12,8 +12,8 @@ fn market_instantiate_and_query_config() {
     assert_eq!(
         suite.query_config().unwrap(),
         Config {
-            ltoken_contract: Addr::unchecked("test"),
-            btoken_contract: Addr::unchecked("test"),
+            ltoken_contract: Addr::unchecked("Contract #1"),
+            btoken_contract: Addr::unchecked("Contract #2"),
             name: "lendex".to_owned(),
             symbol: "LDX".to_owned(),
             decimals: 9,

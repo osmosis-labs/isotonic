@@ -12,7 +12,17 @@ fn contract_market() -> Box<dyn Contract<Empty>> {
         crate::contract::instantiate,
         crate::contract::query,
     )
-        .with_reply(crate::contract::reply);
+    .with_reply(crate::contract::reply);
+
+    Box::new(contract)
+}
+
+fn contract_token() -> Box<dyn Contract<Empty>> {
+    let contract = ContractWrapper::new(
+        lendex_token::contract::execute,
+        lendex_token::contract::instantiate,
+        lendex_token::contract::query,
+    );
 
     Box::new(contract)
 }
@@ -26,8 +36,6 @@ pub struct SuiteBuilder {
     symbol: String,
     /// Lendex token precision
     decimals: u8,
-    /// codeId used to create lendex tokens
-    token_id: u64,
     /// Native denom for the base asset
     base_asset: String,
 }
@@ -38,7 +46,6 @@ impl SuiteBuilder {
             name: "lendex".to_owned(),
             symbol: "LDX".to_owned(),
             decimals: 9,
-            token_id: 1,
             base_asset: "native_denom".to_owned(),
         }
     }
@@ -48,6 +55,7 @@ impl SuiteBuilder {
         let mut app = App::default();
         let owner = Addr::unchecked("owner");
 
+        let token_id = app.store_code(contract_token());
         let contract_id = app.store_code(contract_market());
         let contract = app
             .instantiate_contract(
@@ -57,7 +65,7 @@ impl SuiteBuilder {
                     name: self.name,
                     symbol: self.symbol,
                     decimals: self.decimals,
-                    token_id: self.token_id,
+                    token_id,
                     base_asset: self.base_asset,
                 },
                 &[],
