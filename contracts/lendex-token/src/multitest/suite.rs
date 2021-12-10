@@ -1,10 +1,13 @@
 use std::collections::HashMap;
 
-use crate::msg::{BalanceResponse, ExecuteMsg, InstantiateMsg, QueryMsg, TokenInfoResponse};
+use crate::display_amount::DisplayAmount;
+use crate::msg::{
+    BalanceResponse, ExecuteMsg, InstantiateMsg, MultiplierResponse, QueryMsg, TokenInfoResponse,
+};
 use crate::multitest::controller::Controller;
 use crate::multitest::receiver::{QueryResp as ReceiverQueryResp, Receiver};
 use anyhow::{anyhow, Result as AnyResult};
-use cosmwasm_std::{Addr, Binary, Empty, Uint128};
+use cosmwasm_std::{Addr, Binary, Decimal, Empty, Uint128};
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
 
 fn contract_lendex() -> Box<dyn Contract<Empty>> {
@@ -150,7 +153,7 @@ impl Suite {
                 self.lendex.clone(),
                 &ExecuteMsg::Transfer {
                     recipient: recipient.to_owned(),
-                    amount,
+                    amount: DisplayAmount::raw(amount),
                 },
                 &[],
             )
@@ -171,7 +174,7 @@ impl Suite {
                 self.lendex.clone(),
                 &ExecuteMsg::Send {
                     contract: recipient.to_owned(),
-                    amount,
+                    amount: DisplayAmount::raw(amount),
                     msg,
                 },
                 &[],
@@ -192,7 +195,7 @@ impl Suite {
                 self.lendex.clone(),
                 &ExecuteMsg::Mint {
                     recipient: recipient.to_owned(),
-                    amount,
+                    amount: DisplayAmount::raw(amount),
                 },
                 &[],
             )
@@ -205,14 +208,28 @@ impl Suite {
             .execute_contract(
                 Addr::unchecked(sender),
                 self.lendex.clone(),
-                &ExecuteMsg::Burn { amount },
+                &ExecuteMsg::Burn {
+                    amount: DisplayAmount::raw(amount),
+                },
+                &[],
+            )
+            .map_err(|err| anyhow!(err))
+    }
+
+    /// Executes rebase on lendex contract
+    pub fn rebase(&mut self, executor: &str, ratio: Decimal) -> AnyResult<AppResponse> {
+        self.app
+            .execute_contract(
+                Addr::unchecked(executor),
+                self.lendex.clone(),
+                &ExecuteMsg::Rebase { ratio },
                 &[],
             )
             .map_err(|err| anyhow!(err))
     }
 
     /// Queries lendex contract for balance
-    pub fn query_balance(&self, address: &str) -> AnyResult<Uint128> {
+    pub fn query_balance(&self, address: &str) -> AnyResult<DisplayAmount> {
         let resp: BalanceResponse = self.app.wrap().query_wasm_smart(
             self.lendex.clone(),
             &QueryMsg::Balance {
@@ -239,5 +256,16 @@ impl Suite {
             .map_err(|err| anyhow!(err))?;
 
         Ok(resp.counter.into())
+    }
+
+    /// Queries multiplier
+    pub fn query_multiplier(&self) -> AnyResult<Decimal> {
+        let resp: MultiplierResponse = self
+            .app
+            .wrap()
+            .query_wasm_smart(self.lendex.clone(), &QueryMsg::Multiplier {})
+            .map_err(|err| anyhow!(err))?;
+
+        Ok(resp.multiplier)
     }
 }

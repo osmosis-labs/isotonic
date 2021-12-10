@@ -1,16 +1,17 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
+    to_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
 };
 use cw2::set_contract_version;
 
+use crate::display_amount::DisplayAmount;
 use crate::error::ContractError;
 use crate::msg::{
-    BalanceResponse, ControllerQuery, Cw20ReceiveMsg, ExecuteMsg, InstantiateMsg, QueryMsg,
-    TokenInfoResponse, TransferableAmountResp,
+    BalanceResponse, ControllerQuery, Cw20ReceiveMsg, ExecuteMsg, InstantiateMsg,
+    MultiplierResponse, QueryMsg, TokenInfoResponse, TransferableAmountResp,
 };
-use crate::state::{TokenInfo, BALANCES, CONTROLLER, TOKEN_INFO, TOTAL_SUPPLY};
+use crate::state::{TokenInfo, BALANCES, CONTROLLER, MULTIPLIER, TOKEN_INFO, TOTAL_SUPPLY};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:lendex-token";
@@ -33,6 +34,7 @@ pub fn instantiate(
     TOKEN_INFO.save(deps.storage, &token_info)?;
     TOTAL_SUPPLY.save(deps.storage, &Uint128::zero())?;
     CONTROLLER.save(deps.storage, &deps.api.addr_validate(&msg.controller)?)?;
+    MULTIPLIER.save(deps.storage, &Decimal::one())?;
 
     Ok(Response::new())
 }
@@ -105,8 +107,11 @@ fn transfer(
     env: Env,
     info: MessageInfo,
     recipient: String,
-    amount: Uint128,
+    amount: DisplayAmount,
 ) -> Result<Response, ContractError> {
+    let multiplier = MULTIPLIER.load(deps.storage)?;
+    let amount = amount.to_stored_amount(multiplier);
+
     let recipient_addr = deps.api.addr_validate(&recipient)?;
     transfer_tokens(deps, env, info.sender.to_string(), recipient_addr, amount)?;
 
@@ -125,9 +130,12 @@ fn send(
     env: Env,
     info: MessageInfo,
     recipient: String,
-    amount: Uint128,
+    amount: DisplayAmount,
     msg: Binary,
 ) -> Result<Response, ContractError> {
+    let multiplier = MULTIPLIER.load(deps.storage)?;
+    let amount = amount.to_stored_amount(multiplier);
+
     let recipient_addr = deps.api.addr_validate(&recipient)?;
     transfer_tokens(deps, env, info.sender.to_string(), recipient_addr, amount)?;
 
@@ -153,9 +161,12 @@ pub fn mint(
     deps: DepsMut,
     info: MessageInfo,
     recipient: String,
-    amount: Uint128,
+    amount: DisplayAmount,
 ) -> Result<Response, ContractError> {
     let controller = CONTROLLER.load(deps.storage)?;
+    let multiplier = MULTIPLIER.load(deps.storage)?;
+    let amount = amount.to_stored_amount(multiplier);
+
     if info.sender != controller {
         return Err(ContractError::Unauthorized {});
     }
@@ -183,8 +194,15 @@ pub fn mint(
 }
 
 /// Handler for `ExecuteMsg::Burn`
-pub fn burn(deps: DepsMut, info: MessageInfo, amount: Uint128) -> Result<Response, ContractError> {
+pub fn burn(
+    deps: DepsMut,
+    info: MessageInfo,
+    amount: DisplayAmount,
+) -> Result<Response, ContractError> {
     let controller = CONTROLLER.load(deps.storage)?;
+    let multiplier = MULTIPLIER.load(deps.storage)?;
+    let amount = amount.to_stored_amount(multiplier);
+
     if info.sender != controller {
         return Err(ContractError::Unauthorized {});
     }
@@ -217,6 +235,24 @@ pub fn burn(deps: DepsMut, info: MessageInfo, amount: Uint128) -> Result<Respons
     Ok(res)
 }
 
+/// Handler for `ExecuteMsg::Rebase`
+pub fn rebase(deps: DepsMut, info: MessageInfo, ratio: Decimal) -> Result<Response, ContractError> {
+    let controller = CONTROLLER.load(deps.storage)?;
+    if info.sender != controller {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    MULTIPLIER.update(deps.storage, |multiplier: Decimal| -> StdResult<_> {
+        Ok(multiplier * ratio)
+    })?;
+
+    let res = Response::new()
+        .add_attribute("action", "rebase")
+        .add_attribute("ratio", ratio.to_string());
+
+    Ok(res)
+}
+
 /// Execution entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
@@ -236,22 +272,28 @@ pub fn execute(
         } => send(deps, env, info, contract, amount, msg),
         Mint { recipient, amount } => mint(deps, info, recipient, amount),
         Burn { amount } => burn(deps, info, amount),
+        Rebase { ratio } => rebase(deps, info, ratio),
     }
 }
 
 /// Handler for `QueryMsg::Balance`
 pub fn query_balance(deps: Deps, address: String) -> StdResult<BalanceResponse> {
+    let multiplier = MULTIPLIER.load(deps.storage)?;
+
     let address = deps.api.addr_validate(&address)?;
-    let balance = BALANCES
+    let stored_balance = BALANCES
         .may_load(deps.storage, &address)?
         .unwrap_or_default();
+    let balance = DisplayAmount::from_stored_amount(multiplier, stored_balance);
     Ok(BalanceResponse { balance })
 }
 
 /// Handler for `QueryMsg::TokenInfo`
 pub fn query_token_info(deps: Deps) -> StdResult<TokenInfoResponse> {
+    let multiplier = MULTIPLIER.load(deps.storage)?;
     let token_info = TOKEN_INFO.load(deps.storage)?;
-    let total_supply = TOTAL_SUPPLY.load(deps.storage)?;
+    let total_supply =
+        DisplayAmount::from_stored_amount(multiplier, TOTAL_SUPPLY.load(deps.storage)?);
 
     Ok(TokenInfoResponse {
         name: token_info.name,
@@ -259,6 +301,13 @@ pub fn query_token_info(deps: Deps) -> StdResult<TokenInfoResponse> {
         decimals: token_info.decimals,
         total_supply,
     })
+}
+
+/// Handler for `QueryMsg::Multiplier`
+pub fn query_multiplier(deps: Deps) -> StdResult<MultiplierResponse> {
+    let multiplier = MULTIPLIER.load(deps.storage)?;
+
+    Ok(MultiplierResponse { multiplier })
 }
 
 /// `QueryMsg` entry point
@@ -269,5 +318,78 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         Balance { address } => to_binary(&query_balance(deps, address)?),
         TokenInfo {} => to_binary(&query_token_info(deps)?),
+        Multiplier {} => to_binary(&query_multiplier(deps)?),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+
+    use super::*;
+
+    #[test]
+    fn rebase_works() {
+        let mut deps = mock_dependencies();
+        let controller = "controller";
+        let instantiate_msg = InstantiateMsg {
+            name: "Cash Token".to_string(),
+            symbol: "CASH".to_string(),
+            decimals: 9,
+            controller: controller.to_string(),
+        };
+        let info = mock_info("creator", &[]);
+        let env = mock_env();
+        let res = instantiate(deps.as_mut(), env, info, instantiate_msg).unwrap();
+        assert_eq!(0, res.messages.len());
+
+        // Multiplier is 1.0 at first
+        assert_eq!(Decimal::one(), MULTIPLIER.load(&deps.storage).unwrap());
+
+        // We rebase by 1.2, multiplier is 1.2
+        let info = mock_info(controller, &[]);
+        rebase(deps.as_mut(), info.clone(), Decimal::percent(120)).unwrap();
+        assert_eq!(
+            Decimal::percent(120),
+            MULTIPLIER.load(&deps.storage).unwrap()
+        );
+
+        // We rebase by 1.2, multiplier is 1.44
+        rebase(deps.as_mut(), info, Decimal::percent(120)).unwrap();
+        assert_eq!(
+            Decimal::percent(144),
+            MULTIPLIER.load(&deps.storage).unwrap()
+        );
+    }
+
+    #[test]
+    fn rebase_query_works() {
+        let mut deps = mock_dependencies();
+        let controller = "controller";
+        let instantiate_msg = InstantiateMsg {
+            name: "Cash Token".to_string(),
+            symbol: "CASH".to_string(),
+            decimals: 9,
+            controller: controller.to_string(),
+        };
+        let info = mock_info("creator", &[]);
+        let env = mock_env();
+        let res = instantiate(deps.as_mut(), env, info, instantiate_msg).unwrap();
+        assert_eq!(0, res.messages.len());
+
+        let info = mock_info(controller, &[]);
+        rebase(deps.as_mut(), info, Decimal::percent(120)).unwrap();
+        assert_eq!(
+            Decimal::percent(120),
+            MULTIPLIER.load(&deps.storage).unwrap()
+        );
+
+        let res = query_multiplier(deps.as_ref()).unwrap();
+        assert_eq!(
+            MultiplierResponse {
+                multiplier: Decimal::percent(120)
+            },
+            res
+        );
     }
 }
