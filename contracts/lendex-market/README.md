@@ -1,6 +1,6 @@
 # Market contract
 
-The Market contract is the entry point for all lending and borrowing for one base asset.
+The Market contract is the entry point for all lending and borrowing for one base asset. It fulfills role of Lending Pool (check Lendex protocol's documentation for details).
 
 ## Instantiate
 
@@ -21,4 +21,6 @@ TBD
 
 ## Queries
 
-TBD
+`Configuration {}` - returns current configuration, for example addresses of both btoken and ltokens
+
+`TransferableAmount { token, account }` - queries token of given `token` address for amount available to transfer from account of address `account`. Note: `btoken`'s address will always return 0
