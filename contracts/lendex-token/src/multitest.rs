@@ -29,8 +29,11 @@ fn fresh_queries() {
         }
     );
 
-    assert_eq!(suite.query_balance(actor).unwrap(), Uint128::zero());
-    assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+    assert_eq!(suite.query_balance(actor).unwrap(), DisplayAmount::zero());
+    assert_eq!(
+        suite.query_balance(controller).unwrap(),
+        DisplayAmount::zero()
+    );
 }
 
 mod minting {
@@ -45,8 +48,14 @@ mod minting {
 
         suite.mint(controller, lender, Uint128::new(100)).unwrap();
 
-        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(100));
-        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+        assert_eq!(
+            suite.query_balance(lender).unwrap(),
+            DisplayAmount::raw(100u128)
+        );
+        assert_eq!(
+            suite.query_balance(controller).unwrap(),
+            DisplayAmount::zero()
+        );
     }
 
     #[test]
@@ -59,8 +68,11 @@ mod minting {
         let err = suite.mint(controller, lender, Uint128::zero()).unwrap_err();
 
         assert_eq!(ContractError::InvalidZeroAmount {}, err.downcast().unwrap());
-        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::zero());
-        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+        assert_eq!(suite.query_balance(lender).unwrap(), DisplayAmount::zero());
+        assert_eq!(
+            suite.query_balance(controller).unwrap(),
+            DisplayAmount::zero()
+        );
     }
 
     #[test]
@@ -74,9 +86,12 @@ mod minting {
         let err = suite.mint(minter, lender, Uint128::new(100)).unwrap_err();
 
         assert_eq!(ContractError::Unauthorized {}, err.downcast().unwrap());
-        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::zero());
-        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
-        assert_eq!(suite.query_balance(minter).unwrap(), Uint128::zero());
+        assert_eq!(suite.query_balance(lender).unwrap(), DisplayAmount::zero());
+        assert_eq!(
+            suite.query_balance(controller).unwrap(),
+            DisplayAmount::zero()
+        );
+        assert_eq!(suite.query_balance(minter).unwrap(), DisplayAmount::zero());
     }
 }
 
@@ -97,7 +112,10 @@ mod burning {
         // Actually burning
         suite.burn(controller, Uint128::new(50)).unwrap();
 
-        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::new(50));
+        assert_eq!(
+            suite.query_balance(controller).unwrap(),
+            DisplayAmount::raw(50u128)
+        );
     }
 
     #[test]
@@ -115,7 +133,10 @@ mod burning {
         let err = suite.burn(controller, Uint128::zero()).unwrap_err();
 
         assert_eq!(ContractError::InvalidZeroAmount {}, err.downcast().unwrap());
-        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::new(100));
+        assert_eq!(
+            suite.query_balance(controller).unwrap(),
+            DisplayAmount::raw(100u128)
+        );
     }
 
     #[test]
@@ -136,7 +157,10 @@ mod burning {
             ContractError::insufficient_tokens(100u128, 150u128),
             err.downcast().unwrap()
         );
-        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::new(100));
+        assert_eq!(
+            suite.query_balance(controller).unwrap(),
+            DisplayAmount::raw(100u128)
+        );
     }
 
     #[test]
@@ -153,8 +177,14 @@ mod burning {
         let err = suite.burn(lender, Uint128::new(150)).unwrap_err();
 
         assert_eq!(ContractError::Unauthorized {}, err.downcast().unwrap());
-        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(100));
-        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+        assert_eq!(
+            suite.query_balance(lender).unwrap(),
+            DisplayAmount::raw(100u128)
+        );
+        assert_eq!(
+            suite.query_balance(controller).unwrap(),
+            DisplayAmount::zero()
+        );
     }
 }
 
@@ -176,9 +206,18 @@ mod transfer {
 
         suite.transfer(lender, receiver, Uint128::new(40)).unwrap();
 
-        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(60));
-        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::new(40));
-        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+        assert_eq!(
+            suite.query_balance(lender).unwrap(),
+            DisplayAmount::raw(60u128)
+        );
+        assert_eq!(
+            suite.query_balance(receiver).unwrap(),
+            DisplayAmount::raw(40u128)
+        );
+        assert_eq!(
+            suite.query_balance(controller).unwrap(),
+            DisplayAmount::zero()
+        );
     }
 
     #[test]
@@ -199,9 +238,18 @@ mod transfer {
             .unwrap_err();
 
         assert_eq!(ContractError::InvalidZeroAmount {}, err.downcast().unwrap());
-        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(100));
-        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::zero());
-        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+        assert_eq!(
+            suite.query_balance(lender).unwrap(),
+            DisplayAmount::raw(100u128)
+        );
+        assert_eq!(
+            suite.query_balance(receiver).unwrap(),
+            DisplayAmount::zero()
+        );
+        assert_eq!(
+            suite.query_balance(controller).unwrap(),
+            DisplayAmount::zero()
+        );
     }
 
     #[test]
@@ -225,9 +273,18 @@ mod transfer {
             ContractError::insufficient_tokens(100u128, 140u128),
             err.downcast().unwrap()
         );
-        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(100));
-        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::zero());
-        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+        assert_eq!(
+            suite.query_balance(lender).unwrap(),
+            DisplayAmount::raw(100u128)
+        );
+        assert_eq!(
+            suite.query_balance(receiver).unwrap(),
+            DisplayAmount::zero()
+        );
+        assert_eq!(
+            suite.query_balance(controller).unwrap(),
+            DisplayAmount::zero()
+        );
     }
 
     #[test]
@@ -253,9 +310,18 @@ mod transfer {
             },
             err.downcast().unwrap()
         );
-        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(200));
-        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::zero());
-        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+        assert_eq!(
+            suite.query_balance(lender).unwrap(),
+            DisplayAmount::raw(200u128)
+        );
+        assert_eq!(
+            suite.query_balance(receiver).unwrap(),
+            DisplayAmount::zero()
+        );
+        assert_eq!(
+            suite.query_balance(controller).unwrap(),
+            DisplayAmount::zero()
+        );
     }
 
     #[test]
@@ -279,9 +345,18 @@ mod transfer {
             },
             err.downcast().unwrap()
         );
-        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(200));
-        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::zero());
-        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+        assert_eq!(
+            suite.query_balance(lender).unwrap(),
+            DisplayAmount::raw(200u128)
+        );
+        assert_eq!(
+            suite.query_balance(receiver).unwrap(),
+            DisplayAmount::zero()
+        );
+        assert_eq!(
+            suite.query_balance(controller).unwrap(),
+            DisplayAmount::zero()
+        );
     }
 }
 
@@ -311,9 +386,18 @@ mod send {
             .unwrap();
 
         assert_eq!(suite.query_receiver().unwrap(), 1);
-        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(60));
-        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::new(40));
-        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+        assert_eq!(
+            suite.query_balance(lender).unwrap(),
+            DisplayAmount::raw(60u128)
+        );
+        assert_eq!(
+            suite.query_balance(receiver).unwrap(),
+            DisplayAmount::raw(40u128)
+        );
+        assert_eq!(
+            suite.query_balance(controller).unwrap(),
+            DisplayAmount::zero()
+        );
     }
 
     #[test]
@@ -338,9 +422,18 @@ mod send {
 
         assert_eq!(ContractError::InvalidZeroAmount {}, err.downcast().unwrap());
         assert_eq!(suite.query_receiver().unwrap(), 0);
-        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(100));
-        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::zero());
-        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+        assert_eq!(
+            suite.query_balance(lender).unwrap(),
+            DisplayAmount::raw(100u128)
+        );
+        assert_eq!(
+            suite.query_balance(receiver).unwrap(),
+            DisplayAmount::zero()
+        );
+        assert_eq!(
+            suite.query_balance(controller).unwrap(),
+            DisplayAmount::zero()
+        );
     }
 
     #[test]
@@ -365,9 +458,18 @@ mod send {
 
         assert_eq!("Invalid message on receiver", err.to_string());
         assert_eq!(suite.query_receiver().unwrap(), 0);
-        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(100));
-        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::zero());
-        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+        assert_eq!(
+            suite.query_balance(lender).unwrap(),
+            DisplayAmount::raw(100u128)
+        );
+        assert_eq!(
+            suite.query_balance(receiver).unwrap(),
+            DisplayAmount::zero()
+        );
+        assert_eq!(
+            suite.query_balance(controller).unwrap(),
+            DisplayAmount::zero()
+        );
     }
 
     #[test]
@@ -395,9 +497,18 @@ mod send {
             err.downcast().unwrap()
         );
         assert_eq!(suite.query_receiver().unwrap(), 0);
-        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(100));
-        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::zero());
-        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+        assert_eq!(
+            suite.query_balance(lender).unwrap(),
+            DisplayAmount::raw(100u128)
+        );
+        assert_eq!(
+            suite.query_balance(receiver).unwrap(),
+            DisplayAmount::zero()
+        );
+        assert_eq!(
+            suite.query_balance(controller).unwrap(),
+            DisplayAmount::zero()
+        );
     }
 
     #[test]
@@ -427,9 +538,18 @@ mod send {
             err.downcast().unwrap()
         );
         assert_eq!(suite.query_receiver().unwrap(), 0);
-        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(200));
-        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::zero());
-        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+        assert_eq!(
+            suite.query_balance(lender).unwrap(),
+            DisplayAmount::raw(200u128)
+        );
+        assert_eq!(
+            suite.query_balance(receiver).unwrap(),
+            DisplayAmount::zero()
+        );
+        assert_eq!(
+            suite.query_balance(controller).unwrap(),
+            DisplayAmount::zero()
+        );
     }
 
     #[test]
@@ -457,8 +577,17 @@ mod send {
             err.downcast().unwrap()
         );
         assert_eq!(suite.query_receiver().unwrap(), 0);
-        assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(200));
-        assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::zero());
-        assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+        assert_eq!(
+            suite.query_balance(lender).unwrap(),
+            DisplayAmount::raw(200u128)
+        );
+        assert_eq!(
+            suite.query_balance(receiver).unwrap(),
+            DisplayAmount::zero()
+        );
+        assert_eq!(
+            suite.query_balance(controller).unwrap(),
+            DisplayAmount::zero()
+        );
     }
 }

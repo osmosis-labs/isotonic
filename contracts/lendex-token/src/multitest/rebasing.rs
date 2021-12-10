@@ -16,7 +16,10 @@ fn queries() {
     suite.mint(controller, lender, Uint128::new(100)).unwrap();
 
     // Before rebase the multiplier is at 1.0 and we have 100 tokens.
-    assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(100));
+    assert_eq!(
+        suite.query_balance(lender).unwrap(),
+        DisplayAmount::raw(100u128)
+    );
     assert_eq!(
         suite.query_token_info().unwrap().total_supply,
         DisplayAmount::raw(100u128)
@@ -25,7 +28,10 @@ fn queries() {
     // Rebase by 1.2. The "displayed" tokens are now at 120. The multiplier is at 1.2.
     suite.rebase(controller, Decimal::percent(120)).unwrap();
     assert_eq!(suite.query_multiplier().unwrap(), Decimal::percent(120));
-    assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(120));
+    assert_eq!(
+        suite.query_balance(lender).unwrap(),
+        DisplayAmount::raw(120u128)
+    );
     assert_eq!(
         suite.query_token_info().unwrap().total_supply,
         DisplayAmount::raw(120u128)
@@ -34,7 +40,10 @@ fn queries() {
     // Another rebase by 1.2. The "displayed" tokens are now at 144. The multiplier is at 1.44.
     suite.rebase(controller, Decimal::percent(120)).unwrap();
     assert_eq!(suite.query_multiplier().unwrap(), Decimal::percent(144));
-    assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(144));
+    assert_eq!(
+        suite.query_balance(lender).unwrap(),
+        DisplayAmount::raw(144u128)
+    );
     assert_eq!(
         suite.query_token_info().unwrap().total_supply,
         DisplayAmount::raw(144u128)
@@ -55,7 +64,10 @@ fn mint() {
     // Rebase by 1.25. The "displayed" tokens are now at 125. The multiplier is at 1.25.
     suite.rebase(controller, Decimal::percent(125)).unwrap();
     assert_eq!(suite.query_multiplier().unwrap(), Decimal::percent(125));
-    assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(125));
+    assert_eq!(
+        suite.query_balance(lender).unwrap(),
+        DisplayAmount::raw(125u128)
+    );
 
     // Mint 20 with the multiplier at 1.25. The actual stored amount is 16.
     suite.mint(controller, lender, Uint128::new(20)).unwrap();
@@ -63,7 +75,10 @@ fn mint() {
     // Reverse the rebase so that the multiplier is back at 1.0
     suite.rebase(controller, Decimal::percent(80)).unwrap();
     assert_eq!(suite.query_multiplier().unwrap(), Decimal::percent(100));
-    assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(116));
+    assert_eq!(
+        suite.query_balance(lender).unwrap(),
+        DisplayAmount::raw(116u128)
+    );
 }
 
 #[test]
@@ -84,9 +99,18 @@ fn transfer() {
 
     suite.transfer(lender, receiver, Uint128::new(24)).unwrap();
 
-    assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(96));
-    assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::new(24));
-    assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+    assert_eq!(
+        suite.query_balance(lender).unwrap(),
+        DisplayAmount::raw(96u128)
+    );
+    assert_eq!(
+        suite.query_balance(receiver).unwrap(),
+        DisplayAmount::raw(24u128)
+    );
+    assert_eq!(
+        suite.query_balance(controller).unwrap(),
+        DisplayAmount::zero()
+    );
 }
 
 #[test]
@@ -113,9 +137,18 @@ fn send() {
         .unwrap();
 
     assert_eq!(suite.query_receiver().unwrap(), 1);
-    assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(96));
-    assert_eq!(suite.query_balance(receiver).unwrap(), Uint128::new(24));
-    assert_eq!(suite.query_balance(controller).unwrap(), Uint128::zero());
+    assert_eq!(
+        suite.query_balance(lender).unwrap(),
+        DisplayAmount::raw(96u128)
+    );
+    assert_eq!(
+        suite.query_balance(receiver).unwrap(),
+        DisplayAmount::raw(24u128)
+    );
+    assert_eq!(
+        suite.query_balance(controller).unwrap(),
+        DisplayAmount::zero()
+    );
 }
 
 #[test]
@@ -133,9 +166,15 @@ fn burn() {
     suite.rebase(controller, Decimal::percent(125)).unwrap();
 
     suite.burn(controller, Uint128::new(25)).unwrap();
-    assert_eq!(suite.query_balance(controller).unwrap(), Uint128::new(100));
+    assert_eq!(
+        suite.query_balance(controller).unwrap(),
+        DisplayAmount::raw(100u128)
+    );
 
     // Reverse the rebase so that the multiplier is back at 1.0
     suite.rebase(controller, Decimal::percent(80)).unwrap();
-    assert_eq!(suite.query_balance(controller).unwrap(), Uint128::new(80));
+    assert_eq!(
+        suite.query_balance(controller).unwrap(),
+        DisplayAmount::raw(80u128)
+    );
 }

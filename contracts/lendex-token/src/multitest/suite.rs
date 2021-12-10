@@ -229,14 +229,14 @@ impl Suite {
     }
 
     /// Queries lendex contract for balance
-    pub fn query_balance(&self, address: &str) -> AnyResult<Uint128> {
+    pub fn query_balance(&self, address: &str) -> AnyResult<DisplayAmount> {
         let resp: BalanceResponse = self.app.wrap().query_wasm_smart(
             self.lendex.clone(),
             &QueryMsg::Balance {
                 address: address.to_owned(),
             },
         )?;
-        Ok(resp.balance.unpack_raw())
+        Ok(resp.balance)
     }
 
     /// Queries lendex contract for token info

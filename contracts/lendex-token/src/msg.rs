@@ -128,9 +128,4 @@ impl DisplayAmount {
 
         result256.try_into().unwrap()
     }
-
-    /// A helper to get the raw inner value for tests.
-    pub fn unpack_raw(self) -> Uint128 {
-        self.0
-    }
 }
