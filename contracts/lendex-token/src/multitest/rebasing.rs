@@ -1,5 +1,5 @@
 use super::suite::{Suite, SuiteBuilder};
-use crate::msg::{DisplayAmount, TokenInfoResponse};
+use crate::msg::DisplayAmount;
 use crate::multitest::receiver::Cw20ExecMsg;
 use cosmwasm_std::{to_binary, Decimal, Uint128};
 
@@ -8,9 +8,6 @@ fn queries() {
     let lender = "lender";
     let mut suite = SuiteBuilder::new()
         .with_transferable(lender, Uint128::new(100))
-        .with_name("Lendex")
-        .with_symbol("LDX")
-        .with_decimals(9)
         .build();
     let controller = suite.controller();
     let controller = controller.as_str();
@@ -21,13 +18,8 @@ fn queries() {
     // Before rebase the multiplier is at 1.0 and we have 100 tokens.
     assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(100));
     assert_eq!(
-        suite.query_token_info().unwrap(),
-        TokenInfoResponse {
-            name: "Lendex".to_owned(),
-            symbol: "LDX".to_owned(),
-            decimals: 9,
-            total_supply: DisplayAmount::unchecked(100u128.into()),
-        }
+        suite.query_token_info().unwrap().total_supply,
+        DisplayAmount::unchecked(100u128.into())
     );
 
     // Rebase by 1.2. The "displayed" tokens are now at 120. The multiplier is at 1.2.
@@ -35,13 +27,8 @@ fn queries() {
     assert_eq!(suite.query_multiplier().unwrap(), Decimal::percent(120));
     assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(120));
     assert_eq!(
-        suite.query_token_info().unwrap(),
-        TokenInfoResponse {
-            name: "Lendex".to_owned(),
-            symbol: "LDX".to_owned(),
-            decimals: 9,
-            total_supply: DisplayAmount::unchecked(120u128.into()),
-        }
+        suite.query_token_info().unwrap().total_supply,
+        DisplayAmount::unchecked(120u128.into())
     );
 
     // Another rebase by 1.2. The "displayed" tokens are now at 144. The multiplier is at 1.44.
@@ -49,13 +36,8 @@ fn queries() {
     assert_eq!(suite.query_multiplier().unwrap(), Decimal::percent(144));
     assert_eq!(suite.query_balance(lender).unwrap(), Uint128::new(144));
     assert_eq!(
-        suite.query_token_info().unwrap(),
-        TokenInfoResponse {
-            name: "Lendex".to_owned(),
-            symbol: "LDX".to_owned(),
-            decimals: 9,
-            total_supply: DisplayAmount::unchecked(144u128.into()),
-        }
+        suite.query_token_info().unwrap().total_supply,
+        DisplayAmount::unchecked(144u128.into())
     );
 }
 
@@ -142,7 +124,7 @@ fn burn() {
     let controller = suite.controller();
     let controller = controller.as_str();
 
-    // Preparation to have anything to burn
+    // Preparation to have anything to burnground
     suite
         .mint(controller, controller, Uint128::new(100))
         .unwrap();
