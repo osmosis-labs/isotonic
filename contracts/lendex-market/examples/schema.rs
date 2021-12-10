@@ -3,7 +3,7 @@ use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
-use lendex_market::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use lendex_market::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, TransferableAmountResponse};
 use lendex_market::state::Config;
 
 fn main() {
@@ -15,5 +15,6 @@ fn main() {
     export_schema(&schema_for!(InstantiateMsg), &out_dir);
     export_schema(&schema_for!(ExecuteMsg), &out_dir);
     export_schema(&schema_for!(QueryMsg), &out_dir);
+    export_schema(&schema_for!(TransferableAmountResponse), &out_dir);
     export_schema(&schema_for!(Config), &out_dir);
 }
