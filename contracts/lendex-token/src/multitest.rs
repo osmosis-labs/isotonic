@@ -3,7 +3,8 @@ pub mod rebasing;
 pub mod receiver;
 pub mod suite;
 
-use crate::msg::{DisplayAmount, TokenInfoResponse};
+use crate::display_amount::DisplayAmount;
+use crate::msg::TokenInfoResponse;
 use crate::ContractError;
 use cosmwasm_std::Uint128;
 use suite::{Suite, SuiteBuilder};

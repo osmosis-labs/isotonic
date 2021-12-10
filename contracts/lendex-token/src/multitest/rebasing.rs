@@ -1,5 +1,5 @@
 use super::suite::{Suite, SuiteBuilder};
-use crate::msg::DisplayAmount;
+use crate::display_amount::DisplayAmount;
 use crate::multitest::receiver::Cw20ExecMsg;
 use cosmwasm_std::{to_binary, Decimal, Uint128};
 

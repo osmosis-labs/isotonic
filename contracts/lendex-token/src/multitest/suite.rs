@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
+use crate::display_amount::DisplayAmount;
 use crate::msg::{
-    BalanceResponse, DisplayAmount, ExecuteMsg, InstantiateMsg, MultiplierResponse, QueryMsg,
-    TokenInfoResponse,
+    BalanceResponse, ExecuteMsg, InstantiateMsg, MultiplierResponse, QueryMsg, TokenInfoResponse,
 };
 use crate::multitest::controller::Controller;
 use crate::multitest::receiver::{QueryResp as ReceiverQueryResp, Receiver};

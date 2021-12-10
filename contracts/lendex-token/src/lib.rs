@@ -1,4 +1,5 @@
 pub mod contract;
+mod display_amount;
 mod error;
 pub mod msg;
 #[cfg(test)]
