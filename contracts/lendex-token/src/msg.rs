@@ -120,8 +120,7 @@ impl DisplayAmount {
 
     pub fn unpack(self, multiplier: Decimal) -> Uint128 {
         // self.0 / multiplier
-        // TODO: is there a better way?
-        self.0 * (Decimal::from_ratio(multiplier.denominator(), multiplier.numerator()))
+        self.0 * multiplier.denominator() / multiplier.numerator()
     }
 
     pub fn unpack_unchecked(self) -> Uint128 {

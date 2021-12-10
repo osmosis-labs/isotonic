@@ -1,4 +1,5 @@
 pub mod controller;
+pub mod rebasing;
 pub mod receiver;
 pub mod suite;
 
