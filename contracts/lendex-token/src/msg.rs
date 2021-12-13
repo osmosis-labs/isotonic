@@ -44,8 +44,8 @@ pub enum ExecuteMsg {
         amount: DisplayAmount,
     },
     /// Reserved for controller
-    Burn {
-        account: String,
+    BurnFrom {
+        owner: String,
         amount: DisplayAmount,
     },
     /// Can only be called by the controller.

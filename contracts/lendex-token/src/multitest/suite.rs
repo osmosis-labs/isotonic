@@ -208,8 +208,8 @@ impl Suite {
             .execute_contract(
                 Addr::unchecked(sender),
                 self.lendex.clone(),
-                &ExecuteMsg::Burn {
-                    account: account.to_string(),
+                &ExecuteMsg::BurnFrom {
+                    owner: account.to_string(),
                     amount: DisplayAmount::raw(amount),
                 },
                 &[],
