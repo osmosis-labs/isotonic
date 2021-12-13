@@ -23,7 +23,7 @@ pub struct InstantiateMsg {
 #[serde(rename_all = "snake_case")]
 pub enum Interest {
     Linear {
-        /// Base percentage charged at 0% utilisation
+        /// Base percentage, charged at 0% utilisation
         base: Decimal,
         /// Utilisation multiplier
         slope: Decimal,
@@ -58,6 +58,14 @@ pub enum QueryMsg {
         /// Address that wishes to transfer
         account: String,
     },
+    /// Returns current utilisation and interest rates
+    Interest {},
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct InterestResponse {
+    pub interest: Decimal,
+    pub utilisation: Decimal,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

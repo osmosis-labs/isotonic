@@ -34,4 +34,8 @@ impl DisplayAmount {
 
         result256.try_into().unwrap()
     }
+
+    pub fn is_zero(&self) -> bool {
+        self.0.is_zero()
+    }
 }

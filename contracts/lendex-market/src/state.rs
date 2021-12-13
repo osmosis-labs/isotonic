@@ -1,6 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::msg::Interest;
 use cosmwasm_std::Addr;
 use cw_storage_plus::Item;
 
@@ -13,6 +14,8 @@ pub struct Config {
     pub decimals: u8,
     pub token_id: u64,
     pub base_asset: String,
+    /// Interest rate calculation
+    pub rates: Interest,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");
