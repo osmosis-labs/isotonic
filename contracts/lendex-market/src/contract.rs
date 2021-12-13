@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, Coin, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
-    SubMsg, Uint128, WasmMsg,
+    coin, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
+    Reply, Response, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use cw0::parse_reply_instantiate_data;
 use cw2::set_contract_version;
@@ -166,11 +166,30 @@ pub fn execute_withdraw(
     info: MessageInfo,
     amount: Uint128,
 ) -> Result<Response, ContractError> {
+    let cfg = CONFIG.load(deps.storage)?;
+
     if !can_withdraw(deps.as_ref(), &info.sender, amount) {
         return Err(ContractError::CannotWithdraw(amount));
     }
 
-    todo!()
+    let burn_msg = to_binary(&lendex_token::msg::ExecuteMsg::BurnFrom {
+        owner: info.sender.to_string(),
+        amount: lendex_token::DisplayAmount::raw(amount),
+    })?;
+    let wrapped_msg = SubMsg::new(WasmMsg::Execute {
+        contract_addr: cfg.ltoken_contract.to_string(),
+        msg: burn_msg,
+        funds: vec![],
+    });
+
+    Ok(Response::new()
+        .add_attribute("action", "withdraw")
+        .add_attribute("sender", info.sender.clone())
+        .add_submessage(wrapped_msg)
+        .add_message(CosmosMsg::Bank(BankMsg::Send {
+            to_address: info.sender.to_string(),
+            amount: vec![coin(amount.u128(), cfg.base_asset.clone())],
+        })))
 }
 
 /// Execution entry point
