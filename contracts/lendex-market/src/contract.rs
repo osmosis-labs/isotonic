@@ -140,7 +140,7 @@ pub fn validate_funds(funds: &[Coin], base_asset_denom: &str) -> Result<Uint128,
 }
 
 /// Handler for `ExecuteMsg::Deposit`
-pub fn execute_deposit(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+pub fn deposit(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
     let cfg = CONFIG.load(deps.storage)?;
     let funds_sent = validate_funds(&info.funds, &cfg.base_asset)?;
 
@@ -161,7 +161,7 @@ pub fn execute_deposit(deps: DepsMut, info: MessageInfo) -> Result<Response, Con
 }
 
 /// Handler for `ExecuteMsg::Withdraw`
-pub fn execute_withdraw(
+pub fn withdraw(
     deps: DepsMut,
     info: MessageInfo,
     amount: Uint128,
@@ -201,8 +201,8 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::Deposit {} => execute_deposit(deps, info),
-        ExecuteMsg::Withdraw { amount } => execute_withdraw(deps, info, amount),
+        ExecuteMsg::Deposit {} => deposit(deps, info),
+        ExecuteMsg::Withdraw { amount } => withdraw(deps, info, amount),
     }
 }
 
