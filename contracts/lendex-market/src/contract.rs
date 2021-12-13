@@ -2,7 +2,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult, SubMsg,
-    WasmMsg,
+    Uint128, WasmMsg,
 };
 use cw0::parse_reply_instantiate_data;
 use cw2::set_contract_version;
@@ -119,14 +119,42 @@ pub fn token_instantiate_reply(
     Ok(response)
 }
 
+/// Helper that determines if an address can withdraw the specified amount.
+fn can_withdraw(_deps: Deps, _sender: &Addr, _amount: Uint128) -> bool {
+    // TODO: actual checks here
+    true
+}
+
+/// Handler for `ExecuteMsg::Deposit`
+pub fn execute_deposit(_deps: DepsMut, _info: MessageInfo) -> Result<Response, ContractError> {
+    todo!()
+}
+
+/// Handler for `ExecuteMsg::Withdraw`
+pub fn execute_withdraw(
+    deps: DepsMut,
+    info: MessageInfo,
+    amount: Uint128,
+) -> Result<Response, ContractError> {
+    if !can_withdraw(deps.as_ref(), &info.sender, amount) {
+        return Err(ContractError::CannotWithdraw(amount));
+    }
+
+    todo!()
+}
+
+/// Execution entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
-    _info: MessageInfo,
-    _msg: ExecuteMsg,
+    info: MessageInfo,
+    msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    Ok(Response::new())
+    match msg {
+        ExecuteMsg::Deposit {} => execute_deposit(deps, info),
+        ExecuteMsg::Withdraw { amount } => execute_withdraw(deps, info, amount),
+    }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

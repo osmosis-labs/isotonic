@@ -1,4 +1,4 @@
-use cosmwasm_std::StdError;
+use cosmwasm_std::{StdError, Uint128};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -14,4 +14,7 @@ pub enum ContractError {
 
     #[error("Invalid reply from submessage {id}, {err}")]
     ReplyParseFailure { id: u64, err: String },
+
+    #[error("Cannot withdraw {0} l-tokens")]
+    CannotWithdraw(Uint128),
 }
