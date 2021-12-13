@@ -197,10 +197,12 @@ pub fn mint(
 pub fn burn(
     deps: DepsMut,
     info: MessageInfo,
+    account: String,
     amount: DisplayAmount,
 ) -> Result<Response, ContractError> {
     let controller = CONTROLLER.load(deps.storage)?;
     let multiplier = MULTIPLIER.load(deps.storage)?;
+    let account = deps.api.addr_validate(&account)?;
     let amount = amount.to_stored_amount(multiplier);
 
     if info.sender != controller {
@@ -213,7 +215,7 @@ pub fn burn(
 
     BALANCES.update(
         deps.storage,
-        &info.sender,
+        &account,
         |balance: Option<Uint128>| -> Result<_, ContractError> {
             let balance = balance.unwrap_or_default();
             balance
@@ -231,6 +233,7 @@ pub fn burn(
     let res = Response::new()
         .add_attribute("action", "burn")
         .add_attribute("from", info.sender.to_string())
+        .add_attribute("account", account)
         .add_attribute("amount", amount);
     Ok(res)
 }
@@ -271,7 +274,7 @@ pub fn execute(
             msg,
         } => send(deps, env, info, contract, amount, msg),
         Mint { recipient, amount } => mint(deps, info, recipient, amount),
-        Burn { amount } => burn(deps, info, amount),
+        Burn { account, amount } => burn(deps, info, account, amount),
         Rebase { ratio } => rebase(deps, info, ratio),
     }
 }

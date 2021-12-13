@@ -203,12 +203,13 @@ impl Suite {
     }
 
     /// Executes burn on lendex contract
-    pub fn burn(&mut self, sender: &str, amount: Uint128) -> AnyResult<AppResponse> {
+    pub fn burn(&mut self, sender: &str, account: &str, amount: Uint128) -> AnyResult<AppResponse> {
         self.app
             .execute_contract(
                 Addr::unchecked(sender),
                 self.lendex.clone(),
                 &ExecuteMsg::Burn {
+                    account: account.to_string(),
                     amount: DisplayAmount::raw(amount),
                 },
                 &[],

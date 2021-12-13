@@ -165,7 +165,9 @@ fn burn() {
     // Rebase by 1.25, the "displayed" tokens are now at 125.
     suite.rebase(controller, Decimal::percent(125)).unwrap();
 
-    suite.burn(controller, Uint128::new(25)).unwrap();
+    suite
+        .burn(controller, controller, Uint128::new(25))
+        .unwrap();
     assert_eq!(
         suite.query_balance(controller).unwrap(),
         DisplayAmount::raw(100u128)

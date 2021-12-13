@@ -44,7 +44,10 @@ pub enum ExecuteMsg {
         amount: DisplayAmount,
     },
     /// Reserved for controller
-    Burn { amount: DisplayAmount },
+    Burn {
+        account: String,
+        amount: DisplayAmount,
+    },
     /// Can only be called by the controller.
     /// multiplier *= ratio
     Rebase { ratio: Decimal },
