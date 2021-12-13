@@ -23,9 +23,8 @@ pub enum ExecuteMsg {
     /// X base_asset must be sent along with this message. If it matches, X l_token is minted of the sender address.
     /// The underlying base_asset is stored in this Market contract
     Deposit {},
-    /// This requests to burn amount L Tokens and receive that in base_asset.
-    /// In the future we will do a check if this is allowed, for now, you can always allow, assuming enough L Token balance
-    /// Dispatches two messages, one to burn amount Token from this, and the other to send amount base asset to the sender.
+    /// This requests to withdraw the amount of L Tokens. More specifically,
+    /// the contract will burn amount L Tokens and return that to the lender in base asset.
     Withdraw { amount: Uint128 },
 }
 
