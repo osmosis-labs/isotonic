@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult, SubMsg,
-    WasmMsg,
+    coin, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
+    Reply, Response, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use cw0::parse_reply_instantiate_data;
 use cw2::set_contract_version;
@@ -119,14 +119,98 @@ pub fn token_instantiate_reply(
     Ok(response)
 }
 
+/// Helper that determines if an address can withdraw the specified amount.
+fn can_withdraw(_deps: Deps, _sender: &Addr, _amount: Uint128) -> Result<bool, ContractError> {
+    // TODO: actual checks here
+    Ok(true)
+}
+
+/// Validates funds sent with the message, that they contain only the base asset. Returns
+/// amount of funds sent, or error if:
+/// * No funds were passed with the message (`NoFundsSent` error)
+/// * Multiple denoms were sent (`ExtraDenoms` error)
+/// * A single denom different than cfg.base_asset was sent (`InvalidDenom` error)
+pub fn validate_funds(funds: &[Coin], base_asset_denom: &str) -> Result<Uint128, ContractError> {
+    match funds {
+        [] => Err(ContractError::NoFundsSent {}),
+        [Coin { denom, amount }] if denom == base_asset_denom => Ok(*amount),
+        [_] => Err(ContractError::InvalidDenom(base_asset_denom.to_string())),
+        _ => Err(ContractError::ExtraDenoms(base_asset_denom.to_string())),
+    }
+}
+
+/// Handler for `ExecuteMsg::Deposit`
+pub fn deposit(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+    let cfg = CONFIG.load(deps.storage)?;
+    let funds_sent = validate_funds(&info.funds, &cfg.base_asset)?;
+
+    let mint_msg = to_binary(&lendex_token::msg::ExecuteMsg::Mint {
+        recipient: info.sender.to_string(),
+        amount: lendex_token::DisplayAmount::raw(funds_sent),
+    })?;
+    let wrapped_msg = SubMsg::new(WasmMsg::Execute {
+        contract_addr: cfg.ltoken_contract.to_string(),
+        msg: mint_msg,
+        funds: vec![],
+    });
+
+    Ok(Response::new()
+        .add_attribute("action", "deposit")
+        .add_attribute("sender", info.sender)
+        .add_submessage(wrapped_msg))
+}
+
+/// Handler for `ExecuteMsg::Withdraw`
+pub fn withdraw(
+    deps: DepsMut,
+    info: MessageInfo,
+    amount: Uint128,
+) -> Result<Response, ContractError> {
+    let cfg = CONFIG.load(deps.storage)?;
+
+    if !can_withdraw(deps.as_ref(), &info.sender, amount)? {
+        return Err(ContractError::CannotWithdraw {
+            account: info.sender.to_string(),
+            amount,
+        });
+    }
+
+    // Burn the L tokens
+    let burn_msg = to_binary(&lendex_token::msg::ExecuteMsg::BurnFrom {
+        owner: info.sender.to_string(),
+        amount: lendex_token::DisplayAmount::raw(amount),
+    })?;
+    let wrapped_msg = SubMsg::new(WasmMsg::Execute {
+        contract_addr: cfg.ltoken_contract.to_string(),
+        msg: burn_msg,
+        funds: vec![],
+    });
+
+    // Send the base assets from contract to lender
+    let send_msg = CosmosMsg::Bank(BankMsg::Send {
+        to_address: info.sender.to_string(),
+        amount: vec![coin(amount.u128(), cfg.base_asset)],
+    });
+
+    Ok(Response::new()
+        .add_attribute("action", "withdraw")
+        .add_attribute("sender", info.sender)
+        .add_submessage(wrapped_msg)
+        .add_message(send_msg))
+}
+
+/// Execution entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
-    _info: MessageInfo,
-    _msg: ExecuteMsg,
+    info: MessageInfo,
+    msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    Ok(Response::new())
+    match msg {
+        ExecuteMsg::Deposit {} => deposit(deps, info),
+        ExecuteMsg::Withdraw { amount } => withdraw(deps, info, amount),
+    }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

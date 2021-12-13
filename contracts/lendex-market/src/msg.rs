@@ -19,7 +19,14 @@ pub struct InstantiateMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum ExecuteMsg {}
+pub enum ExecuteMsg {
+    /// X base_asset must be sent along with this message. If it matches, X l_token is minted of the sender address.
+    /// The underlying base_asset is stored in this Market contract
+    Deposit {},
+    /// This requests to withdraw the amount of L Tokens. More specifically,
+    /// the contract will burn amount L Tokens and return that to the lender in base asset.
+    Withdraw { amount: Uint128 },
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
