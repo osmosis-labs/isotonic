@@ -125,11 +125,11 @@ fn can_withdraw(_deps: Deps, _sender: &Addr, _amount: Uint128) -> Result<(), Con
     Ok(())
 }
 
-/// Validates funds send with the message, that they are containing only the base asset. Returns
-/// amount of funds send, or error if:
-/// * No funds are passed with message (`NoFunds` error)
-/// * More than single denom  are send (`ExtraDenoms` error)
-/// * Invalid single denom is send (`MissingDenom` error)
+/// Validates funds sent with the message, that they contain only the base asset. Returns
+/// amount of funds sent, or error if:
+/// * No funds were passed with the message (`NoFundsSent` error)
+/// * Multiple denoms were sent (`ExtraDenoms` error)
+/// * A single denom different than cfg.base_asset was sent (`InvalidDenom` error)
 pub fn validate_funds(funds: &[Coin], base_asset_denom: &str) -> Result<Uint128, ContractError> {
     match funds {
         [] => Err(ContractError::NoFundsSent {}),
