@@ -1,4 +1,4 @@
-use cosmwasm_std::{Binary, Decimal, Uint128};
+use cosmwasm_std::{Binary, Coin, Decimal, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -83,6 +83,10 @@ pub enum QueryMsg {
     TokenInfo {},
     /// Returns the global multiplier factor.
     Multiplier {},
+    /// Funds distributed by this contract. Returns `FundsResponse`.
+    DistributedFunds {},
+    /// FUnds send to this contact but not yet distributed. Returns `FundsResponse`.
+    UndistributedFunds {},
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -101,4 +105,9 @@ pub struct TokenInfoResponse {
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct MultiplierResponse {
     pub multiplier: Decimal,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct FundsResponse {
+    pub funds: Coin,
 }

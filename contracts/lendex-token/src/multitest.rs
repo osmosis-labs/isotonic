@@ -6,7 +6,7 @@ pub mod suite;
 use crate::display_amount::DisplayAmount;
 use crate::msg::TokenInfoResponse;
 use crate::ContractError;
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{coin, Uint128};
 use suite::{Suite, SuiteBuilder};
 
 #[test]
@@ -15,6 +15,7 @@ fn fresh_queries() {
         .with_name("Lendex")
         .with_symbol("LDX")
         .with_decimals(9)
+        .with_distributed_token("Reward")
         .build();
     let actor = "actor";
     let controller = suite.controller();
@@ -34,6 +35,11 @@ fn fresh_queries() {
     assert_eq!(
         suite.query_balance(controller).unwrap(),
         DisplayAmount::zero()
+    );
+    assert_eq!(suite.query_distributed_funds().unwrap(), coin(0, "Reward"));
+    assert_eq!(
+        suite.query_undistributed_funds().unwrap(),
+        coin(0, "Reward")
     );
 }
 

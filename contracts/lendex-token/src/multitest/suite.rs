@@ -2,12 +2,13 @@ use std::collections::HashMap;
 
 use crate::display_amount::DisplayAmount;
 use crate::msg::{
-    BalanceResponse, ExecuteMsg, InstantiateMsg, MultiplierResponse, QueryMsg, TokenInfoResponse,
+    BalanceResponse, ExecuteMsg, FundsResponse, InstantiateMsg, MultiplierResponse, QueryMsg,
+    TokenInfoResponse,
 };
 use crate::multitest::controller::Controller;
 use crate::multitest::receiver::{QueryResp as ReceiverQueryResp, Receiver};
 use anyhow::{anyhow, Result as AnyResult};
-use cosmwasm_std::{Addr, Binary, Decimal, Empty, Uint128};
+use cosmwasm_std::{Addr, Binary, Coin, Decimal, Empty, Uint128};
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
 
 fn contract_lendex() -> Box<dyn Contract<Empty>> {
@@ -63,6 +64,11 @@ impl SuiteBuilder {
 
     pub fn with_transferable(mut self, sender: impl ToString, amount: Uint128) -> Self {
         *self.transferable.entry(sender.to_string()).or_default() += amount;
+        self
+    }
+
+    pub fn with_distributed_token(mut self, token: impl ToString) -> Self {
+        self.distributed_token = token.to_string();
         self
     }
 
@@ -272,5 +278,27 @@ impl Suite {
             .map_err(|err| anyhow!(err))?;
 
         Ok(resp.multiplier)
+    }
+
+    /// Queries distributed funds
+    pub fn query_distributed_funds(&self) -> AnyResult<Coin> {
+        let resp: FundsResponse = self
+            .app
+            .wrap()
+            .query_wasm_smart(self.lendex.clone(), &QueryMsg::DistributedFunds {})
+            .map_err(|err| anyhow!(err))?;
+
+        Ok(resp.funds)
+    }
+
+    /// Queries undistributed funds
+    pub fn query_undistributed_funds(&self) -> AnyResult<Coin> {
+        let resp: FundsResponse = self
+            .app
+            .wrap()
+            .query_wasm_smart(self.lendex.clone(), &QueryMsg::UndistributedFunds {})
+            .map_err(|err| anyhow!(err))?;
+
+        Ok(resp.funds)
     }
 }

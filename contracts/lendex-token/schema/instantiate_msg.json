@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InstantiateMsg",
+  "type": "object",
+  "required": [
+    "controller",
+    "decimals",
+    "distributed_token",
+    "name",
+    "symbol"
+  ],
+  "properties": {
+    "controller": {
+      "description": "Controller is contract allowed to ming, burn, rebase, and must be checked with to enable transfer",
+      "type": "string"
+    },
+    "decimals": {
+      "description": "Token precision for displaying",
+      "type": "integer",
+      "format": "uint8",
+      "minimum": 0.0
+    },
+    "distributed_token": {
+      "description": "Token which will be distributed via this contract by cw2222 interface",
+      "type": "string"
+    },
+    "name": {
+      "description": "Token name",
+      "type": "string"
+    },
+    "symbol": {
+      "description": "Token symbol",
+      "type": "string"
+    }
+  }
+}

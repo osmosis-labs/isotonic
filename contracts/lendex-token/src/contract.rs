@@ -1,14 +1,15 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
+    coin, to_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    Uint128,
 };
 use cw2::set_contract_version;
 
 use crate::display_amount::DisplayAmount;
 use crate::error::ContractError;
 use crate::msg::{
-    BalanceResponse, ControllerQuery, Cw20ReceiveMsg, ExecuteMsg, InstantiateMsg,
+    BalanceResponse, ControllerQuery, Cw20ReceiveMsg, ExecuteMsg, FundsResponse, InstantiateMsg,
     MultiplierResponse, QueryMsg, TokenInfoResponse, TransferableAmountResp,
 };
 use crate::state::{
@@ -328,15 +329,40 @@ pub fn query_multiplier(deps: Deps) -> StdResult<MultiplierResponse> {
     Ok(MultiplierResponse { multiplier })
 }
 
+/// Handler for `QueryMsg::DistributedFunds`
+pub fn query_distributed_funds(deps: Deps) -> StdResult<FundsResponse> {
+    let distribution = DISTRIBUTION.load(deps.storage)?;
+    Ok(FundsResponse {
+        funds: coin(distribution.distributed_total.into(), &distribution.denom),
+    })
+}
+
+/// Handler for `QueryMsg::UndistributedFunds`
+pub fn query_undistributed_funds(deps: Deps, env: Env) -> StdResult<FundsResponse> {
+    let distribution = DISTRIBUTION.load(deps.storage)?;
+    let balance = deps
+        .querier
+        .query_balance(env.contract.address, distribution.denom.clone())?
+        .amount;
+    Ok(FundsResponse {
+        funds: coin(
+            (balance - distribution.withdrawable_total).into(),
+            &distribution.denom,
+        ),
+    })
+}
+
 /// `QueryMsg` entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     use QueryMsg::*;
 
     match msg {
         Balance { address } => to_binary(&query_balance(deps, address)?),
         TokenInfo {} => to_binary(&query_token_info(deps)?),
         Multiplier {} => to_binary(&query_multiplier(deps)?),
+        DistributedFunds {} => to_binary(&query_distributed_funds(deps)?),
+        UndistributedFunds {} => to_binary(&query_undistributed_funds(deps, env)?),
     }
 }
 
