@@ -172,6 +172,7 @@ pub fn withdraw(
         return Err(ContractError::CannotWithdraw(amount));
     }
 
+    // Burn the L tokens
     let burn_msg = to_binary(&lendex_token::msg::ExecuteMsg::BurnFrom {
         owner: info.sender.to_string(),
         amount: lendex_token::DisplayAmount::raw(amount),
@@ -182,14 +183,17 @@ pub fn withdraw(
         funds: vec![],
     });
 
+    // Send the base assets from contract to lender
+    let send_msg = CosmosMsg::Bank(BankMsg::Send {
+        to_address: info.sender.to_string(),
+        amount: vec![coin(amount.u128(), cfg.base_asset)],
+    });
+
     Ok(Response::new()
         .add_attribute("action", "withdraw")
         .add_attribute("sender", info.sender.clone())
         .add_submessage(wrapped_msg)
-        .add_message(CosmosMsg::Bank(BankMsg::Send {
-            to_address: info.sender.to_string(),
-            amount: vec![coin(amount.u128(), cfg.base_asset.clone())],
-        })))
+        .add_message(send_msg))
 }
 
 /// Execution entry point
