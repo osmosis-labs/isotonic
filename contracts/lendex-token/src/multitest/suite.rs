@@ -31,6 +31,8 @@ pub struct SuiteBuilder {
     decimals: u8,
     /// Amount of tokens controller would allow to transfer
     transferable: HashMap<String, Uint128>,
+    /// Token distributed by this contract
+    distributed_token: String,
 }
 
 impl SuiteBuilder {
@@ -40,6 +42,7 @@ impl SuiteBuilder {
             symbol: "LDX".to_owned(),
             decimals: 9,
             transferable: HashMap::new(),
+            distributed_token: "gov".to_owned(),
         }
     }
 
@@ -91,6 +94,7 @@ impl SuiteBuilder {
                     symbol: self.symbol,
                     decimals: self.decimals,
                     controller: controller.to_string(),
+                    distributed_token: self.distributed_token,
                 },
                 &[],
                 "Lendex",

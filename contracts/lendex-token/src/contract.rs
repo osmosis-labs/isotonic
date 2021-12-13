@@ -11,7 +11,10 @@ use crate::msg::{
     BalanceResponse, ControllerQuery, Cw20ReceiveMsg, ExecuteMsg, InstantiateMsg,
     MultiplierResponse, QueryMsg, TokenInfoResponse, TransferableAmountResp,
 };
-use crate::state::{TokenInfo, BALANCES, CONTROLLER, MULTIPLIER, TOKEN_INFO, TOTAL_SUPPLY};
+use crate::state::{
+    Distribution, TokenInfo, BALANCES, CONTROLLER, DISTRIBUTION, MULTIPLIER, TOKEN_INFO,
+    TOTAL_SUPPLY,
+};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:lendex-token";
@@ -31,7 +34,19 @@ pub fn instantiate(
         symbol: msg.symbol,
         decimals: msg.decimals,
     };
+
     TOKEN_INFO.save(deps.storage, &token_info)?;
+
+    let distribution = Distribution {
+        denom: msg.distributed_token,
+        points_per_token: Uint128::zero(),
+        points_leftover: 0,
+        distributed_total: Uint128::zero(),
+        withdrawable_total: Uint128::zero(),
+    };
+
+    DISTRIBUTION.save(deps.storage, &distribution)?;
+
     TOTAL_SUPPLY.save(deps.storage, &Uint128::zero())?;
     CONTROLLER.save(deps.storage, &deps.api.addr_validate(&msg.controller)?)?;
     MULTIPLIER.save(deps.storage, &Decimal::one())?;
@@ -340,6 +355,7 @@ mod tests {
             symbol: "CASH".to_string(),
             decimals: 9,
             controller: controller.to_string(),
+            distributed_token: String::new(),
         };
         let info = mock_info("creator", &[]);
         let env = mock_env();
@@ -374,6 +390,7 @@ mod tests {
             symbol: "CASH".to_string(),
             decimals: 9,
             controller: controller.to_string(),
+            distributed_token: String::new(),
         };
         let info = mock_info("creator", &[]);
         let env = mock_env();

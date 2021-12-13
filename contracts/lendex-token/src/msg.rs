@@ -17,6 +17,8 @@ pub struct InstantiateMsg {
     /// Controller is contract allowed to ming, burn, rebase, and must be checked with to
     /// enable transfer
     pub controller: String,
+    /// Token which will be distributed via this contract by cw2222 interface
+    pub distributed_token: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
