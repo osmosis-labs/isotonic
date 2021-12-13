@@ -120,9 +120,9 @@ pub fn token_instantiate_reply(
 }
 
 /// Helper that determines if an address can withdraw the specified amount.
-fn can_withdraw(_deps: Deps, _sender: &Addr, _amount: Uint128) -> Result<(), ContractError> {
+fn can_withdraw(_deps: Deps, _sender: &Addr, _amount: Uint128) -> Result<bool, ContractError> {
     // TODO: actual checks here
-    Ok(())
+    Ok(true)
 }
 
 /// Validates funds sent with the message, that they contain only the base asset. Returns
@@ -168,7 +168,12 @@ pub fn withdraw(
 ) -> Result<Response, ContractError> {
     let cfg = CONFIG.load(deps.storage)?;
 
-    can_withdraw(deps.as_ref(), &info.sender, amount)?;
+    if !can_withdraw(deps.as_ref(), &info.sender, amount)? {
+        return Err(ContractError::CannotWithdraw {
+            account: info.sender.to_string(),
+            amount,
+        });
+    }
 
     // Burn the L tokens
     let burn_msg = to_binary(&lendex_token::msg::ExecuteMsg::BurnFrom {

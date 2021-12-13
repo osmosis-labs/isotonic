@@ -1,4 +1,4 @@
-use cosmwasm_std::StdError;
+use cosmwasm_std::{StdError, Uint128};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -23,4 +23,7 @@ pub enum ContractError {
 
     #[error("Sent unsupported token, must deposit '{0}' in the lending pool")]
     InvalidDenom(String),
+
+    #[error("Address {account} cannot withdraw {amount}")]
+    CannotWithdraw { account: String, amount: Uint128 },
 }
