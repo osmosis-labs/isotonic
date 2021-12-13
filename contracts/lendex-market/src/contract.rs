@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult, SubMsg,
-    Uint128, WasmMsg,
+    to_binary, Addr, Binary, Coin, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
+    SubMsg, Uint128, WasmMsg,
 };
 use cw0::parse_reply_instantiate_data;
 use cw2::set_contract_version;
@@ -125,9 +125,39 @@ fn can_withdraw(_deps: Deps, _sender: &Addr, _amount: Uint128) -> bool {
     true
 }
 
+/// Validates funds send with the message, that they are containing only the base asset. Returns
+/// amount of funds send, or error if:
+/// * No funds are passed with message (`NoFunds` error)
+/// * More than single denom  are send (`ExtraDenoms` error)
+/// * Invalid single denom is send (`MissingDenom` error)
+pub fn validate_funds(funds: &[Coin], base_asset_denom: &str) -> Result<Uint128, ContractError> {
+    match funds {
+        [] => Err(ContractError::NoFundsSent {}),
+        [Coin { denom, amount }] if denom == base_asset_denom => Ok(*amount),
+        [_] => Err(ContractError::InvalidDenom(base_asset_denom.to_string())),
+        _ => Err(ContractError::ExtraDenoms(base_asset_denom.to_string())),
+    }
+}
+
 /// Handler for `ExecuteMsg::Deposit`
-pub fn execute_deposit(_deps: DepsMut, _info: MessageInfo) -> Result<Response, ContractError> {
-    todo!()
+pub fn execute_deposit(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+    let cfg = CONFIG.load(deps.storage)?;
+    let funds_sent = validate_funds(&info.funds, &cfg.base_asset)?;
+
+    let mint_msg = to_binary(&lendex_token::msg::ExecuteMsg::Mint {
+        recipient: info.sender.to_string(),
+        amount: lendex_token::DisplayAmount::raw(funds_sent),
+    })?;
+    let wrapped_msg = SubMsg::new(WasmMsg::Execute {
+        contract_addr: cfg.ltoken_contract.to_string(),
+        msg: mint_msg,
+        funds: vec![],
+    });
+
+    Ok(Response::new()
+        .add_attribute("action", "deposit")
+        .add_attribute("sender", info.sender)
+        .add_submessage(wrapped_msg))
 }
 
 /// Handler for `ExecuteMsg::Withdraw`

@@ -17,4 +17,13 @@ pub enum ContractError {
 
     #[error("Cannot withdraw {0} l-tokens")]
     CannotWithdraw(Uint128),
+
+    #[error("No funds sent")]
+    NoFundsSent {},
+
+    #[error("Sent too many denoms, must deposit only '{0}' in the lending pool")]
+    ExtraDenoms(String),
+
+    #[error("Sent unsupported token, must deposit '{0}' in the lending pool")]
+    InvalidDenom(String),
 }
