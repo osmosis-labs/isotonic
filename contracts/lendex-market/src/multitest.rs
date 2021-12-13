@@ -2,7 +2,7 @@ mod deposit;
 pub mod suite;
 mod withdraw;
 
-use cosmwasm_std::{Addr, StdError, Uint128};
+use cosmwasm_std::{coin, Addr, StdError, Uint128};
 
 use crate::state::Config;
 use suite::SuiteBuilder;
@@ -27,20 +27,30 @@ fn market_instantiate_and_query_config() {
 
 #[test]
 fn query_transferable_amount() {
-    let suite = SuiteBuilder::new().build();
+    let lender = "lender";
+    let base_asset = "base";
+    let mut suite = SuiteBuilder::new()
+        .with_base_asset(base_asset)
+        .with_funds(lender, &[coin(100, base_asset)])
+        .build();
 
     let btoken = suite.btoken();
-    let resp = suite.query_transferable_amount(btoken, "actor").unwrap();
+    let resp = suite.query_transferable_amount(btoken, lender).unwrap();
     assert_eq!(Uint128::zero(), resp);
 
-    // TODO: Mint tokens and query this again during/after
-    // https://github.com/confio/lendex/issues/6
     let ltoken = suite.ltoken();
-    let resp = suite.query_transferable_amount(ltoken, "actor").unwrap();
+    let resp = suite
+        .query_transferable_amount(ltoken.clone(), lender)
+        .unwrap();
     assert_eq!(Uint128::zero(), resp);
+
+    // Deposit base asset and mint some L tokens, then query again
+    suite.deposit(lender, &[coin(100, base_asset)]).unwrap();
+    let resp = suite.query_transferable_amount(ltoken, lender).unwrap();
+    assert_eq!(Uint128::new(100), resp);
 
     let resp = suite
-        .query_transferable_amount("xtoken", "actor")
+        .query_transferable_amount("xtoken", lender)
         .unwrap_err();
     assert_eq!(
         StdError::generic_err(
