@@ -26,6 +26,11 @@ pub enum ExecuteMsg {
     /// This requests to withdraw the amount of L Tokens. More specifically,
     /// the contract will burn amount L Tokens and return that to the lender in base asset.
     Withdraw { amount: Uint128 },
+    /// If sent tokens' denom matches base_asset, burns tokens from sender's address
+    Repay {},
+    /// Dispatches two messages, one to mint amount of BToken for this sender,
+    /// and the other to send amount base asset to the sender
+    Borrow { amount: Uint128 },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

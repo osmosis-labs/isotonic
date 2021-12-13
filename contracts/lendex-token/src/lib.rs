@@ -8,3 +8,4 @@ pub mod state;
 
 pub use crate::display_amount::DisplayAmount;
 pub use crate::error::ContractError;
+pub use crate::msg::QueryMsg;
