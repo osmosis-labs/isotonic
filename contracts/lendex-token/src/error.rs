@@ -17,6 +17,9 @@ pub enum ContractError {
 
     #[error("Performing operation while there is not enough tokens, {available} tokens available, {needed} needed")]
     InsufficientTokens { available: Uint128, needed: Uint128 },
+
+    #[error("No token holders, noone to distribute tokens to")]
+    NoHoldersToDistributeTo {},
 }
 
 impl ContractError {

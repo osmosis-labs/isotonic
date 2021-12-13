@@ -13,8 +13,8 @@ use crate::msg::{
     MultiplierResponse, QueryMsg, TokenInfoResponse, TransferableAmountResp,
 };
 use crate::state::{
-    Distribution, TokenInfo, BALANCES, CONTROLLER, DISTRIBUTION, MULTIPLIER, TOKEN_INFO,
-    TOTAL_SUPPLY,
+    Distribution, TokenInfo, BALANCES, CONTROLLER, DISTRIBUTION, MULTIPLIER, POINTS_SHIFT,
+    TOKEN_INFO, TOTAL_SUPPLY,
 };
 
 // version info for migration info
@@ -272,6 +272,62 @@ pub fn rebase(deps: DepsMut, info: MessageInfo, ratio: Decimal) -> Result<Respon
     Ok(res)
 }
 
+/// Handler for `ExecuteMsg::Distribute`
+pub fn distribute(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    sender: Option<String>,
+) -> Result<Response, ContractError> {
+    let total_supply = TOTAL_SUPPLY.load(deps.storage)?.u128();
+
+    if total_supply == 0 {
+        return Err(ContractError::NoHoldersToDistributeTo {});
+    }
+
+    let sender = sender
+        .map(|sender| deps.api.addr_validate(&sender))
+        .transpose()?
+        .unwrap_or(info.sender);
+
+    let mut distribution = DISTRIBUTION.load(deps.storage)?;
+
+    let withdrawable: u128 = distribution.withdrawable_total.into();
+    let balance: u128 = deps
+        .querier
+        .query_balance(env.contract.address, distribution.denom.clone())?
+        .amount
+        .into();
+
+    let amount = balance - withdrawable;
+    if amount == 0 {
+        return Ok(Response::new());
+    }
+
+    let leftover: u128 = distribution.points_leftover.into();
+    let points = (amount << POINTS_SHIFT) + leftover;
+    let points_per_token = points / total_supply;
+    distribution.points_leftover = (points % total_supply) as u64;
+
+    // Everything goes back to 128-bits/16-bytes
+    // Full amount is added here to total withdrawable, as it should not be considered on its own
+    // on future distributions - even if because of calculation offsets it is not fully
+    // distributed, the error is handled by leftover.
+    distribution.points_per_token += Uint128::from(points_per_token);
+    distribution.distributed_total += Uint128::from(amount);
+    distribution.withdrawable_total += Uint128::from(amount);
+
+    DISTRIBUTION.save(deps.storage, &distribution)?;
+
+    let resp = Response::new()
+        .add_attribute("action", "distribute_tokens")
+        .add_attribute("sender", sender.as_str())
+        .add_attribute("denom", &distribution.denom)
+        .add_attribute("amount", &amount.to_string());
+
+    Ok(resp)
+}
+
 /// Execution entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
@@ -292,6 +348,7 @@ pub fn execute(
         Mint { recipient, amount } => mint(deps, info, recipient, amount),
         BurnFrom { owner, amount } => burn_from(deps, info, owner, amount),
         Rebase { ratio } => rebase(deps, info, ratio),
+        Distribute { sender } => distribute(deps, env, info, sender),
     }
 }
 

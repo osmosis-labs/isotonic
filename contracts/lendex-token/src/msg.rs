@@ -53,6 +53,12 @@ pub enum ExecuteMsg {
     /// Can only be called by the controller.
     /// multiplier *= ratio
     Rebase { ratio: Decimal },
+    /// Distributed tokens using cw2222 mechanism. Tokens send with this message as distributed
+    /// alongside with all tokens send until now which are not yet distributed.
+    Distribute {
+        /// Just for informational pusposes - would overwrite message sender in generated event.
+        sender: Option<String>,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
