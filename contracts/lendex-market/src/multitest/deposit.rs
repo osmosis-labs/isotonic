@@ -11,13 +11,13 @@ fn deposit_works() {
         .build();
 
     // At first, the lender has no l-token, and the contract has no base asset.
-    assert_eq!(suite.query_asset_balance().unwrap(), 0);
+    assert_eq!(suite.query_contract_asset_balance().unwrap(), 0);
     assert_eq!(suite.query_ltoken_balance(lender).unwrap().u128(), 0);
 
     suite.deposit(lender, &[Coin::new(100, "ATOM")]).unwrap();
 
     // After the deposit, the lender has 100 l-token and the contract has 100 base asset.
-    assert_eq!(suite.query_asset_balance().unwrap(), 100);
+    assert_eq!(suite.query_contract_asset_balance().unwrap(), 100);
     assert_eq!(suite.query_ltoken_balance(lender).unwrap().u128(), 100);
 }
 

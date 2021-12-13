@@ -1,5 +1,6 @@
 mod deposit;
 pub mod suite;
+mod withdraw;
 
 use cosmwasm_std::{Addr, StdError, Uint128};
 

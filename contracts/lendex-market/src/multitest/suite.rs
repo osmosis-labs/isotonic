@@ -140,7 +140,7 @@ impl Suite {
         self.ltoken_contract.clone()
     }
 
-    /// Deposit funds in the lending pool and mint l-token
+    /// Deposit base asset in the lending pool and mint l-token
     pub fn deposit(&mut self, sender: &str, funds: &[Coin]) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             Addr::unchecked(sender),
@@ -150,14 +150,31 @@ impl Suite {
         )
     }
 
+    /// Withdraw base asset from the lending pool and burn l-token
+    pub fn withdraw(&mut self, sender: &str, amount: u128) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            Addr::unchecked(sender),
+            self.contract.clone(),
+            &ExecuteMsg::Withdraw {
+                amount: amount.into(),
+            },
+            &[],
+        )
+    }
+
     /// Shortcut for querying base asset balance in the market contract
-    pub fn query_asset_balance(&self) -> StdResult<u128> {
+    pub fn query_asset_balance(&self, owner: &str) -> StdResult<u128> {
         let amount = self
             .app
             .wrap()
-            .query_balance(&self.contract.clone(), &self.base_asset)?
+            .query_balance(owner, &self.base_asset)?
             .amount;
         Ok(amount.into())
+    }
+
+    /// Shortcut for querying base asset balance in the market contract
+    pub fn query_contract_asset_balance(&self) -> StdResult<u128> {
+        self.query_asset_balance(self.contract.as_str())
     }
 
     /// Queries market contract for configuration
