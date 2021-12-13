@@ -1,10 +1,10 @@
 use anyhow::Result as AnyResult;
 
-use cosmwasm_std::{Addr, Coin, Empty, StdResult, Uint128};
+use cosmwasm_std::{Addr, Coin, Decimal, Empty, StdResult, Uint128};
 use cw20::BalanceResponse;
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
 
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, TransferableAmountResponse};
+use crate::msg::{ExecuteMsg, InstantiateMsg, Interest, QueryMsg, TransferableAmountResponse};
 use crate::state::Config;
 
 fn contract_market() -> Box<dyn Contract<Empty>> {
@@ -93,6 +93,10 @@ impl SuiteBuilder {
                     decimals: self.decimals,
                     token_id,
                     base_asset: base_asset.clone(),
+                    interest_rate: Interest::Linear {
+                        base: Decimal::percent(3),
+                        slope: Decimal::percent(20),
+                    },
                 },
                 &[],
                 "market",
