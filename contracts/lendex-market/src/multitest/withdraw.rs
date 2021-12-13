@@ -39,4 +39,8 @@ fn withdraw_overflow_is_handled() {
         suite.withdraw(lender, 150).unwrap_err().to_string(),
         "Performing operation while there is not enough tokens, 100 tokens available, 150 needed"
     );
+
+    assert_eq!(suite.query_asset_balance(lender).unwrap(), 0);
+    assert_eq!(suite.query_contract_asset_balance().unwrap(), 100);
+    assert_eq!(suite.query_ltoken_balance(lender).unwrap().u128(), 100);
 }
