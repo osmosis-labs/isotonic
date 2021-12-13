@@ -25,7 +25,7 @@ pub enum ContractError {
     InvalidDenom(String),
 
     #[error("Cannot borrow amount {amount} for {account}")]
-    CannowBorrow { amount: Uint128, account: String },
+    CannotBorrow { amount: Uint128, account: String },
 
     #[error("Address {account} cannot withdraw {amount}")]
     CannotWithdraw { account: String, amount: Uint128 },

@@ -225,7 +225,7 @@ fn borrow(deps: DepsMut, info: MessageInfo, amount: Uint128) -> Result<Response,
     let cfg = CONFIG.load(deps.storage)?;
 
     if !can_borrow(deps.as_ref(), &info.sender, amount)? {
-        return Err(ContractError::BorrowDenied {
+        return Err(ContractError::CannotBorrow {
             amount,
             account: info.sender.to_string(),
         });
