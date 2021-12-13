@@ -1,3 +1,4 @@
+mod deposit;
 pub mod suite;
 
 use cosmwasm_std::{Addr, StdError, Uint128};

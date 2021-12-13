@@ -1,9 +1,9 @@
 use anyhow::Result as AnyResult;
 
-use cosmwasm_std::{Addr, Empty, Uint128};
-use cw_multi_test::{App, Contract, ContractWrapper, Executor};
+use cosmwasm_std::{Addr, Coin, Empty, StdResult, Uint128};
+use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
 
-use crate::msg::{InstantiateMsg, QueryMsg, TransferableAmountResponse};
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, TransferableAmountResponse};
 use crate::state::Config;
 
 fn contract_market() -> Box<dyn Contract<Empty>> {
@@ -38,6 +38,8 @@ pub struct SuiteBuilder {
     decimals: u8,
     /// Native denom for the base asset
     base_asset: String,
+    /// Initial funds to provide for testing
+    funds: Vec<(Addr, Vec<Coin>)>,
 }
 
 impl SuiteBuilder {
@@ -47,13 +49,36 @@ impl SuiteBuilder {
             symbol: "LDX".to_owned(),
             decimals: 9,
             base_asset: "native_denom".to_owned(),
+            funds: vec![],
         }
+    }
+
+    pub fn with_base_asset(mut self, denom: impl Into<String>) -> Self {
+        self.base_asset = denom.into();
+        self
+    }
+
+    /// Sets initial amount of distributable tokens on address
+    pub fn with_funds(mut self, addr: &str, funds: &[Coin]) -> Self {
+        self.funds.push((Addr::unchecked(addr), funds.into()));
+        self
     }
 
     #[track_caller]
     pub fn build(self) -> Suite {
         let mut app = App::default();
         let owner = Addr::unchecked("owner");
+
+        let funds = self.funds;
+
+        app.init_modules(|router, _, storage| -> AnyResult<()> {
+            for (addr, coin) in funds {
+                router.bank.init_balance(storage, &addr, coin)?;
+            }
+
+            Ok(())
+        })
+        .unwrap();
 
         let token_id = app.store_code(contract_token());
         let contract_id = app.store_code(contract_market());
@@ -66,7 +91,7 @@ impl SuiteBuilder {
                     symbol: self.symbol,
                     decimals: self.decimals,
                     token_id,
-                    base_asset: self.base_asset,
+                    base_asset: self.base_asset.clone(),
                 },
                 &[],
                 "market",
@@ -85,6 +110,7 @@ impl SuiteBuilder {
             contract,
             ltoken_contract: config.ltoken_contract,
             btoken_contract: config.btoken_contract,
+            base_asset: self.base_asset,
         }
     }
 }
@@ -99,6 +125,8 @@ pub struct Suite {
     ltoken_contract: Addr,
     /// Address of BToken contract
     btoken_contract: Addr,
+    /// The base asset deposited and lended by the contract
+    base_asset: String,
 }
 
 impl Suite {
@@ -110,6 +138,26 @@ impl Suite {
     /// Gives ltoken contract address back
     pub fn ltoken(&self) -> Addr {
         self.ltoken_contract.clone()
+    }
+
+    /// Deposit funds in the lending pool and mint l-token
+    pub fn deposit(&mut self, sender: &str, funds: &[Coin]) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            Addr::unchecked(sender),
+            self.contract.clone(),
+            &ExecuteMsg::Deposit {},
+            funds,
+        )
+    }
+
+    /// Shortcut for querying base asset balance in the market contract
+    pub fn query_asset_balance(&self) -> StdResult<u128> {
+        let amount = self
+            .app
+            .wrap()
+            .query_balance(&self.contract.clone(), &self.base_asset)?
+            .amount;
+        Ok(amount.into())
     }
 
     /// Queries market contract for configuration
@@ -134,5 +182,9 @@ impl Suite {
             },
         )?;
         Ok(resp.transferable)
+    }
+
+    pub fn query_ltoken_balance(&self, account: impl ToString) -> AnyResult<Uint128> {
+        self.query_transferable_amount(&self.ltoken_contract, account)
     }
 }
