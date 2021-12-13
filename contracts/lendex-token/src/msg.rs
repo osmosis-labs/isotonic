@@ -56,9 +56,11 @@ pub enum ExecuteMsg {
     /// Distributed tokens using cw2222 mechanism. Tokens send with this message as distributed
     /// alongside with all tokens send until now which are not yet distributed.
     Distribute {
-        /// Just for informational pusposes - would overwrite message sender in generated event.
+        /// Just for informational purposes - would overwrite message sender in generated event.
         sender: Option<String>,
     },
+    /// Withdraw tokens distributed before
+    WithdrawFunds {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

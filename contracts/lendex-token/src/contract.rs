@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    coin, to_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
-    Uint128,
+    coin, to_binary, Addr, BankMsg, Binary, Coin, Decimal, Deps, DepsMut, Env, MessageInfo,
+    Response, StdResult, SubMsg, Uint128,
 };
 use cw2::set_contract_version;
 
@@ -13,8 +13,8 @@ use crate::msg::{
     MultiplierResponse, QueryMsg, TokenInfoResponse, TransferableAmountResp,
 };
 use crate::state::{
-    Distribution, TokenInfo, BALANCES, CONTROLLER, DISTRIBUTION, MULTIPLIER, POINTS_SHIFT,
-    TOKEN_INFO, TOTAL_SUPPLY,
+    Distribution, TokenInfo, WithdrawAdjustment, BALANCES, CONTROLLER, DISTRIBUTION, MULTIPLIER,
+    POINTS_SHIFT, TOKEN_INFO, TOTAL_SUPPLY, WITHDRAW_ADJUSTMENT,
 };
 
 // version info for migration info
@@ -328,6 +328,35 @@ pub fn distribute(
     Ok(resp)
 }
 
+/// Handler for `ExecuteMsg::WithdrawFunds`
+fn withdraw_funds(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+    let mut distribution = DISTRIBUTION.load(deps.storage)?;
+    let mut adjustment = WITHDRAW_ADJUSTMENT.load(deps.storage, &info.sender)?;
+
+    let token = withdrawable_funds(deps.as_ref(), &info.sender, &distribution, &adjustment)?;
+    if token.amount.is_zero() {
+        // Just do nothing
+        return Ok(Response::new());
+    }
+
+    adjustment.withdrawn_funds += token.amount;
+    WITHDRAW_ADJUSTMENT.save(deps.storage, &info.sender, &adjustment)?;
+    distribution.withdrawable_total -= token.amount;
+    DISTRIBUTION.save(deps.storage, &distribution)?;
+
+    let resp = Response::new()
+        .add_attribute("action", "withdraw_tokens")
+        .add_attribute("owner", info.sender.as_str())
+        .add_attribute("token", &token.denom)
+        .add_attribute("amount", &token.amount.to_string())
+        .add_submessage(SubMsg::new(BankMsg::Send {
+            to_address: info.sender.to_string(),
+            amount: vec![token],
+        }));
+
+    Ok(resp)
+}
+
 /// Execution entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
@@ -349,6 +378,7 @@ pub fn execute(
         BurnFrom { owner, amount } => burn_from(deps, info, owner, amount),
         Rebase { ratio } => rebase(deps, info, ratio),
         Distribute { sender } => distribute(deps, env, info, sender),
+        WithdrawFunds {} => withdraw_funds(deps, info),
     }
 }
 
@@ -407,6 +437,28 @@ pub fn query_undistributed_funds(deps: Deps, env: Env) -> StdResult<FundsRespons
             &distribution.denom,
         ),
     })
+}
+
+/// Calculates withdrawable funds from distribution and adjustment info.
+pub fn withdrawable_funds(
+    deps: Deps,
+    owner: &Addr,
+    distribution: &Distribution,
+    adjustment: &WithdrawAdjustment,
+) -> StdResult<Coin> {
+    let ppt: u128 = distribution.points_per_token.into();
+    let tokens: u128 = BALANCES
+        .may_load(deps.storage, owner)?
+        .unwrap_or_default()
+        .into();
+    let correction = adjustment.points_correction.u128() as i128;
+    let withdrawn: u128 = adjustment.withdrawn_funds.into();
+    let points = (ppt * tokens) as i128;
+    let points = points + correction;
+    let amount = points as u128 >> POINTS_SHIFT;
+    let amount = amount - withdrawn;
+
+    Ok(coin(amount, &distribution.denom))
 }
 
 /// `QueryMsg` entry point

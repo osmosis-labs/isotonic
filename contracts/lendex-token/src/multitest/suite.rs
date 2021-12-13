@@ -239,6 +239,36 @@ impl Suite {
             .map_err(|err| anyhow!(err))
     }
 
+    /// Executes distribute on lendex contract
+    pub fn distribute(
+        &mut self,
+        executor: &str,
+        sender: impl Into<Option<&str>>,
+        funds: &[Coin],
+    ) -> AnyResult<AppResponse> {
+        let sender = sender.into().map(str::to_owned);
+        self.app
+            .execute_contract(
+                Addr::unchecked(executor),
+                self.lendex.clone(),
+                &ExecuteMsg::Distribute { sender },
+                funds,
+            )
+            .map_err(|err| anyhow!(err))
+    }
+
+    /// Execute withdraw_funds on lendex contract
+    pub fn withdraw_funds(&self, executor: &str) -> AnyResult<AppResponse> {
+        self.app
+            .execute_contract(
+                Addr::unchecked(executor),
+                self.lendex.clone(),
+                &ExecuteMsg::WithdrawFunds {},
+                &[],
+            )
+            .map_err(|err| anyhow!(err))
+    }
+
     /// Queries lendex contract for balance
     pub fn query_balance(&self, address: &str) -> AnyResult<DisplayAmount> {
         let resp: BalanceResponse = self.app.wrap().query_wasm_smart(
