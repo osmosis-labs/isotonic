@@ -104,17 +104,16 @@ mod burning {
         let mut suite = Suite::new();
         let controller = suite.controller();
         let controller = controller.as_str();
+        let holder = "holder";
 
         // Preparation to have anything to burn
-        suite
-            .mint(controller, controller, Uint128::new(100))
-            .unwrap();
+        suite.mint(controller, holder, Uint128::new(100)).unwrap();
 
         // Actually burning
-        suite.burn(controller, Uint128::new(50)).unwrap();
+        suite.burn(controller, holder, Uint128::new(50)).unwrap();
 
         assert_eq!(
-            suite.query_balance(controller).unwrap(),
+            suite.query_balance(holder).unwrap(),
             DisplayAmount::raw(50u128)
         );
     }
@@ -124,18 +123,17 @@ mod burning {
         let mut suite = Suite::new();
         let controller = suite.controller();
         let controller = controller.as_str();
+        let holder = "holder";
 
         // Preparation to have anything to burn
-        suite
-            .mint(controller, controller, Uint128::new(100))
-            .unwrap();
+        suite.mint(controller, holder, Uint128::new(100)).unwrap();
 
         // Actually burning
-        let err = suite.burn(controller, Uint128::zero()).unwrap_err();
+        let err = suite.burn(controller, holder, Uint128::zero()).unwrap_err();
 
         assert_eq!(ContractError::InvalidZeroAmount {}, err.downcast().unwrap());
         assert_eq!(
-            suite.query_balance(controller).unwrap(),
+            suite.query_balance(holder).unwrap(),
             DisplayAmount::raw(100u128)
         );
     }
@@ -145,21 +143,22 @@ mod burning {
         let mut suite = Suite::new();
         let controller = suite.controller();
         let controller = controller.as_str();
+        let holder = "holder";
 
         // Preparation to have anything to burn
-        suite
-            .mint(controller, controller, Uint128::new(100))
-            .unwrap();
+        suite.mint(controller, holder, Uint128::new(100)).unwrap();
 
         // Actually burning
-        let err = suite.burn(controller, Uint128::new(150)).unwrap_err();
+        let err = suite
+            .burn(controller, holder, Uint128::new(150))
+            .unwrap_err();
 
         assert_eq!(
             ContractError::insufficient_tokens(100u128, 150u128),
             err.downcast().unwrap()
         );
         assert_eq!(
-            suite.query_balance(controller).unwrap(),
+            suite.query_balance(holder).unwrap(),
             DisplayAmount::raw(100u128)
         );
     }
@@ -175,7 +174,7 @@ mod burning {
         suite.mint(controller, lender, Uint128::new(100)).unwrap();
 
         // Actually burning
-        let err = suite.burn(lender, Uint128::new(150)).unwrap_err();
+        let err = suite.burn(lender, lender, Uint128::new(150)).unwrap_err();
 
         assert_eq!(ContractError::Unauthorized {}, err.downcast().unwrap());
         assert_eq!(
