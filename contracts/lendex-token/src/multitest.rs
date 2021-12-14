@@ -633,10 +633,10 @@ mod distribution {
 
         // Funds distribution
         let resp = suite
-            .distribute(&members[3], None, &coins(400, reward))
+            .distribute(members[3], None, &coins(400, reward))
             .unwrap();
 
-        resp.assert_event(&distribution_event(&members[3], &reward, 400));
+        resp.assert_event(&distribution_event(members[3], reward, 400));
 
         assert_eq!(suite.native_balance(lendex, reward).unwrap(), 400);
         assert_eq!(suite.native_balance(members[0], reward).unwrap(), 0);
