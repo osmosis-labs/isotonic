@@ -9,7 +9,7 @@ use crate::multitest::controller::Controller;
 use crate::multitest::receiver::{QueryResp as ReceiverQueryResp, Receiver};
 use anyhow::{anyhow, Result as AnyResult};
 use cosmwasm_std::{Addr, Binary, Coin, Decimal, Empty, Uint128};
-use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
+use cw_multi_test::{App, AppResponse, BasicAppBuilder, Contract, ContractWrapper, Executor};
 
 fn contract_lendex() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new(
@@ -34,6 +34,8 @@ pub struct SuiteBuilder {
     transferable: HashMap<String, Uint128>,
     /// Token distributed by this contract
     distributed_token: String,
+    /// Initial funds of native tokens
+    funds: Vec<(Addr, Vec<Coin>)>,
 }
 
 impl SuiteBuilder {
@@ -44,6 +46,7 @@ impl SuiteBuilder {
             decimals: 9,
             transferable: HashMap::new(),
             distributed_token: "gov".to_owned(),
+            funds: Vec::new(),
         }
     }
 
@@ -72,9 +75,20 @@ impl SuiteBuilder {
         self
     }
 
+    pub fn with_funds(mut self, addr: &str, tokens: impl IntoIterator<Item = Coin>) -> Self {
+        self.funds
+            .push((Addr::unchecked(addr), tokens.into_iter().collect()));
+        self
+    }
+
     #[track_caller]
     pub fn build(self) -> Suite {
-        let mut app = App::default();
+        let funds = self.funds;
+        let mut app = BasicAppBuilder::new().build(move |router, _api, storage| {
+            for (addr, tokens) in funds {
+                router.bank.init_balance(storage, &addr, tokens).unwrap();
+            }
+        });
         let owner = Addr::unchecked("owner");
 
         let controller_contract = Controller::new(self.transferable);
@@ -148,6 +162,11 @@ impl Suite {
     /// Gives receiver address back
     pub fn receiver(&self) -> Addr {
         self.receiver.clone()
+    }
+
+    /// Gives lendex address back
+    pub fn lendex(&self) -> Addr {
+        self.lendex.clone()
     }
 
     /// Executes transfer on lendex contract
@@ -240,10 +259,10 @@ impl Suite {
     }
 
     /// Executes distribute on lendex contract
-    pub fn distribute(
+    pub fn distribute<'a>(
         &mut self,
         executor: &str,
-        sender: impl Into<Option<&str>>,
+        sender: impl Into<Option<&'a str>>,
         funds: &[Coin],
     ) -> AnyResult<AppResponse> {
         let sender = sender.into().map(str::to_owned);
@@ -258,7 +277,7 @@ impl Suite {
     }
 
     /// Execute withdraw_funds on lendex contract
-    pub fn withdraw_funds(&self, executor: &str) -> AnyResult<AppResponse> {
+    pub fn withdraw_funds(&mut self, executor: &str) -> AnyResult<AppResponse> {
         self.app
             .execute_contract(
                 Addr::unchecked(executor),
@@ -330,5 +349,15 @@ impl Suite {
             .map_err(|err| anyhow!(err))?;
 
         Ok(resp.funds)
+    }
+
+    /// Queries for balance of native token
+    pub fn native_balance(&self, addr: &str, token: &str) -> AnyResult<u128> {
+        let amount = self
+            .app
+            .wrap()
+            .query_balance(&Addr::unchecked(addr), token)?
+            .amount;
+        Ok(amount.into())
     }
 }

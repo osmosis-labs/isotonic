@@ -82,7 +82,7 @@ fn can_transfer(
 
 /// Performs tokens transfer.
 fn transfer_tokens(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     sender: String,
     recipient: Addr,
@@ -97,8 +97,8 @@ fn transfer_tokens(
     let sender_addr = Addr::unchecked(&sender);
     can_transfer(deps.as_ref(), &env, sender, amount)?;
 
-    let distribution = DISTRIBUTION.load(&deps.storage)?;
-    let ppt = distribution.points_per_token.u128() as i128;
+    let distribution = DISTRIBUTION.load(deps.storage)?;
+    let ppt = distribution.points_per_token.u128();
 
     BALANCES.update(
         deps.storage,
@@ -110,14 +110,14 @@ fn transfer_tokens(
                 .map_err(|_| ContractError::insufficient_tokens(balance, amount))
         },
     )?;
-    apply_points_correction(deps.branch(), &sender_addr, ppt, amount.u128() as _);
+    apply_points_correction(deps.branch(), &sender_addr, ppt, amount.u128() as _)?;
 
     BALANCES.update(
         deps.storage,
         &recipient,
         |balance: Option<Uint128>| -> StdResult<_> { Ok(balance.unwrap_or_default() + amount) },
     )?;
-    apply_points_correction(deps.branch(), &sender_addr, ppt, -(amount.u128() as i128));
+    apply_points_correction(deps.branch(), &sender_addr, ppt, -(amount.u128() as i128))?;
 
     Ok(())
 }
@@ -179,7 +179,7 @@ fn send(
 
 /// Handler for `ExecuteMsg::Mint`
 pub fn mint(
-    deps: DepsMut,
+    mut deps: DepsMut,
     info: MessageInfo,
     recipient: String,
     amount: DisplayAmount,
@@ -196,8 +196,8 @@ pub fn mint(
         return Err(ContractError::InvalidZeroAmount {});
     }
 
-    let distribution = DISTRIBUTION.load(&deps.storage)?;
-    let ppt = distribution.points_per_token();
+    let distribution = DISTRIBUTION.load(deps.storage)?;
+    let ppt = distribution.points_per_token.u128();
 
     let recipient_addr = deps.api.addr_validate(&recipient)?;
     BALANCES.update(
@@ -205,12 +205,7 @@ pub fn mint(
         &recipient_addr,
         |balance: Option<Uint128>| -> StdResult<_> { Ok(balance.unwrap_or_default() + amount) },
     )?;
-    apply_points_correction(
-        deps.branch(),
-        &recipient_addr,
-        ppt.u128() as _,
-        amount.u128() as _,
-    );
+    apply_points_correction(deps.branch(), &recipient_addr, ppt, amount.u128() as _)?;
 
     TOTAL_SUPPLY.update(deps.storage, |supply| -> StdResult<_> {
         Ok(supply + amount)
@@ -225,7 +220,7 @@ pub fn mint(
 
 /// Handler for `ExecuteMsg::Burn`
 pub fn burn_from(
-    deps: DepsMut,
+    mut deps: DepsMut,
     info: MessageInfo,
     owner: String,
     amount: DisplayAmount,
@@ -243,6 +238,8 @@ pub fn burn_from(
         return Err(ContractError::InvalidZeroAmount {});
     }
 
+    let ppt = DISTRIBUTION.load(deps.storage)?.points_per_token;
+
     BALANCES.update(
         deps.storage,
         &owner,
@@ -258,7 +255,7 @@ pub fn burn_from(
         &owner,
         ppt.u128() as _,
         -(amount.u128() as i128),
-    );
+    )?;
 
     TOTAL_SUPPLY.update(deps.storage, |supply| -> Result<_, ContractError> {
         supply
@@ -351,7 +348,9 @@ pub fn distribute(
 /// Handler for `ExecuteMsg::WithdrawFunds`
 fn withdraw_funds(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
     let mut distribution = DISTRIBUTION.load(deps.storage)?;
-    let mut adjustment = WITHDRAW_ADJUSTMENT.load(deps.storage, &info.sender)?;
+    let mut adjustment = WITHDRAW_ADJUSTMENT
+        .may_load(deps.storage, &info.sender)?
+        .unwrap_or_default();
 
     let token = withdrawable_funds(deps.as_ref(), &info.sender, &distribution, &adjustment)?;
     if token.amount.is_zero() {
@@ -485,7 +484,7 @@ pub fn withdrawable_funds(
         .may_load(deps.storage, owner)?
         .unwrap_or_default()
         .into();
-    let correction = adjustment.points_correction.u128() as i128;
+    let correction: i128 = adjustment.points_correction.into();
     let withdrawn: u128 = adjustment.withdrawn_funds.into();
     let points = (ppt * tokens) as i128;
     let points = points + correction;

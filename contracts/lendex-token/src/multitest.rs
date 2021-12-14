@@ -6,7 +6,7 @@ pub mod suite;
 use crate::display_amount::DisplayAmount;
 use crate::msg::TokenInfoResponse;
 use crate::ContractError;
-use cosmwasm_std::{coin, Uint128};
+use cosmwasm_std::{coin, coins, Event, Uint128};
 use suite::{Suite, SuiteBuilder};
 
 #[test]
@@ -595,5 +595,80 @@ mod send {
             suite.query_balance(controller).unwrap(),
             DisplayAmount::zero()
         );
+    }
+}
+
+mod distribution {
+    use super::*;
+
+    fn distribution_event(sender: &str, denom: &str, amount: u128) -> Event {
+        Event::new("wasm")
+            .add_attribute("sender", sender)
+            .add_attribute("denom", denom)
+            .add_attribute("amount", &amount.to_string())
+    }
+
+    #[test]
+    fn divisible_amount_distributed() {
+        let members = ["member1", "member2", "member3", "member4"];
+
+        let token = "Lendex";
+        let reward = "Reward";
+
+        let mut suite = SuiteBuilder::new()
+            .with_name(token)
+            .with_distributed_token(reward)
+            .with_funds(members[3], coins(400, reward))
+            .build();
+
+        let controller = suite.controller();
+        let controller = controller.as_str();
+        let lendex = suite.lendex();
+        let lendex = lendex.as_str();
+
+        // Mint tokens to have something to base on
+        suite.mint(controller, members[0], Uint128::new(1)).unwrap();
+        suite.mint(controller, members[1], Uint128::new(2)).unwrap();
+        suite.mint(controller, members[2], Uint128::new(5)).unwrap();
+
+        // Funds distribution
+        let resp = suite
+            .distribute(&members[3], None, &coins(400, reward))
+            .unwrap();
+
+        resp.assert_event(&distribution_event(&members[3], &reward, 400));
+
+        assert_eq!(suite.native_balance(lendex, reward).unwrap(), 400);
+        assert_eq!(suite.native_balance(members[0], reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(members[1], reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(members[2], reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(members[3], reward).unwrap(), 0);
+
+        /*      assert_eq!(
+            suite.withdrawable_funds(&members[0]).unwrap(),
+            coin(50, &denom)
+        );
+        assert_eq!(
+            suite.withdrawable_funds(&members[1]).unwrap(),
+            coin(100, &denom)
+        );
+        assert_eq!(
+            suite.withdrawable_funds(&members[2]).unwrap(),
+            coin(250, &denom)
+        );*/
+
+        assert_eq!(suite.query_distributed_funds().unwrap(), coin(400, reward));
+        assert_eq!(suite.query_undistributed_funds().unwrap(), coin(0, reward));
+
+        // Funds withdrawal
+        suite.withdraw_funds(members[0]).unwrap();
+        suite.withdraw_funds(members[1]).unwrap();
+        suite.withdraw_funds(members[2]).unwrap();
+
+        assert_eq!(suite.native_balance(lendex, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(members[0], reward).unwrap(), 50);
+        assert_eq!(suite.native_balance(members[1], reward).unwrap(), 100);
+        assert_eq!(suite.native_balance(members[2], reward).unwrap(), 250);
+        assert_eq!(suite.native_balance(members[3], reward).unwrap(), 0);
     }
 }
