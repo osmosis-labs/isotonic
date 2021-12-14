@@ -4,7 +4,9 @@ use cosmwasm_std::{Addr, Coin, Decimal, Empty, StdResult, Uint128};
 use cw20::BalanceResponse;
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
 
-use crate::msg::{ExecuteMsg, InstantiateMsg, Interest, QueryMsg, TransferableAmountResponse};
+use crate::msg::{
+    ExecuteMsg, InstantiateMsg, Interest, InterestResponse, QueryMsg, TransferableAmountResponse,
+};
 use crate::state::Config;
 
 fn contract_market() -> Box<dyn Contract<Empty>> {
@@ -268,5 +270,14 @@ impl Suite {
     /// Queries btoken contract for balance
     pub fn query_btoken_balance(&self, account: impl ToString) -> AnyResult<Uint128> {
         self.query_token_balance(&self.btoken_contract, account)
+    }
+
+    /// Queries current interest and utilisation rates
+    pub fn query_interest(&self) -> AnyResult<InterestResponse> {
+        let resp: InterestResponse = self
+            .app
+            .wrap()
+            .query_wasm_smart(self.contract.clone(), &QueryMsg::Interest {})?;
+        Ok(resp)
     }
 }
