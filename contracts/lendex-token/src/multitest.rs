@@ -777,4 +777,127 @@ mod distribution {
         assert_eq!(suite.native_balance(members[2], reward).unwrap(), 625);
         assert_eq!(suite.native_balance(members[3], reward).unwrap(), 0);
     }
+
+    #[test]
+    fn weight_changed_after_distribution() {
+        let members = vec!["member1", "member2", "member3", "member4"];
+
+        let token = "Lendex";
+        let reward = "Reward";
+
+        let mut suite = SuiteBuilder::new()
+            .with_name(token)
+            .with_distributed_token(reward)
+            .with_funds(members[3], coins(1500, reward))
+            .with_transferable(members[1], Uint128::new(1))
+            .build();
+
+        let controller = suite.controller();
+        let controller = controller.as_str();
+        let lendex = suite.lendex();
+        let lendex = lendex.as_str();
+
+        // Mint tokens to have something to base on
+        suite.mint(controller, members[0], Uint128::new(1)).unwrap();
+        suite.mint(controller, members[1], Uint128::new(2)).unwrap();
+        suite.mint(controller, members[2], Uint128::new(5)).unwrap();
+
+        // First distribution
+        suite
+            .distribute(&members[3], None, &coins(400, reward))
+            .unwrap();
+
+        // Modifying weights to:
+        // member[0] => 6
+        // member[1] => 0 (removed)
+        // member[2] => 5
+        // total_weight => 11
+        suite
+            .transfer(members[1], members[0], Uint128::new(1))
+            .unwrap();
+        suite.mint(controller, members[0], Uint128::new(4)).unwrap();
+        suite.burn(controller, members[1], Uint128::new(1)).unwrap();
+
+        // Ensure funds are withdrawn properly, considering old weights
+        suite.withdraw_funds(members[0]).unwrap();
+        suite.withdraw_funds(members[1]).unwrap();
+        suite.withdraw_funds(members[2]).unwrap();
+
+        assert_eq!(suite.native_balance(lendex, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(members[0], reward).unwrap(), 50);
+        assert_eq!(suite.native_balance(members[1], reward).unwrap(), 100);
+        assert_eq!(suite.native_balance(members[2], reward).unwrap(), 250);
+        assert_eq!(suite.native_balance(members[3], reward).unwrap(), 1100);
+
+        // Distribute tokens again to ensure distribution considers new weights
+        suite
+            .distribute(members[3], None, &coins(1100, reward))
+            .unwrap();
+
+        suite.withdraw_funds(members[0]).unwrap();
+        suite.withdraw_funds(members[1]).unwrap();
+        suite.withdraw_funds(members[2]).unwrap();
+
+        assert_eq!(suite.native_balance(lendex, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(members[0], reward).unwrap(), 650);
+        assert_eq!(suite.native_balance(members[1], reward).unwrap(), 100);
+        assert_eq!(suite.native_balance(members[2], reward).unwrap(), 750);
+        assert_eq!(suite.native_balance(members[3], reward).unwrap(), 0);
+    }
+
+    #[test]
+    fn weight_changed_after_distribution_accumulated() {
+        let members = vec!["member1", "member2", "member3", "member4"];
+
+        let token = "Lendex";
+        let reward = "Reward";
+
+        let mut suite = SuiteBuilder::new()
+            .with_name(token)
+            .with_distributed_token(reward)
+            .with_funds(members[3], coins(1500, reward))
+            .with_transferable(members[1], Uint128::new(1))
+            .build();
+
+        let controller = suite.controller();
+        let controller = controller.as_str();
+        let lendex = suite.lendex();
+        let lendex = lendex.as_str();
+
+        // Mint tokens to have something to base on
+        suite.mint(controller, members[0], Uint128::new(1)).unwrap();
+        suite.mint(controller, members[1], Uint128::new(2)).unwrap();
+        suite.mint(controller, members[2], Uint128::new(5)).unwrap();
+
+        // First distribution
+        suite
+            .distribute(&members[3], None, &coins(400, reward))
+            .unwrap();
+
+        // Modifying weights to:
+        // member[0] => 6
+        // member[1] => 0 (removed)
+        // member[2] => 5
+        // total_weight => 11
+        suite
+            .transfer(members[1], members[0], Uint128::new(1))
+            .unwrap();
+        suite.mint(controller, members[0], Uint128::new(4)).unwrap();
+        suite.burn(controller, members[1], Uint128::new(1)).unwrap();
+
+        // Distribute tokens again to ensure distribution considers new weights
+        suite
+            .distribute(members[3], None, &coins(1100, reward))
+            .unwrap();
+
+        suite.withdraw_funds(members[0]).unwrap();
+        suite.withdraw_funds(members[1]).unwrap();
+        suite.withdraw_funds(members[2]).unwrap();
+
+        assert_eq!(suite.native_balance(lendex, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(members[0], reward).unwrap(), 650);
+        assert_eq!(suite.native_balance(members[1], reward).unwrap(), 100);
+        assert_eq!(suite.native_balance(members[2], reward).unwrap(), 750);
+        assert_eq!(suite.native_balance(members[3], reward).unwrap(), 0);
+    }
 }

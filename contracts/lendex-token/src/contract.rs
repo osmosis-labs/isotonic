@@ -110,14 +110,14 @@ fn transfer_tokens(
                 .map_err(|_| ContractError::insufficient_tokens(balance, amount))
         },
     )?;
-    apply_points_correction(deps.branch(), &sender_addr, ppt, amount.u128() as _)?;
+    apply_points_correction(deps.branch(), &sender_addr, ppt, -(amount.u128() as i128))?;
 
     BALANCES.update(
         deps.storage,
         &recipient,
         |balance: Option<Uint128>| -> StdResult<_> { Ok(balance.unwrap_or_default() + amount) },
     )?;
-    apply_points_correction(deps.branch(), &sender_addr, ppt, -(amount.u128() as i128))?;
+    apply_points_correction(deps.branch(), &recipient, ppt, amount.u128() as _)?;
 
     Ok(())
 }
