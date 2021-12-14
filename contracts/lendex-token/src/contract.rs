@@ -97,6 +97,9 @@ fn transfer_tokens(
     let sender_addr = Addr::unchecked(&sender);
     can_transfer(deps.as_ref(), &env, sender, amount)?;
 
+    let distribution = DISTRIBUTION.load(&deps.storage)?;
+    let ppt = distribution.points_per_token.u128() as i128;
+
     BALANCES.update(
         deps.storage,
         &sender_addr,
@@ -107,12 +110,14 @@ fn transfer_tokens(
                 .map_err(|_| ContractError::insufficient_tokens(balance, amount))
         },
     )?;
+    apply_points_correction(deps.branch(), &sender_addr, ppt, amount.u128() as _);
 
     BALANCES.update(
         deps.storage,
         &recipient,
         |balance: Option<Uint128>| -> StdResult<_> { Ok(balance.unwrap_or_default() + amount) },
     )?;
+    apply_points_correction(deps.branch(), &sender_addr, ppt, -(amount.u128() as i128));
 
     Ok(())
 }
@@ -191,12 +196,21 @@ pub fn mint(
         return Err(ContractError::InvalidZeroAmount {});
     }
 
+    let distribution = DISTRIBUTION.load(&deps.storage)?;
+    let ppt = distribution.points_per_token();
+
     let recipient_addr = deps.api.addr_validate(&recipient)?;
     BALANCES.update(
         deps.storage,
         &recipient_addr,
         |balance: Option<Uint128>| -> StdResult<_> { Ok(balance.unwrap_or_default() + amount) },
     )?;
+    apply_points_correction(
+        deps.branch(),
+        &recipient_addr,
+        ppt.u128() as _,
+        amount.u128() as _,
+    );
 
     TOTAL_SUPPLY.update(deps.storage, |supply| -> StdResult<_> {
         Ok(supply + amount)
@@ -239,6 +253,12 @@ pub fn burn_from(
                 .map_err(|_| ContractError::insufficient_tokens(balance, amount))
         },
     )?;
+    apply_points_correction(
+        deps.branch(),
+        &owner,
+        ppt.u128() as _,
+        -(amount.u128() as i128),
+    );
 
     TOTAL_SUPPLY.update(deps.storage, |supply| -> Result<_, ContractError> {
         supply
@@ -439,6 +459,20 @@ pub fn query_undistributed_funds(deps: Deps, env: Env) -> StdResult<FundsRespons
     })
 }
 
+/// `QueryMsg` entry point
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    use QueryMsg::*;
+
+    match msg {
+        Balance { address } => to_binary(&query_balance(deps, address)?),
+        TokenInfo {} => to_binary(&query_token_info(deps)?),
+        Multiplier {} => to_binary(&query_multiplier(deps)?),
+        DistributedFunds {} => to_binary(&query_distributed_funds(deps)?),
+        UndistributedFunds {} => to_binary(&query_undistributed_funds(deps, env)?),
+    }
+}
+
 /// Calculates withdrawable funds from distribution and adjustment info.
 pub fn withdrawable_funds(
     deps: Deps,
@@ -461,18 +495,18 @@ pub fn withdrawable_funds(
     Ok(coin(amount, &distribution.denom))
 }
 
-/// `QueryMsg` entry point
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    use QueryMsg::*;
-
-    match msg {
-        Balance { address } => to_binary(&query_balance(deps, address)?),
-        TokenInfo {} => to_binary(&query_token_info(deps)?),
-        Multiplier {} => to_binary(&query_multiplier(deps)?),
-        DistributedFunds {} => to_binary(&query_distributed_funds(deps)?),
-        UndistributedFunds {} => to_binary(&query_undistributed_funds(deps, env)?),
-    }
+/// Applies points correction for given address.
+/// `ppt` is current value from `POINTS_PER_TOKEN` - not loaded in function, to
+/// avoid multiple queries on bulk updates.
+/// `diff` is the weight change
+pub fn apply_points_correction(deps: DepsMut, addr: &Addr, ppt: u128, diff: i128) -> StdResult<()> {
+    WITHDRAW_ADJUSTMENT.update(deps.storage, addr, |old| -> StdResult<_> {
+        let mut old = old.unwrap_or_default();
+        let points_correction: i128 = old.points_correction.into();
+        old.points_correction = (points_correction - ppt as i128 * diff).into();
+        Ok(old)
+    })?;
+    Ok(())
 }
 
 #[cfg(test)]

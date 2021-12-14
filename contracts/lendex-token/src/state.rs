@@ -27,10 +27,10 @@ pub struct Distribution {
     pub withdrawable_total: Uint128,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Default)]
 pub struct WithdrawAdjustment {
     /// How much points should be added/removed from calculated funds while withdrawal.
-    pub points_correction: Uint128,
+    pub points_correction: Int128,
     /// How much funds was already withdrawn.
     pub withdrawn_funds: Uint128,
 }
