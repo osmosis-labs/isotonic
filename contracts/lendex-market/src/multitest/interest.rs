@@ -49,12 +49,13 @@ fn query_interest() {
     // Borrow some tokens
     suite.borrow(borrower, 10).unwrap();
 
-    // Now utilisation is 10% (10/100), and the interest changed according to the linear formula
+    // Now utilisation is 10% (10/100),
+    // The interest changed according to the linear formula: 3% + 20% * 10% = 3% + 2% = 5%.
     let resp = suite.query_interest().unwrap();
     assert_eq!(
         InterestResponse {
             utilisation: Decimal::percent(10),
-            interest: Decimal::percent(3) + Decimal::percent(20) * Decimal::from_ratio(10u8, 100u8),
+            interest: Decimal::percent(3) + Decimal::percent(2),
         },
         resp
     );
@@ -62,27 +63,27 @@ fn query_interest() {
     // Repay some tokens
     suite.repay(borrower, Coin::new(5, base_asset)).unwrap();
 
-    // Utilisation is now 5% ((10-5)/100), and the interest changed according to the linear formula
+    // Utilisation is now 5% ((10-5)/100).
+    // The interest changed according to the linear formula: 3% + 20% * 5% = 3% + 1% = 4%.
     let resp = suite.query_interest().unwrap();
     assert_eq!(
         InterestResponse {
             utilisation: Decimal::percent(5),
-            interest: Decimal::percent(3) + Decimal::percent(20) * Decimal::from_ratio(5u8, 100u8),
+            interest: Decimal::percent(3) + Decimal::percent(1),
         },
         resp
     );
 
     // Lend some more
-    suite
-        .deposit(lender, &[Coin::new(50, base_asset)])
-        .unwrap();
+    suite.deposit(lender, &[Coin::new(50, base_asset)]).unwrap();
 
-    // Utilisation is now ~3.33% ((10-5)/(100+50)), and the interest changed according to the linear formula
+    // Utilisation is now ~3.33% ((10-5)/(100+50)).
+    // The interest changed according to the linear formula: 3% + 20% * 3.33% = 3% + 0.67% = 3.67%.
     let resp = suite.query_interest().unwrap();
     assert_eq!(
         InterestResponse {
             utilisation: Decimal::from_ratio(1u8, 30u8),
-            interest: Decimal::percent(3) + Decimal::percent(20) * Decimal::from_ratio(5u8, 150u8),
+            interest: Decimal::percent(3) + Decimal::from_ratio(1u8, 150u8),
         },
         resp
     );
