@@ -38,6 +38,7 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     /// Returns current configuration
     Configuration {},
+    /// Returns TransferableAmountResponse
     TransferableAmount {
         /// Lendex contract address that calls "CanTransfer"
         token: String,

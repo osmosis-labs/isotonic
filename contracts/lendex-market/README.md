@@ -17,7 +17,13 @@ pub struct InstantiateMsg {
 
 ## Messages
 
-TBD
+`Deposit {}` - deposits funds. If denom matches `base_asset`, proper amount of tokens will be minted and sent to ltoken account
+
+`Withdraw { amount: Uint128 }` - requests to withdraw the amount of ltokens
+
+`Borrow { amount: Uint128 }` - if contract has some balance, borrow request can be sent. It will mint proper amount of btokens into btoken contracts and separately to borrower address
+
+`Repay {}` - repays borrowed tokens. Any surplus is sent back to borrower
 
 ## Queries
 
