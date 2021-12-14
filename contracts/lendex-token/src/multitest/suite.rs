@@ -11,7 +11,7 @@ use anyhow::{anyhow, Result as AnyResult};
 use cosmwasm_std::{Addr, Binary, Coin, Decimal, Empty, Uint128};
 use cw_multi_test::{App, AppResponse, BasicAppBuilder, Contract, ContractWrapper, Executor};
 
-fn contract_lendex() -> Box<dyn Contract<Empty>> {
+fn contract_token() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new(
         crate::contract::execute,
         crate::contract::instantiate,
@@ -104,10 +104,10 @@ impl SuiteBuilder {
             )
             .unwrap();
 
-        let lendex_id = app.store_code(contract_lendex());
-        let lendex = app
+        let token_id = app.store_code(contract_token());
+        let token = app
             .instantiate_contract(
-                lendex_id,
+                token_id,
                 owner.clone(),
                 &InstantiateMsg {
                     name: self.name,
@@ -130,7 +130,7 @@ impl SuiteBuilder {
         Suite {
             app,
             controller,
-            lendex,
+            token,
             receiver,
         }
     }
@@ -142,8 +142,8 @@ pub struct Suite {
     app: App,
     /// Address of controller contract
     controller: Addr,
-    /// Address of lendex contract
-    lendex: Addr,
+    /// Address of token contract
+    token: Addr,
     /// Address of cw1 contract
     receiver: Addr,
 }
@@ -164,12 +164,12 @@ impl Suite {
         self.receiver.clone()
     }
 
-    /// Gives lendex address back
-    pub fn lendex(&self) -> Addr {
-        self.lendex.clone()
+    /// Gives token address back
+    pub fn token(&self) -> Addr {
+        self.token.clone()
     }
 
-    /// Executes transfer on lendex contract
+    /// Executes transfer on token contract
     pub fn transfer(
         &mut self,
         sender: &str,
@@ -179,7 +179,7 @@ impl Suite {
         self.app
             .execute_contract(
                 Addr::unchecked(sender),
-                self.lendex.clone(),
+                self.token.clone(),
                 &ExecuteMsg::Transfer {
                     recipient: recipient.to_owned(),
                     amount: DisplayAmount::raw(amount),
@@ -189,7 +189,7 @@ impl Suite {
             .map_err(|err| anyhow!(err))
     }
 
-    /// Executes send on lendex contract
+    /// Executes send on token contract
     pub fn send(
         &mut self,
         sender: &str,
@@ -200,7 +200,7 @@ impl Suite {
         self.app
             .execute_contract(
                 Addr::unchecked(sender),
-                self.lendex.clone(),
+                self.token.clone(),
                 &ExecuteMsg::Send {
                     contract: recipient.to_owned(),
                     amount: DisplayAmount::raw(amount),
@@ -211,7 +211,7 @@ impl Suite {
             .map_err(|err| anyhow!(err))
     }
 
-    /// Executes mint on lendex contract
+    /// Executes mint on token contract
     pub fn mint(
         &mut self,
         sender: &str,
@@ -221,7 +221,7 @@ impl Suite {
         self.app
             .execute_contract(
                 Addr::unchecked(sender),
-                self.lendex.clone(),
+                self.token.clone(),
                 &ExecuteMsg::Mint {
                     recipient: recipient.to_owned(),
                     amount: DisplayAmount::raw(amount),
@@ -231,12 +231,12 @@ impl Suite {
             .map_err(|err| anyhow!(err))
     }
 
-    /// Executes burn on lendex contract
+    /// Executes burn on token contract
     pub fn burn(&mut self, sender: &str, account: &str, amount: Uint128) -> AnyResult<AppResponse> {
         self.app
             .execute_contract(
                 Addr::unchecked(sender),
-                self.lendex.clone(),
+                self.token.clone(),
                 &ExecuteMsg::BurnFrom {
                     owner: account.to_string(),
                     amount: DisplayAmount::raw(amount),
@@ -246,19 +246,19 @@ impl Suite {
             .map_err(|err| anyhow!(err))
     }
 
-    /// Executes rebase on lendex contract
+    /// Executes rebase on token contract
     pub fn rebase(&mut self, executor: &str, ratio: Decimal) -> AnyResult<AppResponse> {
         self.app
             .execute_contract(
                 Addr::unchecked(executor),
-                self.lendex.clone(),
+                self.token.clone(),
                 &ExecuteMsg::Rebase { ratio },
                 &[],
             )
             .map_err(|err| anyhow!(err))
     }
 
-    /// Executes distribute on lendex contract
+    /// Executes distribute on token contract
     pub fn distribute<'a>(
         &mut self,
         executor: &str,
@@ -269,29 +269,29 @@ impl Suite {
         self.app
             .execute_contract(
                 Addr::unchecked(executor),
-                self.lendex.clone(),
+                self.token.clone(),
                 &ExecuteMsg::Distribute { sender },
                 funds,
             )
             .map_err(|err| anyhow!(err))
     }
 
-    /// Execute withdraw_funds on lendex contract
+    /// Execute withdraw_funds on token contract
     pub fn withdraw_funds(&mut self, executor: &str) -> AnyResult<AppResponse> {
         self.app
             .execute_contract(
                 Addr::unchecked(executor),
-                self.lendex.clone(),
+                self.token.clone(),
                 &ExecuteMsg::WithdrawFunds {},
                 &[],
             )
             .map_err(|err| anyhow!(err))
     }
 
-    /// Queries lendex contract for balance
+    /// Queries token contract for balance
     pub fn query_balance(&self, address: &str) -> AnyResult<DisplayAmount> {
         let resp: BalanceResponse = self.app.wrap().query_wasm_smart(
-            self.lendex.clone(),
+            self.token.clone(),
             &QueryMsg::Balance {
                 address: address.to_owned(),
             },
@@ -299,11 +299,11 @@ impl Suite {
         Ok(resp.balance)
     }
 
-    /// Queries lendex contract for token info
+    /// Queries token contract for token info
     pub fn query_token_info(&self) -> AnyResult<TokenInfoResponse> {
         self.app
             .wrap()
-            .query_wasm_smart(self.lendex.clone(), &QueryMsg::TokenInfo {})
+            .query_wasm_smart(self.token.clone(), &QueryMsg::TokenInfo {})
             .map_err(|err| anyhow!(err))
     }
 
@@ -323,7 +323,7 @@ impl Suite {
         let resp: MultiplierResponse = self
             .app
             .wrap()
-            .query_wasm_smart(self.lendex.clone(), &QueryMsg::Multiplier {})
+            .query_wasm_smart(self.token.clone(), &QueryMsg::Multiplier {})
             .map_err(|err| anyhow!(err))?;
 
         Ok(resp.multiplier)
@@ -334,7 +334,7 @@ impl Suite {
         let resp: FundsResponse = self
             .app
             .wrap()
-            .query_wasm_smart(self.lendex.clone(), &QueryMsg::DistributedFunds {})
+            .query_wasm_smart(self.token.clone(), &QueryMsg::DistributedFunds {})
             .map_err(|err| anyhow!(err))?;
 
         Ok(resp.funds)
@@ -345,7 +345,7 @@ impl Suite {
         let resp: FundsResponse = self
             .app
             .wrap()
-            .query_wasm_smart(self.lendex.clone(), &QueryMsg::UndistributedFunds {})
+            .query_wasm_smart(self.token.clone(), &QueryMsg::UndistributedFunds {})
             .map_err(|err| anyhow!(err))?;
 
         Ok(resp.funds)
@@ -357,7 +357,7 @@ impl Suite {
             .app
             .wrap()
             .query_wasm_smart(
-                self.lendex.clone(),
+                self.token.clone(),
                 &QueryMsg::WithdrawableFunds {
                     owner: addr.to_owned(),
                 },

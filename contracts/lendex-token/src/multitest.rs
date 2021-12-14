@@ -620,8 +620,8 @@ mod distribution {
 
         let controller = suite.controller();
         let controller = controller.as_str();
-        let lendex = suite.lendex();
-        let lendex = lendex.as_str();
+        let token = suite.token();
+        let token = token.as_str();
 
         // Mint tokens to have something to base on
         suite.mint(controller, members[0], Uint128::new(1)).unwrap();
@@ -635,7 +635,7 @@ mod distribution {
 
         resp.assert_event(&distribution_event(members[3], reward, 400));
 
-        assert_eq!(suite.native_balance(lendex, reward).unwrap(), 400);
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 400);
         assert_eq!(suite.native_balance(members[0], reward).unwrap(), 0);
         assert_eq!(suite.native_balance(members[1], reward).unwrap(), 0);
         assert_eq!(suite.native_balance(members[2], reward).unwrap(), 0);
@@ -662,7 +662,7 @@ mod distribution {
         suite.withdraw_funds(members[1]).unwrap();
         suite.withdraw_funds(members[2]).unwrap();
 
-        assert_eq!(suite.native_balance(lendex, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 0);
         assert_eq!(suite.native_balance(members[0], reward).unwrap(), 50);
         assert_eq!(suite.native_balance(members[1], reward).unwrap(), 100);
         assert_eq!(suite.native_balance(members[2], reward).unwrap(), 250);
@@ -681,8 +681,8 @@ mod distribution {
 
         let controller = suite.controller();
         let controller = controller.as_str();
-        let lendex = suite.lendex();
-        let lendex = lendex.as_str();
+        let token = suite.token();
+        let token = token.as_str();
 
         // Mint tokens to have something to base on
         suite.mint(controller, members[0], Uint128::new(1)).unwrap();
@@ -700,7 +700,7 @@ mod distribution {
         suite.withdraw_funds(members[1]).unwrap();
         suite.withdraw_funds(members[2]).unwrap();
 
-        assert_eq!(suite.native_balance(lendex, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 0);
         assert_eq!(suite.native_balance(members[0], reward).unwrap(), 50);
         assert_eq!(suite.native_balance(members[1], reward).unwrap(), 100);
         assert_eq!(suite.native_balance(members[2], reward).unwrap(), 250);
@@ -717,7 +717,7 @@ mod distribution {
         suite.withdraw_funds(members[1]).unwrap();
         suite.withdraw_funds(members[2]).unwrap();
 
-        assert_eq!(suite.native_balance(lendex, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 0);
         assert_eq!(suite.native_balance(members[0], reward).unwrap(), 125);
         assert_eq!(suite.native_balance(members[1], reward).unwrap(), 250);
         assert_eq!(suite.native_balance(members[2], reward).unwrap(), 625);
@@ -736,8 +736,8 @@ mod distribution {
 
         let controller = suite.controller();
         let controller = controller.as_str();
-        let lendex = suite.lendex();
-        let lendex = lendex.as_str();
+        let token = suite.token();
+        let token = token.as_str();
 
         // Mint tokens to have something to base on
         suite.mint(controller, members[0], Uint128::new(1)).unwrap();
@@ -762,7 +762,7 @@ mod distribution {
         suite.withdraw_funds(members[1]).unwrap();
         suite.withdraw_funds(members[2]).unwrap();
 
-        assert_eq!(suite.native_balance(lendex, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 0);
         assert_eq!(suite.native_balance(members[0], reward).unwrap(), 125);
         assert_eq!(suite.native_balance(members[1], reward).unwrap(), 250);
         assert_eq!(suite.native_balance(members[2], reward).unwrap(), 625);
@@ -782,8 +782,8 @@ mod distribution {
 
         let controller = suite.controller();
         let controller = controller.as_str();
-        let lendex = suite.lendex();
-        let lendex = lendex.as_str();
+        let token = suite.token();
+        let token = token.as_str();
 
         // Mint tokens to have something to base on
         suite.mint(controller, members[0], Uint128::new(1)).unwrap();
@@ -811,7 +811,7 @@ mod distribution {
         suite.withdraw_funds(members[1]).unwrap();
         suite.withdraw_funds(members[2]).unwrap();
 
-        assert_eq!(suite.native_balance(lendex, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 0);
         assert_eq!(suite.native_balance(members[0], reward).unwrap(), 50);
         assert_eq!(suite.native_balance(members[1], reward).unwrap(), 100);
         assert_eq!(suite.native_balance(members[2], reward).unwrap(), 250);
@@ -826,7 +826,7 @@ mod distribution {
         suite.withdraw_funds(members[1]).unwrap();
         suite.withdraw_funds(members[2]).unwrap();
 
-        assert_eq!(suite.native_balance(lendex, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 0);
         assert_eq!(suite.native_balance(members[0], reward).unwrap(), 650);
         assert_eq!(suite.native_balance(members[1], reward).unwrap(), 100);
         assert_eq!(suite.native_balance(members[2], reward).unwrap(), 750);
@@ -846,8 +846,8 @@ mod distribution {
 
         let controller = suite.controller();
         let controller = controller.as_str();
-        let lendex = suite.lendex();
-        let lendex = lendex.as_str();
+        let token = suite.token();
+        let token = token.as_str();
 
         // Mint tokens to have something to base on
         suite.mint(controller, members[0], Uint128::new(1)).unwrap();
@@ -879,7 +879,7 @@ mod distribution {
         suite.withdraw_funds(members[1]).unwrap();
         suite.withdraw_funds(members[2]).unwrap();
 
-        assert_eq!(suite.native_balance(lendex, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 0);
         assert_eq!(suite.native_balance(members[0], reward).unwrap(), 650);
         assert_eq!(suite.native_balance(members[1], reward).unwrap(), 100);
         assert_eq!(suite.native_balance(members[2], reward).unwrap(), 750);
@@ -898,8 +898,8 @@ mod distribution {
 
         let controller = suite.controller();
         let controller = controller.as_str();
-        let lendex = suite.lendex();
-        let lendex = lendex.as_str();
+        let token = suite.token();
+        let token = token.as_str();
 
         // Mint tokens to have something to base on
         suite.mint(controller, members[0], Uint128::new(7)).unwrap();
@@ -918,7 +918,7 @@ mod distribution {
         suite.withdraw_funds(members[1]).unwrap();
         suite.withdraw_funds(members[2]).unwrap();
 
-        assert_eq!(suite.native_balance(lendex, reward).unwrap(), 2);
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 2);
         assert_eq!(suite.native_balance(members[0], reward).unwrap(), 22);
         assert_eq!(suite.native_balance(members[1], reward).unwrap(), 35);
         assert_eq!(suite.native_balance(members[2], reward).unwrap(), 41);
@@ -931,7 +931,7 @@ mod distribution {
         suite.withdraw_funds(members[1]).unwrap();
         suite.withdraw_funds(members[2]).unwrap();
 
-        assert_eq!(suite.native_balance(lendex, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 0);
         assert_eq!(suite.native_balance(members[0], reward).unwrap(), 700);
         assert_eq!(suite.native_balance(members[1], reward).unwrap(), 1100);
         assert_eq!(suite.native_balance(members[2], reward).unwrap(), 1300);
@@ -949,8 +949,8 @@ mod distribution {
 
         let controller = suite.controller();
         let controller = controller.as_str();
-        let lendex = suite.lendex();
-        let lendex = lendex.as_str();
+        let token = suite.token();
+        let token = token.as_str();
 
         // Mint tokens to have something to base on
         suite.mint(controller, members[0], Uint128::new(7)).unwrap();
@@ -973,7 +973,7 @@ mod distribution {
         suite.withdraw_funds(members[1]).unwrap();
         suite.withdraw_funds(members[2]).unwrap();
 
-        assert_eq!(suite.native_balance(lendex, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 0);
         assert_eq!(suite.native_balance(members[0], reward).unwrap(), 700);
         assert_eq!(suite.native_balance(members[1], reward).unwrap(), 1100);
         assert_eq!(suite.native_balance(members[2], reward).unwrap(), 1300);
