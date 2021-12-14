@@ -88,7 +88,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
     }
 }
 
-pub fn token_instantiate_reply(
+fn token_instantiate_reply(
     deps: DepsMut,
     _env: Env,
     msg: Reply,
@@ -147,7 +147,7 @@ pub fn execute(
 /// * No funds were passed with the message (`NoFundsSent` error)
 /// * Multiple denoms were sent (`ExtraDenoms` error)
 /// * A single denom different than cfg.base_asset was sent (`InvalidDenom` error)
-pub fn validate_funds(funds: &[Coin], base_asset_denom: &str) -> Result<Uint128, ContractError> {
+fn validate_funds(funds: &[Coin], base_asset_denom: &str) -> Result<Uint128, ContractError> {
     match funds {
         [] => Err(ContractError::NoFundsSent {}),
         [Coin { denom, amount }] if denom == base_asset_denom => Ok(*amount),
@@ -157,7 +157,7 @@ pub fn validate_funds(funds: &[Coin], base_asset_denom: &str) -> Result<Uint128,
 }
 
 /// Handler for `ExecuteMsg::Deposit`
-pub fn deposit(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+fn deposit(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
     let cfg = CONFIG.load(deps.storage)?;
     let funds_sent = validate_funds(&info.funds, &cfg.base_asset)?;
 
@@ -178,11 +178,7 @@ pub fn deposit(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractErr
 }
 
 /// Handler for `ExecuteMsg::Withdraw`
-pub fn withdraw(
-    deps: DepsMut,
-    info: MessageInfo,
-    amount: Uint128,
-) -> Result<Response, ContractError> {
+fn withdraw(deps: DepsMut, info: MessageInfo, amount: Uint128) -> Result<Response, ContractError> {
     let cfg = CONFIG.load(deps.storage)?;
 
     if !can_withdraw(deps.as_ref(), &info.sender, amount)? {

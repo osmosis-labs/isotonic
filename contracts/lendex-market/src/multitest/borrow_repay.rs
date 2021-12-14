@@ -10,7 +10,7 @@ fn borrow_works() {
         .with_base_asset("ATOM")
         .build();
 
-    // At first, the lender has no l-token, and the contract has some base assets
+    // At first, the borrower has no b-token, and the contract has some base assets
     assert_eq!(suite.query_contract_asset_balance().unwrap(), 150);
     assert_eq!(suite.query_btoken_balance(borrower).unwrap().u128(), 0);
 

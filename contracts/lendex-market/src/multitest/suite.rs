@@ -41,6 +41,7 @@ pub struct SuiteBuilder {
     base_asset: String,
     /// Initial funds to provide for testing
     funds: Vec<(Addr, Vec<Coin>)>,
+    /// Initial funds stored on contract
     contract_funds: Option<Coin>,
 }
 
@@ -241,17 +242,27 @@ impl Suite {
         Ok(resp.transferable)
     }
 
-    pub fn query_ltoken_balance(&self, account: impl ToString) -> AnyResult<Uint128> {
-        self.query_transferable_amount(&self.ltoken_contract, account)
-    }
-
-    pub fn query_btoken_balance(&self, address: impl ToString) -> AnyResult<Uint128> {
+    fn query_token_balance(
+        &self,
+        contract_address: &Addr,
+        address: impl ToString,
+    ) -> AnyResult<Uint128> {
         let response: BalanceResponse = self.app.wrap().query_wasm_smart(
-            &self.btoken_contract,
+            contract_address,
             &lendex_token::QueryMsg::Balance {
                 address: address.to_string(),
             },
         )?;
         Ok(response.balance)
+    }
+
+    /// Queries ltoken contract for balance
+    pub fn query_ltoken_balance(&self, account: impl ToString) -> AnyResult<Uint128> {
+        self.query_token_balance(&self.ltoken_contract, account)
+    }
+
+    /// Queries btoken contract for balance
+    pub fn query_btoken_balance(&self, account: impl ToString) -> AnyResult<Uint128> {
+        self.query_token_balance(&self.btoken_contract, account)
     }
 }
