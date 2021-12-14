@@ -39,7 +39,7 @@ impl DisplayAmount {
         self.0.is_zero()
     }
 
-    pub fn get(&self) -> Uint128 {
+    pub fn display_amount(&self) -> Uint128 {
         self.0
     }
 }

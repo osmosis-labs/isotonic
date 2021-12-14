@@ -361,7 +361,10 @@ mod query {
         let utilisation = if l_info.total_supply.is_zero() {
             Decimal::zero()
         } else {
-            Decimal::from_ratio(b_info.total_supply.get(), l_info.total_supply.get())
+            Decimal::from_ratio(
+                b_info.total_supply.display_amount(),
+                l_info.total_supply.display_amount(),
+            )
         };
 
         let interest = match config.rates {
