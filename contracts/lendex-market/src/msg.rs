@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{Decimal, Uint128};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -15,6 +15,19 @@ pub struct InstantiateMsg {
     pub token_id: u64,
     /// Native denom for the base asset
     pub base_asset: String,
+    /// Interest rate curve
+    pub interest_rate: Interest,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum Interest {
+    Linear {
+        /// Base percentage, charged at 0% utilisation
+        base: Decimal,
+        /// Utilisation multiplier
+        slope: Decimal,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -45,6 +58,14 @@ pub enum QueryMsg {
         /// Address that wishes to transfer
         account: String,
     },
+    /// Returns current utilisation and interest rates
+    Interest {},
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct InterestResponse {
+    pub interest: Decimal,
+    pub utilisation: Decimal,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

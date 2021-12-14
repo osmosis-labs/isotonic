@@ -9,7 +9,7 @@ use cw2::set_contract_version;
 use cw20::BalanceResponse;
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, TransferableAmountResponse};
+use crate::msg::{ExecuteMsg, InstantiateMsg, Interest, QueryMsg, TransferableAmountResponse};
 use crate::state::{Config, CONFIG};
 
 // version info for migration info
@@ -64,6 +64,7 @@ pub fn instantiate(
         decimals: msg.decimals,
         token_id: msg.token_id,
         base_asset: msg.base_asset,
+        rates: msg.interest_rate,
     };
     CONFIG.save(deps.storage, &cfg)?;
 
@@ -308,15 +309,17 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             let token = deps.api.addr_validate(&token)?;
             to_binary(&query::transferable_amount(deps, token, account)?)
         }
+        Interest {} => to_binary(&query::interest(deps)?),
     }
 }
 
 mod query {
     use super::*;
 
-    use cosmwasm_std::{StdError, Uint128};
+    use crate::msg::InterestResponse;
+    use cosmwasm_std::{Decimal, StdError, Uint128};
     use cw20::BalanceResponse;
-    use lendex_token::QueryMsg;
+    use lendex_token::msg::{QueryMsg, TokenInfoResponse};
 
     pub fn transferable_amount(
         deps: Deps,
@@ -342,5 +345,35 @@ mod query {
                 token.to_string()
             )))
         }
+    }
+
+    pub fn interest(deps: Deps) -> StdResult<InterestResponse> {
+        let config = CONFIG.load(deps.storage)?;
+        let l_token = config.ltoken_contract;
+        let b_token = config.btoken_contract;
+        let l_info: TokenInfoResponse = deps
+            .querier
+            .query_wasm_smart(&l_token, &QueryMsg::TokenInfo {})?;
+        let b_info: TokenInfoResponse = deps
+            .querier
+            .query_wasm_smart(&b_token, &QueryMsg::TokenInfo {})?;
+
+        let utilisation = if l_info.total_supply.is_zero() {
+            Decimal::zero()
+        } else {
+            Decimal::from_ratio(
+                b_info.total_supply.display_amount(),
+                l_info.total_supply.display_amount(),
+            )
+        };
+
+        let interest = match config.rates {
+            Interest::Linear { base, slope } => base + slope * utilisation,
+        };
+
+        Ok(InterestResponse {
+            interest,
+            utilisation,
+        })
     }
 }

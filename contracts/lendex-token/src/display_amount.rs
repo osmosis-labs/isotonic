@@ -34,4 +34,12 @@ impl DisplayAmount {
 
         result256.try_into().unwrap()
     }
+
+    pub fn is_zero(&self) -> bool {
+        self.0.is_zero()
+    }
+
+    pub fn display_amount(&self) -> Uint128 {
+        self.0
+    }
 }

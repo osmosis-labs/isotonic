@@ -1,6 +1,7 @@
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Decimal};
 
 use super::suite::SuiteBuilder;
+use crate::msg::Interest;
 use crate::state::Config;
 
 #[test]
@@ -16,6 +17,10 @@ fn market_instantiate_and_query_config() {
             decimals: 9,
             token_id: 1,
             base_asset: "native_denom".to_owned(),
+            rates: Interest::Linear {
+                base: Decimal::percent(3),
+                slope: Decimal::percent(20)
+            }
         },
         suite.query_config().unwrap()
     );
