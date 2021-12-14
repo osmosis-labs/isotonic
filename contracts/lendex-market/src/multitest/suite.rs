@@ -46,6 +46,8 @@ pub struct SuiteBuilder {
     funds: Vec<(Addr, Vec<Coin>)>,
     /// Initial funds stored on contract
     contract_funds: Option<Coin>,
+    /// Interest charge period (in seconds)
+    interest_charge_period: u64,
 }
 
 impl SuiteBuilder {
@@ -57,6 +59,7 @@ impl SuiteBuilder {
             base_asset: "native_denom".to_owned(),
             funds: vec![],
             contract_funds: None,
+            interest_charge_period: 300,
         }
     }
 
@@ -101,6 +104,7 @@ impl SuiteBuilder {
                         slope: Decimal::percent(20),
                     },
                     distributed_token: "osmo".to_owned(),
+                    interest_charge_period: self.interest_charge_period,
                 },
                 &[],
                 "market",

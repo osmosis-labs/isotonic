@@ -1,7 +1,7 @@
 use super::suite::SuiteBuilder;
 
 use crate::msg::InterestResponse;
-use cosmwasm_std::{coin, Coin, Decimal};
+use cosmwasm_std::{coin, Coin, Decimal, Timestamp};
 
 #[test]
 fn query_interest() {
@@ -22,7 +22,8 @@ fn query_interest() {
     assert_eq!(
         InterestResponse {
             interest: Decimal::percent(3),
-            utilisation: Decimal::zero()
+            utilisation: Decimal::zero(),
+            charge_period: Timestamp::from_seconds(300),
         },
         resp
     );
@@ -41,7 +42,8 @@ fn query_interest() {
     assert_eq!(
         InterestResponse {
             interest: Decimal::percent(3),
-            utilisation: Decimal::zero()
+            utilisation: Decimal::zero(),
+            charge_period: Timestamp::from_seconds(300),
         },
         resp
     );
@@ -56,6 +58,7 @@ fn query_interest() {
         InterestResponse {
             utilisation: Decimal::percent(10),
             interest: Decimal::percent(3) + Decimal::percent(2),
+            charge_period: Timestamp::from_seconds(300),
         },
         resp
     );
@@ -70,6 +73,7 @@ fn query_interest() {
         InterestResponse {
             utilisation: Decimal::percent(5),
             interest: Decimal::percent(3) + Decimal::percent(1),
+            charge_period: Timestamp::from_seconds(300),
         },
         resp
     );
@@ -84,6 +88,7 @@ fn query_interest() {
         InterestResponse {
             utilisation: Decimal::from_ratio(1u8, 30u8),
             interest: Decimal::percent(3) + Decimal::from_ratio(1u8, 150u8),
+            charge_period: Timestamp::from_seconds(300),
         },
         resp
     );

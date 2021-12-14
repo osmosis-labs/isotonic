@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Decimal};
+use cosmwasm_std::{Addr, Decimal, Timestamp};
 use utils::interest::Interest;
 
 use super::suite::SuiteBuilder;
@@ -20,7 +20,8 @@ fn market_instantiate_and_query_config() {
             rates: Interest::Linear {
                 base: Decimal::percent(3),
                 slope: Decimal::percent(20)
-            }
+            },
+            interest_charge_period: Timestamp::from_seconds(300)
         },
         suite.query_config().unwrap()
     );

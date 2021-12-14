@@ -2,7 +2,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utils::interest::Interest;
 
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Timestamp};
 use cw_storage_plus::Item;
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -16,6 +16,7 @@ pub struct Config {
     pub base_asset: String,
     /// Interest rate calculation
     pub rates: Interest,
+    pub interest_charge_period: Timestamp,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");

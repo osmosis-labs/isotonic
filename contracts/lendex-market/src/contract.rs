@@ -2,7 +2,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     coin, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
-    Reply, Response, StdResult, SubMsg, Uint128, WasmMsg,
+    Reply, Response, StdResult, SubMsg, Timestamp, Uint128, WasmMsg,
 };
 use cw0::parse_reply_instantiate_data;
 use cw2::set_contract_version;
@@ -68,6 +68,7 @@ pub fn instantiate(
         token_id: msg.token_id,
         base_asset: msg.base_asset,
         rates: msg.interest_rate,
+        interest_charge_period: Timestamp::from_seconds(msg.interest_charge_period),
     };
     CONFIG.save(deps.storage, &cfg)?;
 
@@ -148,6 +149,12 @@ mod execute {
     fn can_withdraw(_deps: Deps, _sender: &Addr, _amount: Uint128) -> Result<bool, ContractError> {
         // TODO: actual checks here
         Ok(true)
+    }
+
+    fn charge_interest(deps: DepsMut) -> Result<Vec<CosmosMsg>, ContractError> {
+        let cfg = CONFIG.load(deps.storage)?;
+
+        unimplemented!();
     }
 
     /// Validates funds sent with the message, that they contain only the base asset. Returns
@@ -390,6 +397,7 @@ mod query {
         Ok(InterestResponse {
             interest,
             utilisation,
+            charge_period: config.interest_charge_period,
         })
     }
 }

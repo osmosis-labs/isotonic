@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Decimal, Uint128};
+use cosmwasm_std::{Decimal, Timestamp, Uint128};
 use utils::interest::Interest;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -20,6 +20,8 @@ pub struct InstantiateMsg {
     pub interest_rate: Interest,
     /// Token which would be distributed via created lendex contracts
     pub distributed_token: String,
+    /// Define interest's charged period (in seconds)
+    pub interest_charge_period: u64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -58,6 +60,7 @@ pub enum QueryMsg {
 pub struct InterestResponse {
     pub interest: Decimal,
     pub utilisation: Decimal,
+    pub charge_period: Timestamp,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
