@@ -161,6 +161,10 @@ pub struct Suite {
 }
 
 impl Suite {
+    pub fn app(&mut self) -> &mut App {
+        &mut self.app
+    }
+
     /// Gives btoken contract address back
     pub fn btoken(&self) -> Addr {
         self.btoken_contract.clone()

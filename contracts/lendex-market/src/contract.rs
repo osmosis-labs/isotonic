@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    coin, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
-    Reply, Response, StdResult, SubMsg, Timestamp, Uint128, WasmMsg,
+    coin, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
+    MessageInfo, Reply, Response, StdResult, SubMsg, Timestamp, Uint128, WasmMsg,
 };
 use cw0::parse_reply_instantiate_data;
 use cw2::set_contract_version;
@@ -68,7 +68,9 @@ pub fn instantiate(
         token_id: msg.token_id,
         base_asset: msg.base_asset,
         rates: msg.interest_rate,
-        interest_charge_period: Timestamp::from_seconds(msg.interest_charge_period),
+        interest_charge_period: msg.interest_charge_period,
+        last_charged: env.block.time.seconds()
+            - env.block.time.seconds() % msg.interest_charge_period,
     };
     CONFIG.save(deps.storage, &cfg)?;
 
@@ -151,10 +153,42 @@ mod execute {
         Ok(true)
     }
 
-    fn charge_interest(deps: DepsMut) -> Result<Vec<CosmosMsg>, ContractError> {
-        let cfg = CONFIG.load(deps.storage)?;
+    fn charge_interest(
+        deps: DepsMut,
+        env: Env,
+    ) -> StdResult<Vec<CosmosMsg<lendex_token::msg::ExecuteMsg>>> {
+        use lendex_token::msg::ExecuteMsg;
 
-        unimplemented!();
+        let mut cfg = CONFIG.load(deps.storage)?;
+
+        let epochs_passed = (env.block.time.seconds() - cfg.last_charged) / cfg.interest_charge_period;
+        if epochs_passed == 0 {
+            return Ok(vec![]);
+        }
+
+        cfg.last_charged += epochs_passed * cfg.interest_charge_period;
+        CONFIG.save(deps.storage, &cfg)?;
+
+        let tokens_info = query::token_info(deps.as_ref(), &cfg)?;
+        let interest = query::interest(&cfg, &tokens_info)?;
+
+        // calculate_interest() * epochs_passed * epoch_length / 31_556_736
+        let btoken_ratio: Decimal = interest.interest
+            * Decimal::from_ratio(epochs_passed as u128, 1u128)
+            * Decimal::from_ratio(cfg.interest_charge_period as u128, 31_556_736u128);
+        // b_supply() * ratio / l_supply()
+        let ltoken_ratio: Decimal =
+            Decimal::from_ratio(tokens_info.btoken.total_supply.display_amount(), 1u128) * btoken_ratio
+                / tokens_info.ltoken.total_supply.display_amount();
+
+        let btoken_rebase = CosmosMsg::Custom(ExecuteMsg::Rebase {
+            ratio: btoken_ratio,
+        });
+        let ltoken_rebase = CosmosMsg::Custom(ExecuteMsg::Rebase {
+            ratio: ltoken_ratio,
+        });
+
+        Ok(vec![btoken_rebase, ltoken_rebase])
     }
 
     /// Validates funds sent with the message, that they contain only the base asset. Returns
@@ -332,17 +366,19 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             let token = deps.api.addr_validate(&token)?;
             to_binary(&query::transferable_amount(deps, token, account)?)
         }
-        Interest {} => to_binary(&query::interest(deps)?),
+        Interest {} => to_binary(&query::calculate_interest(deps)?),
     }
 }
 
 mod query {
     use super::*;
 
-    use crate::msg::InterestResponse;
     use cosmwasm_std::{Decimal, StdError, Uint128};
     use cw20::BalanceResponse;
     use lendex_token::msg::{QueryMsg, TokenInfoResponse};
+
+    use crate::msg::InterestResponse;
+    use crate::state::TokensInfo;
 
     pub fn transferable_amount(
         deps: Deps,
@@ -370,23 +406,30 @@ mod query {
         }
     }
 
-    pub fn interest(deps: Deps) -> StdResult<InterestResponse> {
+    pub fn calculate_interest(deps: Deps) -> StdResult<InterestResponse> {
         let config = CONFIG.load(deps.storage)?;
-        let l_token = config.ltoken_contract;
-        let b_token = config.btoken_contract;
-        let l_info: TokenInfoResponse = deps
-            .querier
-            .query_wasm_smart(&l_token, &QueryMsg::TokenInfo {})?;
-        let b_info: TokenInfoResponse = deps
-            .querier
-            .query_wasm_smart(&b_token, &QueryMsg::TokenInfo {})?;
+        interest(&config, &token_info(deps, &config)?)
+    }
 
-        let utilisation = if l_info.total_supply.is_zero() {
+    pub fn token_info(deps: Deps, config: &Config) -> StdResult<TokensInfo> {
+        let ltoken_contract = &config.ltoken_contract;
+        let ltoken: TokenInfoResponse = deps
+            .querier
+            .query_wasm_smart(ltoken_contract, &QueryMsg::TokenInfo {})?;
+        let btoken_contract = &config.btoken_contract;
+        let btoken: TokenInfoResponse = deps
+            .querier
+            .query_wasm_smart(btoken_contract, &QueryMsg::TokenInfo {})?;
+        Ok(TokensInfo { ltoken, btoken })
+    }
+
+    pub fn interest(config: &Config, tokens_info: &TokensInfo) -> StdResult<InterestResponse> {
+        let utilisation = if tokens_info.ltoken.total_supply.is_zero() {
             Decimal::zero()
         } else {
             Decimal::from_ratio(
-                b_info.total_supply.display_amount(),
-                l_info.total_supply.display_amount(),
+                tokens_info.btoken.total_supply.display_amount(),
+                tokens_info.ltoken.total_supply.display_amount(),
             )
         };
 
@@ -397,7 +440,7 @@ mod query {
         Ok(InterestResponse {
             interest,
             utilisation,
-            charge_period: config.interest_charge_period,
+            charge_period: Timestamp::from_seconds(config.interest_charge_period),
         })
     }
 }
