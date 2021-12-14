@@ -707,7 +707,7 @@ mod distribution {
         assert_eq!(suite.native_balance(members[3], reward).unwrap(), 600);
 
         suite
-            .distribute(&members[3], None, &coins(600, reward))
+            .distribute(members[3], None, &coins(600, reward))
             .unwrap();
 
         assert_eq!(suite.query_distributed_funds().unwrap(), coin(1000, reward));
@@ -752,7 +752,7 @@ mod distribution {
         assert_eq!(suite.query_undistributed_funds().unwrap(), coin(0, reward));
 
         suite
-            .distribute(&members[3], None, &coins(600, reward))
+            .distribute(members[3], None, &coins(600, reward))
             .unwrap();
 
         assert_eq!(suite.query_distributed_funds().unwrap(), coin(1000, reward));
@@ -792,7 +792,7 @@ mod distribution {
 
         // First distribution
         suite
-            .distribute(&members[3], None, &coins(400, reward))
+            .distribute(members[3], None, &coins(400, reward))
             .unwrap();
 
         // Modifying weights to:
@@ -856,7 +856,7 @@ mod distribution {
 
         // First distribution
         suite
-            .distribute(&members[3], None, &coins(400, reward))
+            .distribute(members[3], None, &coins(400, reward))
             .unwrap();
 
         // Modifying weights to:
