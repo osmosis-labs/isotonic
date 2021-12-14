@@ -458,6 +458,19 @@ pub fn query_undistributed_funds(deps: Deps, env: Env) -> StdResult<FundsRespons
     })
 }
 
+/// Handler for `QueryMsg::WithdrawableFunds`
+pub fn query_withdrawable_funds(deps: Deps, owner: String) -> StdResult<FundsResponse> {
+    let owner = Addr::unchecked(&owner);
+    let distribution = DISTRIBUTION.load(deps.storage)?;
+    let adjustment = WITHDRAW_ADJUSTMENT
+        .may_load(deps.storage, &owner)?
+        .unwrap_or_default();
+
+    Ok(FundsResponse {
+        funds: withdrawable_funds(deps, &owner, &distribution, &adjustment)?,
+    })
+}
+
 /// `QueryMsg` entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
@@ -469,6 +482,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         Multiplier {} => to_binary(&query_multiplier(deps)?),
         DistributedFunds {} => to_binary(&query_distributed_funds(deps)?),
         UndistributedFunds {} => to_binary(&query_undistributed_funds(deps, env)?),
+        WithdrawableFunds { owner } => to_binary(&query_withdrawable_funds(deps, owner)?),
     }
 }
 

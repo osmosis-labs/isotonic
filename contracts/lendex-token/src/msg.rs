@@ -95,6 +95,8 @@ pub enum QueryMsg {
     DistributedFunds {},
     /// FUnds send to this contact but not yet distributed. Returns `FundsResponse`.
     UndistributedFunds {},
+    /// Queries for funds distributed but not yet withdrawn by owner
+    WithdrawableFunds { owner: String },
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
