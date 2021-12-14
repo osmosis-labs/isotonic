@@ -351,6 +351,22 @@ impl Suite {
         Ok(resp.funds)
     }
 
+    /// Queries withdrawable funds
+    pub fn query_withdrawable_funds(&self, addr: &str) -> AnyResult<Coin> {
+        let resp: FundsResponse = self
+            .app
+            .wrap()
+            .query_wasm_smart(
+                self.lendex.clone(),
+                &QueryMsg::WithdrawableFunds {
+                    owner: addr.to_owned(),
+                },
+            )
+            .map_err(|err| anyhow!(err))?;
+
+        Ok(resp.funds)
+    }
+
     /// Queries for balance of native token
     pub fn native_balance(&self, addr: &str, token: &str) -> AnyResult<u128> {
         let amount = self

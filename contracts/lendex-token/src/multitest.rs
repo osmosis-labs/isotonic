@@ -644,18 +644,18 @@ mod distribution {
         assert_eq!(suite.native_balance(members[2], reward).unwrap(), 0);
         assert_eq!(suite.native_balance(members[3], reward).unwrap(), 0);
 
-        /*      assert_eq!(
-            suite.withdrawable_funds(&members[0]).unwrap(),
-            coin(50, &denom)
+        assert_eq!(
+            suite.query_withdrawable_funds(members[0]).unwrap(),
+            coin(50, reward)
         );
         assert_eq!(
-            suite.withdrawable_funds(&members[1]).unwrap(),
-            coin(100, &denom)
+            suite.query_withdrawable_funds(members[1]).unwrap(),
+            coin(100, reward)
         );
         assert_eq!(
-            suite.withdrawable_funds(&members[2]).unwrap(),
-            coin(250, &denom)
-        );*/
+            suite.query_withdrawable_funds(members[2]).unwrap(),
+            coin(250, reward)
+        );
 
         assert_eq!(suite.query_distributed_funds().unwrap(), coin(400, reward));
         assert_eq!(suite.query_undistributed_funds().unwrap(), coin(0, reward));
