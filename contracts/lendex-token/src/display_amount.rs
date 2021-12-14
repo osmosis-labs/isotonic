@@ -38,4 +38,8 @@ impl DisplayAmount {
     pub fn is_zero(&self) -> bool {
         self.0.is_zero()
     }
+
+    pub fn get(&self) -> Uint128 {
+        self.0
+    }
 }

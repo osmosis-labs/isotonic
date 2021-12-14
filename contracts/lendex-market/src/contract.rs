@@ -319,7 +319,7 @@ mod query {
     use crate::msg::InterestResponse;
     use cosmwasm_std::{Decimal, StdError, Uint128};
     use cw20::BalanceResponse;
-    use lendex_token::msg::{MultiplierResponse, QueryMsg, TokenInfoResponse};
+    use lendex_token::msg::{QueryMsg, TokenInfoResponse};
 
     pub fn transferable_amount(
         deps: Deps,
@@ -357,18 +357,11 @@ mod query {
         let b_info: TokenInfoResponse = deps
             .querier
             .query_wasm_smart(&b_token, &QueryMsg::TokenInfo {})?;
-        // Uses supply (l) multiplier
-        let l_mult: MultiplierResponse = deps
-            .querier
-            .query_wasm_smart(&l_token, &QueryMsg::Multiplier {})?;
 
         let utilisation = if l_info.total_supply.is_zero() {
             Decimal::one()
         } else {
-            Decimal::from_ratio(
-                b_info.total_supply.to_stored_amount(l_mult.multiplier),
-                l_info.total_supply.to_stored_amount(l_mult.multiplier),
-            )
+            Decimal::from_ratio(b_info.total_supply.get(), l_info.total_supply.get())
         };
 
         let interest = match config.rates {
