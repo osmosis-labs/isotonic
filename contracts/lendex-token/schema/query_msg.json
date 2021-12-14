@@ -74,6 +74,27 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "description": "Queries for funds distributed but not yet withdrawn by owner",
+      "type": "object",
+      "required": [
+        "withdrawable_funds"
+      ],
+      "properties": {
+        "withdrawable_funds": {
+          "type": "object",
+          "required": [
+            "owner"
+          ],
+          "properties": {
+            "owner": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
     }
   ]
 }
