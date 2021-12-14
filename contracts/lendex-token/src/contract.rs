@@ -41,7 +41,7 @@ pub fn instantiate(
     let distribution = Distribution {
         denom: msg.distributed_token,
         points_per_token: Uint128::zero(),
-        points_leftover: 0,
+        points_leftover: Uint128::zero(),
         distributed_total: Uint128::zero(),
         withdrawable_total: Uint128::zero(),
     };
@@ -324,7 +324,7 @@ pub fn distribute(
     let leftover: u128 = distribution.points_leftover.into();
     let points = (amount << POINTS_SHIFT) + leftover;
     let points_per_token = points / total_supply;
-    distribution.points_leftover = (points % total_supply) as u64;
+    distribution.points_leftover = (points % total_supply).into();
 
     // Everything goes back to 128-bits/16-bytes
     // Full amount is added here to total withdrawable, as it should not be considered on its own

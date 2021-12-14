@@ -22,7 +22,7 @@ pub struct Distribution {
     pub points_per_token: Uint128,
     /// Points which were not fully distributed on previous distribution, and should be
     /// redistributed.
-    pub points_leftover: u64,
+    pub points_leftover: Uint128,
     /// Total funds distributed by this contract.
     pub distributed_total: Uint128,
     /// Total funds not yet withdrawn.
