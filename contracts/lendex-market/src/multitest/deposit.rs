@@ -1,4 +1,4 @@
-use cosmwasm_std::{coin, Coin};
+use cosmwasm_std::{coin, Coin, StdError, Uint128};
 
 use super::suite::SuiteBuilder;
 
@@ -63,5 +63,40 @@ fn deposit_nothing_fails() {
     assert_eq!(
         suite.deposit(lender, &[]).unwrap_err().to_string(),
         "No funds sent"
+    );
+}
+
+#[test]
+fn query_transferable_amount() {
+    let lender = "lender";
+    let base_asset = "base";
+    let mut suite = SuiteBuilder::new()
+        .with_base_asset(base_asset)
+        .with_funds(lender, &[coin(100, base_asset)])
+        .build();
+
+    let btoken = suite.btoken();
+    let resp = suite.query_transferable_amount(btoken, lender).unwrap();
+    assert_eq!(Uint128::zero(), resp);
+
+    let ltoken = suite.ltoken();
+    let resp = suite
+        .query_transferable_amount(ltoken.clone(), lender)
+        .unwrap();
+    assert_eq!(Uint128::zero(), resp);
+
+    // Deposit base asset and mint some L tokens, then query again
+    suite.deposit(lender, &[coin(100, base_asset)]).unwrap();
+    let resp = suite.query_transferable_amount(ltoken, lender).unwrap();
+    assert_eq!(Uint128::new(100), resp);
+
+    let resp = suite
+        .query_transferable_amount("xtoken", lender)
+        .unwrap_err();
+    assert_eq!(
+        StdError::generic_err(
+            "Querier contract error: Generic error: Unrecognized token: xtoken".to_owned()
+        ),
+        resp.downcast().unwrap()
     );
 }

@@ -1,6 +1,7 @@
 use anyhow::Result as AnyResult;
 
 use cosmwasm_std::{Addr, Coin, Empty, StdResult, Uint128};
+use cw20::BalanceResponse;
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
 
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, TransferableAmountResponse};
@@ -40,6 +41,8 @@ pub struct SuiteBuilder {
     base_asset: String,
     /// Initial funds to provide for testing
     funds: Vec<(Addr, Vec<Coin>)>,
+    /// Initial funds stored on contract
+    contract_funds: Option<Coin>,
 }
 
 impl SuiteBuilder {
@@ -50,6 +53,7 @@ impl SuiteBuilder {
             decimals: 9,
             base_asset: "native_denom".to_owned(),
             funds: vec![],
+            contract_funds: None,
         }
     }
 
@@ -64,21 +68,18 @@ impl SuiteBuilder {
         self
     }
 
+    /// Sets initial amount of distributable tokens on address
+    pub fn with_contract_funds(mut self, funds: Coin) -> Self {
+        self.contract_funds = Some(funds);
+        self
+    }
+
     #[track_caller]
     pub fn build(self) -> Suite {
         let mut app = App::default();
         let owner = Addr::unchecked("owner");
 
-        let funds = self.funds;
-
-        app.init_modules(|router, _, storage| -> AnyResult<()> {
-            for (addr, coin) in funds {
-                router.bank.init_balance(storage, &addr, coin)?;
-            }
-
-            Ok(())
-        })
-        .unwrap();
+        let base_asset = self.base_asset;
 
         let token_id = app.store_code(contract_token());
         let contract_id = app.store_code(contract_market());
@@ -91,13 +92,31 @@ impl SuiteBuilder {
                     symbol: self.symbol,
                     decimals: self.decimals,
                     token_id,
-                    base_asset: self.base_asset.clone(),
+                    base_asset: base_asset.clone(),
                 },
                 &[],
                 "market",
                 Some(owner.to_string()),
             )
             .unwrap();
+
+        let funds = self.funds;
+        let contract_funds = self.contract_funds;
+
+        app.init_modules(|router, _, storage| -> AnyResult<()> {
+            for (addr, coin) in funds {
+                router.bank.init_balance(storage, &addr, coin)?;
+            }
+            if let Some(contract_funds) = contract_funds {
+                // initialize contract's balance as well
+                router
+                    .bank
+                    .init_balance(storage, &contract, vec![contract_funds])?;
+            }
+
+            Ok(())
+        })
+        .unwrap();
 
         // query for token contracts
         let config: Config = app
@@ -110,7 +129,7 @@ impl SuiteBuilder {
             contract,
             ltoken_contract: config.ltoken_contract,
             btoken_contract: config.btoken_contract,
-            base_asset: self.base_asset,
+            base_asset,
         }
     }
 }
@@ -162,6 +181,28 @@ impl Suite {
         )
     }
 
+    /// Borrow base asset from the lending pool and mint b-token
+    pub fn borrow(&mut self, sender: &str, amount: u128) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            Addr::unchecked(sender),
+            self.contract.clone(),
+            &ExecuteMsg::Borrow {
+                amount: amount.into(),
+            },
+            &[],
+        )
+    }
+
+    /// Repay borrowed tokens from the lending pool and burn b-token
+    pub fn repay(&mut self, sender: &str, funds: Coin) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            Addr::unchecked(sender),
+            self.contract.clone(),
+            &ExecuteMsg::Repay {},
+            &[funds],
+        )
+    }
+
     /// Shortcut for querying base asset balance in the market contract
     pub fn query_asset_balance(&self, owner: &str) -> StdResult<u128> {
         let amount = self
@@ -201,7 +242,27 @@ impl Suite {
         Ok(resp.transferable)
     }
 
+    fn query_token_balance(
+        &self,
+        contract_address: &Addr,
+        address: impl ToString,
+    ) -> AnyResult<Uint128> {
+        let response: BalanceResponse = self.app.wrap().query_wasm_smart(
+            contract_address,
+            &lendex_token::QueryMsg::Balance {
+                address: address.to_string(),
+            },
+        )?;
+        Ok(response.balance)
+    }
+
+    /// Queries ltoken contract for balance
     pub fn query_ltoken_balance(&self, account: impl ToString) -> AnyResult<Uint128> {
-        self.query_transferable_amount(&self.ltoken_contract, account)
+        self.query_token_balance(&self.ltoken_contract, account)
+    }
+
+    /// Queries btoken contract for balance
+    pub fn query_btoken_balance(&self, account: impl ToString) -> AnyResult<Uint128> {
+        self.query_token_balance(&self.btoken_contract, account)
     }
 }

@@ -6,6 +6,7 @@ use cosmwasm_std::{
 };
 use cw0::parse_reply_instantiate_data;
 use cw2::set_contract_version;
+use cw20::BalanceResponse;
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, TransferableAmountResponse};
@@ -87,7 +88,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
     }
 }
 
-pub fn token_instantiate_reply(
+fn token_instantiate_reply(
     deps: DepsMut,
     _env: Env,
     msg: Reply,
@@ -125,12 +126,28 @@ fn can_withdraw(_deps: Deps, _sender: &Addr, _amount: Uint128) -> Result<bool, C
     Ok(true)
 }
 
+/// Execution entry point
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn execute(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg,
+) -> Result<Response, ContractError> {
+    match msg {
+        ExecuteMsg::Deposit {} => deposit(deps, info),
+        ExecuteMsg::Withdraw { amount } => withdraw(deps, info, amount),
+        ExecuteMsg::Borrow { amount } => borrow(deps, info, amount),
+        ExecuteMsg::Repay {} => repay(deps, info),
+    }
+}
+
 /// Validates funds sent with the message, that they contain only the base asset. Returns
 /// amount of funds sent, or error if:
 /// * No funds were passed with the message (`NoFundsSent` error)
 /// * Multiple denoms were sent (`ExtraDenoms` error)
 /// * A single denom different than cfg.base_asset was sent (`InvalidDenom` error)
-pub fn validate_funds(funds: &[Coin], base_asset_denom: &str) -> Result<Uint128, ContractError> {
+fn validate_funds(funds: &[Coin], base_asset_denom: &str) -> Result<Uint128, ContractError> {
     match funds {
         [] => Err(ContractError::NoFundsSent {}),
         [Coin { denom, amount }] if denom == base_asset_denom => Ok(*amount),
@@ -140,7 +157,7 @@ pub fn validate_funds(funds: &[Coin], base_asset_denom: &str) -> Result<Uint128,
 }
 
 /// Handler for `ExecuteMsg::Deposit`
-pub fn deposit(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+fn deposit(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
     let cfg = CONFIG.load(deps.storage)?;
     let funds_sent = validate_funds(&info.funds, &cfg.base_asset)?;
 
@@ -161,11 +178,7 @@ pub fn deposit(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractErr
 }
 
 /// Handler for `ExecuteMsg::Withdraw`
-pub fn withdraw(
-    deps: DepsMut,
-    info: MessageInfo,
-    amount: Uint128,
-) -> Result<Response, ContractError> {
+fn withdraw(deps: DepsMut, info: MessageInfo, amount: Uint128) -> Result<Response, ContractError> {
     let cfg = CONFIG.load(deps.storage)?;
 
     if !can_withdraw(deps.as_ref(), &info.sender, amount)? {
@@ -199,18 +212,91 @@ pub fn withdraw(
         .add_message(send_msg))
 }
 
-/// Execution entry point
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    msg: ExecuteMsg,
-) -> Result<Response, ContractError> {
-    match msg {
-        ExecuteMsg::Deposit {} => deposit(deps, info),
-        ExecuteMsg::Withdraw { amount } => withdraw(deps, info, amount),
+fn can_borrow(_deps: Deps, _sender: &Addr, _amount: Uint128) -> Result<bool, ContractError> {
+    // TODO: fill implementation
+    Ok(true)
+}
+
+fn borrow(deps: DepsMut, info: MessageInfo, amount: Uint128) -> Result<Response, ContractError> {
+    let cfg = CONFIG.load(deps.storage)?;
+
+    if !can_borrow(deps.as_ref(), &info.sender, amount)? {
+        return Err(ContractError::CannotBorrow {
+            amount,
+            account: info.sender.to_string(),
+        });
     }
+
+    // Mint desired amount of btokens,
+    let msg = to_binary(&lendex_token::msg::ExecuteMsg::Mint {
+        recipient: info.sender.to_string(),
+        amount: lendex_token::DisplayAmount::raw(amount),
+    })?;
+    let mint_msg = SubMsg::new(WasmMsg::Execute {
+        contract_addr: cfg.btoken_contract.to_string(),
+        msg,
+        funds: vec![],
+    });
+
+    // Sent tokens to sender's account
+    let bank_msg = CosmosMsg::Bank(BankMsg::Send {
+        to_address: info.sender.to_string(),
+        amount: vec![coin(amount.u128(), cfg.base_asset)],
+    });
+
+    Ok(Response::new()
+        .add_attribute("action", "borrow")
+        .add_attribute("sender", info.sender)
+        .add_submessage(mint_msg)
+        .add_message(bank_msg))
+}
+
+fn repay(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+    let cfg = CONFIG.load(deps.storage)?;
+    let funds_sent = validate_funds(&info.funds, &cfg.base_asset)?;
+
+    // Check balance of btokens to repay
+    let response: BalanceResponse = deps.querier.query_wasm_smart(
+        &cfg.btoken_contract,
+        &lendex_token::QueryMsg::Balance {
+            address: info.sender.to_string(),
+        },
+    )?;
+    let balance = response.balance;
+    // If there are more tokens sent then there are to repay, burn only desired
+    // amount and return the difference
+    let repay_amount = if funds_sent <= balance {
+        funds_sent
+    } else {
+        balance
+    };
+
+    let msg = to_binary(&lendex_token::msg::ExecuteMsg::BurnFrom {
+        owner: info.sender.to_string(),
+        amount: lendex_token::DisplayAmount::raw(repay_amount),
+    })?;
+    let burn_msg = SubMsg::new(WasmMsg::Execute {
+        contract_addr: cfg.btoken_contract.to_string(),
+        msg,
+        funds: vec![],
+    });
+
+    let mut response = Response::new()
+        .add_attribute("action", "repay")
+        .add_attribute("sender", info.sender.clone())
+        .add_submessage(burn_msg);
+
+    // Return surplus of sent tokens
+    if funds_sent > repay_amount {
+        let tokens_to_return = funds_sent - repay_amount;
+        let bank_msg = CosmosMsg::Bank(BankMsg::Send {
+            to_address: info.sender.to_string(),
+            amount: vec![coin(tokens_to_return.u128(), cfg.base_asset)],
+        });
+        response = response.add_message(bank_msg);
+    }
+
+    Ok(response)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -230,7 +316,7 @@ mod query {
 
     use cosmwasm_std::{StdError, Uint128};
     use cw20::BalanceResponse;
-    use lendex_token::msg::QueryMsg;
+    use lendex_token::QueryMsg;
 
     pub fn transferable_amount(
         deps: Deps,
