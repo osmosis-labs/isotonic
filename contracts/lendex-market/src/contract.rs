@@ -359,7 +359,7 @@ mod query {
             .query_wasm_smart(&b_token, &QueryMsg::TokenInfo {})?;
 
         let utilisation = if l_info.total_supply.is_zero() {
-            Decimal::one()
+            Decimal::zero()
         } else {
             Decimal::from_ratio(b_info.total_supply.get(), l_info.total_supply.get())
         };
