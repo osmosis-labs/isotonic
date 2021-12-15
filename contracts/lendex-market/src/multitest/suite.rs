@@ -99,7 +99,7 @@ impl SuiteBuilder {
                         base: Decimal::percent(3),
                         slope: Decimal::percent(20),
                     },
-                    distributed_token: "".to_owned(),
+                    distributed_token: "osmo".to_owned(),
                 },
                 &[],
                 "market",
