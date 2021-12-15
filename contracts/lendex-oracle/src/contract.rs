@@ -1,6 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{
+    ensure_eq, to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response,
+};
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
@@ -41,9 +43,7 @@ pub fn set_price(
     rate: Decimal,
 ) -> Result<Response, ContractError> {
     let cfg = CONFIG.load(deps.storage)?;
-    if info.sender != cfg.oracle {
-        return Err(ContractError::Unauthorized {});
-    }
+    ensure_eq!(info.sender, cfg.oracle, ContractError::Unauthorized {});
 
     let price_record = PriceRecord {
         rate,
@@ -92,15 +92,14 @@ mod query {
         sell: &str,
         buy: &str,
     ) -> Result<PriceResponse, ContractError> {
-        match PRICES.may_load(deps.storage, (sell, buy))? {
-            Some(record) => {
-                if record.expires.is_expired(&env.block) {
-                    Err(ContractError::OutdatedOracle {})
-                } else {
-                    Ok(PriceResponse { rate: record.rate })
-                }
-            }
-            None => Err(ContractError::NoInfo {}),
+        let record = PRICES
+            .may_load(deps.storage, (sell, buy))?
+            .ok_or(ContractError::NoInfo {})?;
+
+        if record.expires.is_expired(&env.block) {
+            Err(ContractError::OutdatedOracle {})
+        } else {
+            Ok(PriceResponse { rate: record.rate })
         }
     }
 }
