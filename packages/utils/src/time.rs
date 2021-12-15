@@ -53,3 +53,53 @@ impl Expiration {
         U64Key::new(self.0.nanos())
     }
 }
+
+impl From<Expiration> for Timestamp {
+    fn from(expiration: Expiration) -> Timestamp {
+        expiration.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use cosmwasm_std::{BlockInfo, Timestamp};
+
+    #[test]
+    fn create_expiration_from_duration() {
+        let duration = Duration::new(33);
+        let block_info = BlockInfo {
+            height: 1,
+            time: Timestamp::from_seconds(66),
+            chain_id: "id".to_owned(),
+        };
+        assert_eq!(
+            duration.after(&block_info),
+            Expiration::at_timestamp(Timestamp::from_seconds(99))
+        );
+    }
+
+    #[test]
+    fn expiration_is_expired() {
+        let expiration = Expiration::at_timestamp(Timestamp::from_seconds(10));
+        let block_info = BlockInfo {
+            height: 1,
+            time: Timestamp::from_seconds(9),
+            chain_id: "id".to_owned(),
+        };
+        assert!(!expiration.is_expired(&block_info));
+        let block_info = BlockInfo {
+            height: 1,
+            time: Timestamp::from_seconds(10),
+            chain_id: "id".to_owned(),
+        };
+        assert!(expiration.is_expired(&block_info));
+        let block_info = BlockInfo {
+            height: 1,
+            time: Timestamp::from_seconds(11),
+            chain_id: "id".to_owned(),
+        };
+        assert!(expiration.is_expired(&block_info));
+    }
+}
