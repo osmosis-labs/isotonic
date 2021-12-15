@@ -112,7 +112,8 @@ mod tests {
         Addr,
     };
 
-    use crate::{msg::PriceResponse, time::Duration};
+    use crate::msg::PriceResponse;
+    use utils::time::Duration;
 
     use super::*;
 

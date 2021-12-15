@@ -431,6 +431,7 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
+ "utils",
 ]
 
 [[package]]
@@ -714,6 +715,12 @@ checksum = "8ccb82d61f80a663efe1f787a51b16b5a51e3314d6ac365b08639f52387b33f3"
 [[package]]
 name = "utils"
 version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "schemars",
+ "serde",
+]
 
 [[package]]
 name = "version_check"

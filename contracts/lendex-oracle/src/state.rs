@@ -3,8 +3,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cw_storage_plus::{Item, Map};
-
-use crate::time::{Duration, Expiration};
+use utils::time::{Duration, Expiration};
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct Config {
