@@ -131,16 +131,16 @@ fn token_instantiate_reply(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     use ExecuteMsg::*;
     match msg {
-        Deposit {} => execute::deposit(deps, info),
-        Withdraw { amount } => execute::withdraw(deps, info, amount),
-        Borrow { amount } => execute::borrow(deps, info, amount),
-        Repay {} => execute::repay(deps, info),
+        Deposit {} => execute::deposit(deps, env, info),
+        Withdraw { amount } => execute::withdraw(deps, env, info, amount),
+        Borrow { amount } => execute::borrow(deps, env, info, amount),
+        Repay {} => execute::repay(deps, env, info),
     }
 }
 
@@ -153,42 +153,60 @@ mod execute {
         Ok(true)
     }
 
-    fn charge_interest(
-        deps: DepsMut,
-        env: Env,
-    ) -> StdResult<Vec<CosmosMsg<lendex_token::msg::ExecuteMsg>>> {
+    /// Function that is supposed to be called before every mint/burn operation.
+    /// It calculates ratio for increasing both btokens and ltokens.a
+    /// btokens formula:
+    /// b_ratio = calculate_interest() * epochs_passed * epoch_length / 31.556.736
+    /// ltokens formula:
+    /// l_ratio = b_supply() * b_ratio / l_supply()
+    fn charge_interest(deps: DepsMut, env: Env) -> StdResult<Vec<SubMsg>> {
         use lendex_token::msg::ExecuteMsg;
 
         let mut cfg = CONFIG.load(deps.storage)?;
 
-        let epochs_passed = (env.block.time.seconds() - cfg.last_charged) / cfg.interest_charge_period;
+        let epochs_passed =
+            (env.block.time.seconds() - cfg.last_charged) / cfg.interest_charge_period;
+
         if epochs_passed == 0 {
             return Ok(vec![]);
         }
 
-        cfg.last_charged += epochs_passed * cfg.interest_charge_period;
+        let charged_time = epochs_passed * cfg.interest_charge_period;
+        cfg.last_charged += charged_time;
         CONFIG.save(deps.storage, &cfg)?;
 
         let tokens_info = query::token_info(deps.as_ref(), &cfg)?;
         let interest = query::interest(&cfg, &tokens_info)?;
 
-        // calculate_interest() * epochs_passed * epoch_length / 31_556_736
-        let btoken_ratio: Decimal = interest.interest
-            * Decimal::from_ratio(epochs_passed as u128, 1u128)
-            * Decimal::from_ratio(cfg.interest_charge_period as u128, 31_556_736u128);
+        // calculate_interest() * epochs_passed * epoch_length / SECONDS_IN_YEAR
+        let btoken_ratio: Decimal =
+            interest.interest * Decimal::from_ratio(charged_time as u128, SECONDS_IN_YEAR);
+
         // b_supply() * ratio / l_supply()
-        let ltoken_ratio: Decimal =
-            Decimal::from_ratio(tokens_info.btoken.total_supply.display_amount(), 1u128) * btoken_ratio
-                / tokens_info.ltoken.total_supply.display_amount();
+        let ltoken_ratio: Decimal = Decimal::from_ratio(
+            tokens_info.btoken.total_supply.display_amount() * btoken_ratio,
+            tokens_info.ltoken.total_supply.display_amount(),
+        );
 
-        let btoken_rebase = CosmosMsg::Custom(ExecuteMsg::Rebase {
-            ratio: btoken_ratio,
-        });
-        let ltoken_rebase = CosmosMsg::Custom(ExecuteMsg::Rebase {
-            ratio: ltoken_ratio,
+        let btoken_rebase = to_binary(&ExecuteMsg::Rebase {
+            ratio: btoken_ratio + Decimal::one(),
+        })?;
+        let bwrapped = SubMsg::new(WasmMsg::Execute {
+            contract_addr: cfg.btoken_contract.to_string(),
+            msg: btoken_rebase,
+            funds: vec![],
         });
 
-        Ok(vec![btoken_rebase, ltoken_rebase])
+        let ltoken_rebase = to_binary(&ExecuteMsg::Rebase {
+            ratio: ltoken_ratio + Decimal::one(),
+        })?;
+        let lwrapped = SubMsg::new(WasmMsg::Execute {
+            contract_addr: cfg.ltoken_contract.to_string(),
+            msg: ltoken_rebase,
+            funds: vec![],
+        });
+
+        Ok(vec![bwrapped, lwrapped])
     }
 
     /// Validates funds sent with the message, that they contain only the base asset. Returns
@@ -206,9 +224,17 @@ mod execute {
     }
 
     /// Handler for `ExecuteMsg::Deposit`
-    pub fn deposit(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+    pub fn deposit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
         let funds_sent = validate_funds(&info.funds, &cfg.base_asset)?;
+
+        let mut response = Response::new();
+
+        // Create rebase messagess for tokens based on interest and supply
+        let charge_msgs = charge_interest(deps, env)?;
+        if !charge_msgs.is_empty() {
+            response = response.add_submessages(charge_msgs);
+        }
 
         let mint_msg = to_binary(&lendex_token::msg::ExecuteMsg::Mint {
             recipient: info.sender.to_string(),
@@ -220,15 +246,17 @@ mod execute {
             funds: vec![],
         });
 
-        Ok(Response::new()
+        response = response
             .add_attribute("action", "deposit")
             .add_attribute("sender", info.sender)
-            .add_submessage(wrapped_msg))
+            .add_submessage(wrapped_msg);
+        Ok(response)
     }
 
     /// Handler for `ExecuteMsg::Withdraw`
     pub fn withdraw(
         deps: DepsMut,
+        env: Env,
         info: MessageInfo,
         amount: Uint128,
     ) -> Result<Response, ContractError> {
@@ -239,6 +267,14 @@ mod execute {
                 account: info.sender.to_string(),
                 amount,
             });
+        }
+
+        let mut response = Response::new();
+
+        // Create rebase messagess for tokens based on interest and supply
+        let charge_msgs = charge_interest(deps, env)?;
+        if !charge_msgs.is_empty() {
+            response = response.add_submessages(charge_msgs);
         }
 
         // Burn the L tokens
@@ -258,11 +294,12 @@ mod execute {
             amount: vec![coin(amount.u128(), cfg.base_asset)],
         });
 
-        Ok(Response::new()
+        response = response
             .add_attribute("action", "withdraw")
             .add_attribute("sender", info.sender)
             .add_submessage(wrapped_msg)
-            .add_message(send_msg))
+            .add_message(send_msg);
+        Ok(response)
     }
 
     fn can_borrow(_deps: Deps, _sender: &Addr, _amount: Uint128) -> Result<bool, ContractError> {
@@ -272,6 +309,7 @@ mod execute {
 
     pub fn borrow(
         deps: DepsMut,
+        env: Env,
         info: MessageInfo,
         amount: Uint128,
     ) -> Result<Response, ContractError> {
@@ -282,6 +320,14 @@ mod execute {
                 amount,
                 account: info.sender.to_string(),
             });
+        }
+
+        let mut response = Response::new();
+
+        // Create rebase messagess for tokens based on interest and supply
+        let charge_msgs = charge_interest(deps, env)?;
+        if !charge_msgs.is_empty() {
+            response = response.add_submessages(charge_msgs);
         }
 
         // Mint desired amount of btokens,
@@ -301,14 +347,15 @@ mod execute {
             amount: vec![coin(amount.u128(), cfg.base_asset)],
         });
 
-        Ok(Response::new()
+        response = response
             .add_attribute("action", "borrow")
             .add_attribute("sender", info.sender)
             .add_submessage(mint_msg)
-            .add_message(bank_msg))
+            .add_message(bank_msg);
+        Ok(response)
     }
 
-    pub fn repay(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+    pub fn repay(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
         let funds_sent = validate_funds(&info.funds, &cfg.base_asset)?;
 
@@ -328,6 +375,14 @@ mod execute {
             balance
         };
 
+        let mut response = Response::new();
+
+        // Create rebase messagess for tokens based on interest and supply
+        let charge_msgs = charge_interest(deps, env)?;
+        if !charge_msgs.is_empty() {
+            response = response.add_submessages(charge_msgs);
+        }
+
         let msg = to_binary(&lendex_token::msg::ExecuteMsg::BurnFrom {
             owner: info.sender.to_string(),
             amount: lendex_token::DisplayAmount::raw(repay_amount),
@@ -338,7 +393,7 @@ mod execute {
             funds: vec![],
         });
 
-        let mut response = Response::new()
+        response = response
             .add_attribute("action", "repay")
             .add_attribute("sender", info.sender.clone())
             .add_submessage(burn_msg);
@@ -357,7 +412,6 @@ mod execute {
     }
 }
 
-#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     use QueryMsg::*;
     match msg {
