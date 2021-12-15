@@ -33,29 +33,6 @@ pub fn instantiate(
         .add_attribute("owner", info.sender))
 }
 
-/// Handler for `ExecuteMsg::SetPrice`
-pub fn set_price(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    sell: &str,
-    buy: &str,
-    rate: Decimal,
-) -> Result<Response, ContractError> {
-    let cfg = CONFIG.load(deps.storage)?;
-    ensure_eq!(info.sender, cfg.oracle, ContractError::Unauthorized {});
-
-    let price_record = PriceRecord {
-        rate,
-        expires: cfg.maximum_age.after(&env.block),
-    };
-    PRICES.save(deps.storage, (sell, buy), &price_record)?;
-
-    Ok(Response::new()
-        .add_attribute("action", "set_price")
-        .add_attribute("sender", info.sender))
-}
-
 /// Execution entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
@@ -65,7 +42,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::SetPrice { sell, buy, rate } => set_price(deps, env, info, &sell, &buy, rate),
+        ExecuteMsg::SetPrice { sell, buy, rate } => {
+            exec::set_price(deps, env, info, &sell, &buy, rate)
+        }
     }
 }
 
@@ -79,6 +58,33 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractErro
     };
 
     Ok(res)
+}
+
+mod exec {
+    use super::*;
+
+    /// Handler for `ExecuteMsg::SetPrice`
+    pub fn set_price(
+        deps: DepsMut,
+        env: Env,
+        info: MessageInfo,
+        sell: &str,
+        buy: &str,
+        rate: Decimal,
+    ) -> Result<Response, ContractError> {
+        let cfg = CONFIG.load(deps.storage)?;
+        ensure_eq!(info.sender, cfg.oracle, ContractError::Unauthorized {});
+
+        let price_record = PriceRecord {
+            rate,
+            expires: cfg.maximum_age.after(&env.block),
+        };
+        PRICES.save(deps.storage, (sell, buy), &price_record)?;
+
+        Ok(Response::new()
+            .add_attribute("action", "set_price")
+            .add_attribute("sender", info.sender))
+    }
 }
 
 mod query {
