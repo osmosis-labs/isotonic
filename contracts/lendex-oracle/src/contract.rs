@@ -72,12 +72,12 @@ pub fn execute(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     use QueryMsg::*;
     match msg {
         Configuration {} => to_binary(&CONFIG.load(deps.storage)?),
         Price { sell, buy } => to_binary(
-            &query::price(deps, &sell, &buy)
+            &query::price(deps, env, &sell, &buy)
                 .map_err(|err| StdError::generic_err(err.to_string()))?,
         ),
     }
@@ -88,10 +88,21 @@ mod query {
 
     use super::*;
 
-    pub fn price(deps: Deps, sell: &str, buy: &str) -> Result<PriceResponse, ContractError> {
+    pub fn price(
+        deps: Deps,
+        env: Env,
+        sell: &str,
+        buy: &str,
+    ) -> Result<PriceResponse, ContractError> {
         match PRICES.may_load(deps.storage, (sell, buy))? {
-            Some(record) => Ok(PriceResponse { rate: record.rate }),
-            None => todo!(),
+            Some(record) => {
+                if record.expires.is_expired(&env.block) {
+                    Err(ContractError::OutdatedOracle {})
+                } else {
+                    Ok(PriceResponse { rate: record.rate })
+                }
+            }
+            None => Err(ContractError::NoInfo {}),
         }
     }
 }
@@ -144,8 +155,7 @@ mod tests {
                 sell: sell.to_string(),
                 buy: buy.to_string(),
             },
-        )
-        .unwrap();
+        )?;
         from_slice(&raw)
     }
 
@@ -206,7 +216,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn query_outdated_price() {
         let mut deps = mock_dependencies();
         do_instantiate(deps.as_mut(), "oracle", 333);
@@ -223,7 +232,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn query_nonexistent_price() {
         let mut deps = mock_dependencies();
         do_instantiate(deps.as_mut(), "oracle", 333);
