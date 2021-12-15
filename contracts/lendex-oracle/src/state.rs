@@ -1,10 +1,10 @@
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Decimal};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cw_storage_plus::Item;
+use cw_storage_plus::{Item, Map};
 
-use crate::time::Duration;
+use crate::time::{Duration, Expiration};
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct Config {
@@ -12,4 +12,11 @@ pub struct Config {
     pub maximum_age: Duration,
 }
 
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct PriceRecord {
+    pub rate: Decimal,
+    pub expires: Expiration,
+}
+
 pub const CONFIG: Item<Config> = Item::new("config");
+pub const PRICES: Map<(&str, &str), PriceRecord> = Map::new("prices");

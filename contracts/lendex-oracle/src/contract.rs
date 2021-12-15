@@ -7,7 +7,7 @@ use cw2::set_contract_version;
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
-use crate::state::{Config, CONFIG};
+use crate::state::{Config, PriceRecord, CONFIG, PRICES};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:lendex-oracle";
@@ -35,25 +35,39 @@ pub fn instantiate(
 
 /// Handler for `ExecuteMsg::SetPrice`
 pub fn set_price(
-    _deps: DepsMut,
-    _info: MessageInfo,
-    _sell: String,
-    _buy: String,
-    _rate: Decimal,
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    sell: &str,
+    buy: &str,
+    rate: Decimal,
 ) -> Result<Response, ContractError> {
-    todo!()
+    let cfg = CONFIG.load(deps.storage)?;
+    if info.sender != cfg.oracle {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    let price_record = PriceRecord {
+        rate,
+        expires: cfg.maximum_age.after(&env.block),
+    };
+    PRICES.save(deps.storage, (sell, buy), &price_record)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "set_price")
+        .add_attribute("sender", info.sender))
 }
 
 /// Execution entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::SetPrice { sell, buy, rate } => set_price(deps, info, sell, buy, rate),
+        ExecuteMsg::SetPrice { sell, buy, rate } => set_price(deps, env, info, &sell, &buy, rate),
     }
 }
 
@@ -74,8 +88,11 @@ mod query {
 
     use super::*;
 
-    pub fn price(_deps: Deps, _sell: &str, _buy: &str) -> Result<PriceResponse, ContractError> {
-        todo!()
+    pub fn price(deps: Deps, sell: &str, buy: &str) -> Result<PriceResponse, ContractError> {
+        match PRICES.may_load(deps.storage, (sell, buy))? {
+            Some(record) => Ok(PriceResponse { rate: record.rate }),
+            None => todo!(),
+        }
     }
 }
 
@@ -155,7 +172,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn set_and_query_price() {
         let mut deps = mock_dependencies();
         do_instantiate(deps.as_mut(), "oracle", 333);
@@ -173,7 +189,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn set_price_unauthorized() {
         let mut deps = mock_dependencies();
         do_instantiate(deps.as_mut(), "oracle", 333);
