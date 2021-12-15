@@ -4,6 +4,7 @@ workflows:
   test:
     jobs:
       - contract_lendex_market
+      - contract_lendex_oracle
       - contract_lendex_token
       - package_utils
   build:
@@ -52,6 +53,33 @@ jobs:
             - /usr/local/cargo/registry
             - target
           key: cargocache-lendex-market-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+
+  contract_lendex_oracle:
+    docker:
+      - image: rust:1.57.0
+    working_directory: ~/project/contracts/lendex-oracle
+    steps:
+      - checkout:
+          path: ~/project
+      - run:
+          name: Version information
+          command: rustc --version; cargo --version; rustup --version
+      - restore_cache:
+          keys:
+            - cargocache-lendex-oracle-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+      - run:
+          name: Unit Tests
+          environment:
+            RUST_BACKTRACE: 1
+          command: cargo unit-test --locked
+      - run:
+          name: Build and run schema generator
+          command: cargo schema --locked
+      - save_cache:
+          paths:
+            - /usr/local/cargo/registry
+            - target
+          key: cargocache-lendex-oracle-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
 
   contract_lendex_token:
     docker:
