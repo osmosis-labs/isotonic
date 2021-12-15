@@ -1,17 +1,21 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
+    coin, to_binary, Addr, BankMsg, Binary, Coin, Decimal, Deps, DepsMut, Env, MessageInfo,
+    Response, StdResult, SubMsg, Uint128,
 };
 use cw2::set_contract_version;
 
 use crate::display_amount::DisplayAmount;
 use crate::error::ContractError;
 use crate::msg::{
-    BalanceResponse, ControllerQuery, Cw20ReceiveMsg, ExecuteMsg, InstantiateMsg,
+    BalanceResponse, ControllerQuery, Cw20ReceiveMsg, ExecuteMsg, FundsResponse, InstantiateMsg,
     MultiplierResponse, QueryMsg, TokenInfoResponse, TransferableAmountResp,
 };
-use crate::state::{TokenInfo, BALANCES, CONTROLLER, MULTIPLIER, TOKEN_INFO, TOTAL_SUPPLY};
+use crate::state::{
+    Distribution, TokenInfo, WithdrawAdjustment, BALANCES, CONTROLLER, DISTRIBUTION, MULTIPLIER,
+    POINTS_SHIFT, TOKEN_INFO, TOTAL_SUPPLY, WITHDRAW_ADJUSTMENT,
+};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:lendex-token";
@@ -31,7 +35,19 @@ pub fn instantiate(
         symbol: msg.symbol,
         decimals: msg.decimals,
     };
+
     TOKEN_INFO.save(deps.storage, &token_info)?;
+
+    let distribution = Distribution {
+        denom: msg.distributed_token,
+        points_per_token: Uint128::zero(),
+        points_leftover: Uint128::zero(),
+        distributed_total: Uint128::zero(),
+        withdrawable_total: Uint128::zero(),
+    };
+
+    DISTRIBUTION.save(deps.storage, &distribution)?;
+
     TOTAL_SUPPLY.save(deps.storage, &Uint128::zero())?;
     CONTROLLER.save(deps.storage, &deps.api.addr_validate(&msg.controller)?)?;
     MULTIPLIER.save(deps.storage, &Decimal::one())?;
@@ -66,7 +82,7 @@ fn can_transfer(
 
 /// Performs tokens transfer.
 fn transfer_tokens(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     sender: String,
     recipient: Addr,
@@ -81,6 +97,9 @@ fn transfer_tokens(
     let sender_addr = Addr::unchecked(&sender);
     can_transfer(deps.as_ref(), &env, sender, amount)?;
 
+    let distribution = DISTRIBUTION.load(deps.storage)?;
+    let ppt = distribution.points_per_token.u128();
+
     BALANCES.update(
         deps.storage,
         &sender_addr,
@@ -91,12 +110,14 @@ fn transfer_tokens(
                 .map_err(|_| ContractError::insufficient_tokens(balance, amount))
         },
     )?;
+    apply_points_correction(deps.branch(), &sender_addr, ppt, -(amount.u128() as i128))?;
 
     BALANCES.update(
         deps.storage,
         &recipient,
         |balance: Option<Uint128>| -> StdResult<_> { Ok(balance.unwrap_or_default() + amount) },
     )?;
+    apply_points_correction(deps.branch(), &recipient, ppt, amount.u128() as _)?;
 
     Ok(())
 }
@@ -158,7 +179,7 @@ fn send(
 
 /// Handler for `ExecuteMsg::Mint`
 pub fn mint(
-    deps: DepsMut,
+    mut deps: DepsMut,
     info: MessageInfo,
     recipient: String,
     amount: DisplayAmount,
@@ -175,12 +196,16 @@ pub fn mint(
         return Err(ContractError::InvalidZeroAmount {});
     }
 
+    let distribution = DISTRIBUTION.load(deps.storage)?;
+    let ppt = distribution.points_per_token.u128();
+
     let recipient_addr = deps.api.addr_validate(&recipient)?;
     BALANCES.update(
         deps.storage,
         &recipient_addr,
         |balance: Option<Uint128>| -> StdResult<_> { Ok(balance.unwrap_or_default() + amount) },
     )?;
+    apply_points_correction(deps.branch(), &recipient_addr, ppt, amount.u128() as _)?;
 
     TOTAL_SUPPLY.update(deps.storage, |supply| -> StdResult<_> {
         Ok(supply + amount)
@@ -195,7 +220,7 @@ pub fn mint(
 
 /// Handler for `ExecuteMsg::Burn`
 pub fn burn_from(
-    deps: DepsMut,
+    mut deps: DepsMut,
     info: MessageInfo,
     owner: String,
     amount: DisplayAmount,
@@ -213,6 +238,8 @@ pub fn burn_from(
         return Err(ContractError::InvalidZeroAmount {});
     }
 
+    let ppt = DISTRIBUTION.load(deps.storage)?.points_per_token;
+
     BALANCES.update(
         deps.storage,
         &owner,
@@ -222,6 +249,12 @@ pub fn burn_from(
                 .checked_sub(amount)
                 .map_err(|_| ContractError::insufficient_tokens(balance, amount))
         },
+    )?;
+    apply_points_correction(
+        deps.branch(),
+        &owner,
+        ppt.u128() as _,
+        -(amount.u128() as i128),
     )?;
 
     TOTAL_SUPPLY.update(deps.storage, |supply| -> Result<_, ContractError> {
@@ -256,6 +289,93 @@ pub fn rebase(deps: DepsMut, info: MessageInfo, ratio: Decimal) -> Result<Respon
     Ok(res)
 }
 
+/// Handler for `ExecuteMsg::Distribute`
+pub fn distribute(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    sender: Option<String>,
+) -> Result<Response, ContractError> {
+    let total_supply = TOTAL_SUPPLY.load(deps.storage)?.u128();
+
+    if total_supply == 0 {
+        return Err(ContractError::NoHoldersToDistributeTo {});
+    }
+
+    let sender = sender
+        .map(|sender| deps.api.addr_validate(&sender))
+        .transpose()?
+        .unwrap_or(info.sender);
+
+    let mut distribution = DISTRIBUTION.load(deps.storage)?;
+
+    let withdrawable: u128 = distribution.withdrawable_total.into();
+    let balance: u128 = deps
+        .querier
+        .query_balance(env.contract.address, distribution.denom.clone())?
+        .amount
+        .into();
+
+    let amount = balance - withdrawable;
+    if amount == 0 {
+        return Ok(Response::new());
+    }
+
+    let leftover: u128 = distribution.points_leftover.into();
+    let points = (amount << POINTS_SHIFT) + leftover;
+    let points_per_token = points / total_supply;
+    distribution.points_leftover = (points % total_supply).into();
+
+    // Everything goes back to 128-bits/16-bytes
+    // Full amount is added here to total withdrawable, as it should not be considered on its own
+    // on future distributions - even if because of calculation offsets it is not fully
+    // distributed, the error is handled by leftover.
+    distribution.points_per_token += Uint128::from(points_per_token);
+    distribution.distributed_total += Uint128::from(amount);
+    distribution.withdrawable_total += Uint128::from(amount);
+
+    DISTRIBUTION.save(deps.storage, &distribution)?;
+
+    let resp = Response::new()
+        .add_attribute("action", "distribute_tokens")
+        .add_attribute("sender", sender.as_str())
+        .add_attribute("denom", &distribution.denom)
+        .add_attribute("amount", &amount.to_string());
+
+    Ok(resp)
+}
+
+/// Handler for `ExecuteMsg::WithdrawFunds`
+fn withdraw_funds(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+    let mut distribution = DISTRIBUTION.load(deps.storage)?;
+    let mut adjustment = WITHDRAW_ADJUSTMENT
+        .may_load(deps.storage, &info.sender)?
+        .unwrap_or_default();
+
+    let token = withdrawable_funds(deps.as_ref(), &info.sender, &distribution, &adjustment)?;
+    if token.amount.is_zero() {
+        // Just do nothing
+        return Ok(Response::new());
+    }
+
+    adjustment.withdrawn_funds += token.amount;
+    WITHDRAW_ADJUSTMENT.save(deps.storage, &info.sender, &adjustment)?;
+    distribution.withdrawable_total -= token.amount;
+    DISTRIBUTION.save(deps.storage, &distribution)?;
+
+    let resp = Response::new()
+        .add_attribute("action", "withdraw_tokens")
+        .add_attribute("owner", info.sender.as_str())
+        .add_attribute("token", &token.denom)
+        .add_attribute("amount", &token.amount.to_string())
+        .add_submessage(SubMsg::new(BankMsg::Send {
+            to_address: info.sender.to_string(),
+            amount: vec![token],
+        }));
+
+    Ok(resp)
+}
+
 /// Execution entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
@@ -276,6 +396,8 @@ pub fn execute(
         Mint { recipient, amount } => mint(deps, info, recipient, amount),
         BurnFrom { owner, amount } => burn_from(deps, info, owner, amount),
         Rebase { ratio } => rebase(deps, info, ratio),
+        Distribute { sender } => distribute(deps, env, info, sender),
+        WithdrawFunds {} => withdraw_funds(deps, info),
     }
 }
 
@@ -313,16 +435,91 @@ pub fn query_multiplier(deps: Deps) -> StdResult<MultiplierResponse> {
     Ok(MultiplierResponse { multiplier })
 }
 
+/// Handler for `QueryMsg::DistributedFunds`
+pub fn query_distributed_funds(deps: Deps) -> StdResult<FundsResponse> {
+    let distribution = DISTRIBUTION.load(deps.storage)?;
+    Ok(FundsResponse {
+        funds: coin(distribution.distributed_total.into(), &distribution.denom),
+    })
+}
+
+/// Handler for `QueryMsg::UndistributedFunds`
+pub fn query_undistributed_funds(deps: Deps, env: Env) -> StdResult<FundsResponse> {
+    let distribution = DISTRIBUTION.load(deps.storage)?;
+    let balance = deps
+        .querier
+        .query_balance(env.contract.address, distribution.denom.clone())?
+        .amount;
+    Ok(FundsResponse {
+        funds: coin(
+            (balance - distribution.withdrawable_total).into(),
+            &distribution.denom,
+        ),
+    })
+}
+
+/// Handler for `QueryMsg::WithdrawableFunds`
+pub fn query_withdrawable_funds(deps: Deps, owner: String) -> StdResult<FundsResponse> {
+    let owner = Addr::unchecked(&owner);
+    let distribution = DISTRIBUTION.load(deps.storage)?;
+    let adjustment = WITHDRAW_ADJUSTMENT
+        .may_load(deps.storage, &owner)?
+        .unwrap_or_default();
+
+    Ok(FundsResponse {
+        funds: withdrawable_funds(deps, &owner, &distribution, &adjustment)?,
+    })
+}
+
 /// `QueryMsg` entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     use QueryMsg::*;
 
     match msg {
         Balance { address } => to_binary(&query_balance(deps, address)?),
         TokenInfo {} => to_binary(&query_token_info(deps)?),
         Multiplier {} => to_binary(&query_multiplier(deps)?),
+        DistributedFunds {} => to_binary(&query_distributed_funds(deps)?),
+        UndistributedFunds {} => to_binary(&query_undistributed_funds(deps, env)?),
+        WithdrawableFunds { owner } => to_binary(&query_withdrawable_funds(deps, owner)?),
     }
+}
+
+/// Calculates withdrawable funds from distribution and adjustment info.
+pub fn withdrawable_funds(
+    deps: Deps,
+    owner: &Addr,
+    distribution: &Distribution,
+    adjustment: &WithdrawAdjustment,
+) -> StdResult<Coin> {
+    let ppt: u128 = distribution.points_per_token.into();
+    let tokens: u128 = BALANCES
+        .may_load(deps.storage, owner)?
+        .unwrap_or_default()
+        .into();
+    let correction: i128 = adjustment.points_correction.into();
+    let withdrawn: u128 = adjustment.withdrawn_funds.into();
+    let points = (ppt * tokens) as i128;
+    let points = points + correction;
+    let amount = points as u128 >> POINTS_SHIFT;
+    let amount = amount - withdrawn;
+
+    Ok(coin(amount, &distribution.denom))
+}
+
+/// Applies points correction for given address.
+/// `ppt` is current value from `POINTS_PER_TOKEN` - not loaded in function, to
+/// avoid multiple queries on bulk updates.
+/// `diff` is the weight change
+pub fn apply_points_correction(deps: DepsMut, addr: &Addr, ppt: u128, diff: i128) -> StdResult<()> {
+    WITHDRAW_ADJUSTMENT.update(deps.storage, addr, |old| -> StdResult<_> {
+        let mut old = old.unwrap_or_default();
+        let points_correction: i128 = old.points_correction.into();
+        old.points_correction = (points_correction - ppt as i128 * diff).into();
+        Ok(old)
+    })?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -340,6 +537,7 @@ mod tests {
             symbol: "CASH".to_string(),
             decimals: 9,
             controller: controller.to_string(),
+            distributed_token: String::new(),
         };
         let info = mock_info("creator", &[]);
         let env = mock_env();
@@ -374,6 +572,7 @@ mod tests {
             symbol: "CASH".to_string(),
             decimals: 9,
             controller: controller.to_string(),
+            distributed_token: String::new(),
         };
         let info = mock_info("creator", &[]);
         let env = mock_env();

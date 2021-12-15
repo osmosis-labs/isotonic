@@ -17,6 +17,8 @@ pub struct InstantiateMsg {
     pub base_asset: String,
     /// Interest rate curve
     pub interest_rate: Interest,
+    /// Token which would be distributed via created lendex contracts
+    pub distributed_token: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]

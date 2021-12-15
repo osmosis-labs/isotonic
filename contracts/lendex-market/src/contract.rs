@@ -33,6 +33,7 @@ pub fn instantiate(
         symbol: "L".to_owned() + &msg.symbol,
         decimals: msg.decimals,
         controller: env.contract.address.to_string(),
+        distributed_token: msg.distributed_token.clone(),
     };
     let ltoken_instantiate = WasmMsg::Instantiate {
         admin: Some(env.contract.address.to_string()),
@@ -46,6 +47,7 @@ pub fn instantiate(
         symbol: "B".to_owned() + &msg.symbol,
         decimals: msg.decimals,
         controller: env.contract.address.to_string(),
+        distributed_token: msg.distributed_token.clone(),
     };
     let btoken_instantiate = WasmMsg::Instantiate {
         admin: Some(env.contract.address.to_string()),

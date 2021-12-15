@@ -1,4 +1,4 @@
-use cosmwasm_std::{Binary, Decimal, Uint128};
+use cosmwasm_std::{Binary, Coin, Decimal, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -17,6 +17,8 @@ pub struct InstantiateMsg {
     /// Controller is contract allowed to ming, burn, rebase, and must be checked with to
     /// enable transfer
     pub controller: String,
+    /// Token which will be distributed via this contract by cw2222 interface
+    pub distributed_token: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -51,6 +53,14 @@ pub enum ExecuteMsg {
     /// Can only be called by the controller.
     /// multiplier *= ratio
     Rebase { ratio: Decimal },
+    /// Distributed tokens using cw2222 mechanism. Tokens send with this message as distributed
+    /// alongside with all tokens send until now which are not yet distributed.
+    Distribute {
+        /// Just for informational purposes - would overwrite message sender in generated event.
+        sender: Option<String>,
+    },
+    /// Withdraw tokens distributed before
+    WithdrawFunds {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -81,6 +91,12 @@ pub enum QueryMsg {
     TokenInfo {},
     /// Returns the global multiplier factor.
     Multiplier {},
+    /// Funds distributed by this contract. Returns `FundsResponse`.
+    DistributedFunds {},
+    /// FUnds send to this contact but not yet distributed. Returns `FundsResponse`.
+    UndistributedFunds {},
+    /// Queries for funds distributed but not yet withdrawn by owner
+    WithdrawableFunds { owner: String },
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -99,4 +115,9 @@ pub struct TokenInfoResponse {
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct MultiplierResponse {
     pub multiplier: Decimal,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct FundsResponse {
+    pub funds: Coin,
 }

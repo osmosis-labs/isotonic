@@ -6,7 +6,7 @@ pub mod suite;
 use crate::display_amount::DisplayAmount;
 use crate::msg::TokenInfoResponse;
 use crate::ContractError;
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{coin, coins, Event, Uint128};
 use suite::{Suite, SuiteBuilder};
 
 #[test]
@@ -15,6 +15,7 @@ fn fresh_queries() {
         .with_name("Lendex")
         .with_symbol("LDX")
         .with_decimals(9)
+        .with_distributed_token("Reward")
         .build();
     let actor = "actor";
     let controller = suite.controller();
@@ -34,6 +35,11 @@ fn fresh_queries() {
     assert_eq!(
         suite.query_balance(controller).unwrap(),
         DisplayAmount::zero()
+    );
+    assert_eq!(suite.query_distributed_funds().unwrap(), coin(0, "Reward"));
+    assert_eq!(
+        suite.query_undistributed_funds().unwrap(),
+        coin(0, "Reward")
     );
 }
 
@@ -589,5 +595,387 @@ mod send {
             suite.query_balance(controller).unwrap(),
             DisplayAmount::zero()
         );
+    }
+}
+
+mod distribution {
+    use super::*;
+
+    fn distribution_event(sender: &str, denom: &str, amount: u128) -> Event {
+        Event::new("wasm")
+            .add_attribute("sender", sender)
+            .add_attribute("denom", denom)
+            .add_attribute("amount", &amount.to_string())
+    }
+
+    #[test]
+    fn divisible_amount_distributed() {
+        let members = ["member1", "member2", "member3", "member4"];
+        let reward = "Reward";
+
+        let mut suite = SuiteBuilder::new()
+            .with_distributed_token(reward)
+            .with_funds(members[3], coins(400, reward))
+            .build();
+
+        let controller = suite.controller();
+        let controller = controller.as_str();
+        let token = suite.token();
+        let token = token.as_str();
+
+        // Mint tokens to have something to base on
+        suite.mint(controller, members[0], Uint128::new(1)).unwrap();
+        suite.mint(controller, members[1], Uint128::new(2)).unwrap();
+        suite.mint(controller, members[2], Uint128::new(5)).unwrap();
+
+        // Funds distribution
+        let resp = suite
+            .distribute(members[3], None, &coins(400, reward))
+            .unwrap();
+
+        resp.assert_event(&distribution_event(members[3], reward, 400));
+
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 400);
+        assert_eq!(suite.native_balance(members[0], reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(members[1], reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(members[2], reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(members[3], reward).unwrap(), 0);
+
+        assert_eq!(
+            suite.query_withdrawable_funds(members[0]).unwrap(),
+            coin(50, reward)
+        );
+        assert_eq!(
+            suite.query_withdrawable_funds(members[1]).unwrap(),
+            coin(100, reward)
+        );
+        assert_eq!(
+            suite.query_withdrawable_funds(members[2]).unwrap(),
+            coin(250, reward)
+        );
+
+        assert_eq!(suite.query_distributed_funds().unwrap(), coin(400, reward));
+        assert_eq!(suite.query_undistributed_funds().unwrap(), coin(0, reward));
+
+        // Funds withdrawal
+        suite.withdraw_funds(members[0]).unwrap();
+        suite.withdraw_funds(members[1]).unwrap();
+        suite.withdraw_funds(members[2]).unwrap();
+
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(members[0], reward).unwrap(), 50);
+        assert_eq!(suite.native_balance(members[1], reward).unwrap(), 100);
+        assert_eq!(suite.native_balance(members[2], reward).unwrap(), 250);
+        assert_eq!(suite.native_balance(members[3], reward).unwrap(), 0);
+    }
+
+    #[test]
+    fn divisible_amount_distributed_twice() {
+        let members = ["member1", "member2", "member3", "member4"];
+        let reward = "Reward";
+
+        let mut suite = SuiteBuilder::new()
+            .with_distributed_token(reward)
+            .with_funds(members[3], coins(1000, reward))
+            .build();
+
+        let controller = suite.controller();
+        let controller = controller.as_str();
+        let token = suite.token();
+        let token = token.as_str();
+
+        // Mint tokens to have something to base on
+        suite.mint(controller, members[0], Uint128::new(1)).unwrap();
+        suite.mint(controller, members[1], Uint128::new(2)).unwrap();
+        suite.mint(controller, members[2], Uint128::new(5)).unwrap();
+
+        suite
+            .distribute(members[3], None, &coins(400, reward))
+            .unwrap();
+
+        assert_eq!(suite.query_distributed_funds().unwrap(), coin(400, reward));
+        assert_eq!(suite.query_undistributed_funds().unwrap(), coin(0, reward));
+
+        suite.withdraw_funds(members[0]).unwrap();
+        suite.withdraw_funds(members[1]).unwrap();
+        suite.withdraw_funds(members[2]).unwrap();
+
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(members[0], reward).unwrap(), 50);
+        assert_eq!(suite.native_balance(members[1], reward).unwrap(), 100);
+        assert_eq!(suite.native_balance(members[2], reward).unwrap(), 250);
+        assert_eq!(suite.native_balance(members[3], reward).unwrap(), 600);
+
+        suite
+            .distribute(members[3], None, &coins(600, reward))
+            .unwrap();
+
+        assert_eq!(suite.query_distributed_funds().unwrap(), coin(1000, reward));
+        assert_eq!(suite.query_undistributed_funds().unwrap(), coin(0, reward));
+
+        suite.withdraw_funds(members[0]).unwrap();
+        suite.withdraw_funds(members[1]).unwrap();
+        suite.withdraw_funds(members[2]).unwrap();
+
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(members[0], reward).unwrap(), 125);
+        assert_eq!(suite.native_balance(members[1], reward).unwrap(), 250);
+        assert_eq!(suite.native_balance(members[2], reward).unwrap(), 625);
+        assert_eq!(suite.native_balance(members[3], reward).unwrap(), 0);
+    }
+
+    #[test]
+    fn divisible_amount_distributed_twice_accumulated() {
+        let members = ["member1", "member2", "member3", "member4"];
+        let reward = "Reward";
+
+        let mut suite = SuiteBuilder::new()
+            .with_distributed_token(reward)
+            .with_funds(members[3], coins(1000, reward))
+            .build();
+
+        let controller = suite.controller();
+        let controller = controller.as_str();
+        let token = suite.token();
+        let token = token.as_str();
+
+        // Mint tokens to have something to base on
+        suite.mint(controller, members[0], Uint128::new(1)).unwrap();
+        suite.mint(controller, members[1], Uint128::new(2)).unwrap();
+        suite.mint(controller, members[2], Uint128::new(5)).unwrap();
+
+        suite
+            .distribute(members[3], None, &coins(400, reward))
+            .unwrap();
+
+        assert_eq!(suite.query_distributed_funds().unwrap(), coin(400, reward));
+        assert_eq!(suite.query_undistributed_funds().unwrap(), coin(0, reward));
+
+        suite
+            .distribute(members[3], None, &coins(600, reward))
+            .unwrap();
+
+        assert_eq!(suite.query_distributed_funds().unwrap(), coin(1000, reward));
+        assert_eq!(suite.query_undistributed_funds().unwrap(), coin(0, reward));
+
+        suite.withdraw_funds(members[0]).unwrap();
+        suite.withdraw_funds(members[1]).unwrap();
+        suite.withdraw_funds(members[2]).unwrap();
+
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(members[0], reward).unwrap(), 125);
+        assert_eq!(suite.native_balance(members[1], reward).unwrap(), 250);
+        assert_eq!(suite.native_balance(members[2], reward).unwrap(), 625);
+        assert_eq!(suite.native_balance(members[3], reward).unwrap(), 0);
+    }
+
+    #[test]
+    fn weight_changed_after_distribution() {
+        let members = vec!["member1", "member2", "member3", "member4"];
+        let reward = "Reward";
+
+        let mut suite = SuiteBuilder::new()
+            .with_distributed_token(reward)
+            .with_funds(members[3], coins(1500, reward))
+            .with_transferable(members[1], Uint128::new(1))
+            .build();
+
+        let controller = suite.controller();
+        let controller = controller.as_str();
+        let token = suite.token();
+        let token = token.as_str();
+
+        // Mint tokens to have something to base on
+        suite.mint(controller, members[0], Uint128::new(1)).unwrap();
+        suite.mint(controller, members[1], Uint128::new(2)).unwrap();
+        suite.mint(controller, members[2], Uint128::new(5)).unwrap();
+
+        // First distribution
+        suite
+            .distribute(members[3], None, &coins(400, reward))
+            .unwrap();
+
+        // Modifying weights to:
+        // member[0] => 6
+        // member[1] => 0 (removed)
+        // member[2] => 5
+        // total_weight => 11
+        suite
+            .transfer(members[1], members[0], Uint128::new(1))
+            .unwrap();
+        suite.mint(controller, members[0], Uint128::new(4)).unwrap();
+        suite.burn(controller, members[1], Uint128::new(1)).unwrap();
+
+        // Ensure funds are withdrawn properly, considering old weights
+        suite.withdraw_funds(members[0]).unwrap();
+        suite.withdraw_funds(members[1]).unwrap();
+        suite.withdraw_funds(members[2]).unwrap();
+
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(members[0], reward).unwrap(), 50);
+        assert_eq!(suite.native_balance(members[1], reward).unwrap(), 100);
+        assert_eq!(suite.native_balance(members[2], reward).unwrap(), 250);
+        assert_eq!(suite.native_balance(members[3], reward).unwrap(), 1100);
+
+        // Distribute tokens again to ensure distribution considers new weights
+        suite
+            .distribute(members[3], None, &coins(1100, reward))
+            .unwrap();
+
+        suite.withdraw_funds(members[0]).unwrap();
+        suite.withdraw_funds(members[1]).unwrap();
+        suite.withdraw_funds(members[2]).unwrap();
+
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(members[0], reward).unwrap(), 650);
+        assert_eq!(suite.native_balance(members[1], reward).unwrap(), 100);
+        assert_eq!(suite.native_balance(members[2], reward).unwrap(), 750);
+        assert_eq!(suite.native_balance(members[3], reward).unwrap(), 0);
+    }
+
+    #[test]
+    fn weight_changed_after_distribution_accumulated() {
+        let members = vec!["member1", "member2", "member3", "member4"];
+        let reward = "Reward";
+
+        let mut suite = SuiteBuilder::new()
+            .with_distributed_token(reward)
+            .with_funds(members[3], coins(1500, reward))
+            .with_transferable(members[1], Uint128::new(1))
+            .build();
+
+        let controller = suite.controller();
+        let controller = controller.as_str();
+        let token = suite.token();
+        let token = token.as_str();
+
+        // Mint tokens to have something to base on
+        suite.mint(controller, members[0], Uint128::new(1)).unwrap();
+        suite.mint(controller, members[1], Uint128::new(2)).unwrap();
+        suite.mint(controller, members[2], Uint128::new(5)).unwrap();
+
+        // First distribution
+        suite
+            .distribute(members[3], None, &coins(400, reward))
+            .unwrap();
+
+        // Modifying weights to:
+        // member[0] => 6
+        // member[1] => 0 (removed)
+        // member[2] => 5
+        // total_weight => 11
+        suite
+            .transfer(members[1], members[0], Uint128::new(1))
+            .unwrap();
+        suite.mint(controller, members[0], Uint128::new(4)).unwrap();
+        suite.burn(controller, members[1], Uint128::new(1)).unwrap();
+
+        // Distribute tokens again to ensure distribution considers new weights
+        suite
+            .distribute(members[3], None, &coins(1100, reward))
+            .unwrap();
+
+        suite.withdraw_funds(members[0]).unwrap();
+        suite.withdraw_funds(members[1]).unwrap();
+        suite.withdraw_funds(members[2]).unwrap();
+
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(members[0], reward).unwrap(), 650);
+        assert_eq!(suite.native_balance(members[1], reward).unwrap(), 100);
+        assert_eq!(suite.native_balance(members[2], reward).unwrap(), 750);
+        assert_eq!(suite.native_balance(members[3], reward).unwrap(), 0);
+    }
+
+    #[test]
+    fn distribution_with_leftover() {
+        let members = ["member1", "member2", "member3", "member4"];
+        let reward = "Reward";
+
+        let mut suite = SuiteBuilder::new()
+            .with_distributed_token(reward)
+            .with_funds(members[3], coins(3100, reward))
+            .build();
+
+        let controller = suite.controller();
+        let controller = controller.as_str();
+        let token = suite.token();
+        let token = token.as_str();
+
+        // Mint tokens to have something to base on
+        suite.mint(controller, members[0], Uint128::new(7)).unwrap();
+        suite
+            .mint(controller, members[1], Uint128::new(11))
+            .unwrap();
+        suite
+            .mint(controller, members[2], Uint128::new(13))
+            .unwrap();
+
+        suite
+            .distribute(members[3], None, &coins(100, reward))
+            .unwrap();
+
+        suite.withdraw_funds(members[0]).unwrap();
+        suite.withdraw_funds(members[1]).unwrap();
+        suite.withdraw_funds(members[2]).unwrap();
+
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 2);
+        assert_eq!(suite.native_balance(members[0], reward).unwrap(), 22);
+        assert_eq!(suite.native_balance(members[1], reward).unwrap(), 35);
+        assert_eq!(suite.native_balance(members[2], reward).unwrap(), 41);
+
+        suite
+            .distribute(members[3], None, &coins(3000, reward))
+            .unwrap();
+
+        suite.withdraw_funds(members[0]).unwrap();
+        suite.withdraw_funds(members[1]).unwrap();
+        suite.withdraw_funds(members[2]).unwrap();
+
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(members[0], reward).unwrap(), 700);
+        assert_eq!(suite.native_balance(members[1], reward).unwrap(), 1100);
+        assert_eq!(suite.native_balance(members[2], reward).unwrap(), 1300);
+    }
+
+    #[test]
+    fn distribution_with_leftover_accumulated() {
+        let members = ["member1", "member2", "member3", "member4"];
+        let reward = "Reward";
+
+        let mut suite = SuiteBuilder::new()
+            .with_distributed_token(reward)
+            .with_funds(members[3], coins(3100, reward))
+            .build();
+
+        let controller = suite.controller();
+        let controller = controller.as_str();
+        let token = suite.token();
+        let token = token.as_str();
+
+        // Mint tokens to have something to base on
+        suite.mint(controller, members[0], Uint128::new(7)).unwrap();
+        suite
+            .mint(controller, members[1], Uint128::new(11))
+            .unwrap();
+        suite
+            .mint(controller, members[2], Uint128::new(13))
+            .unwrap();
+
+        suite
+            .distribute(members[3], None, &coins(100, reward))
+            .unwrap();
+
+        suite
+            .distribute(members[3], None, &coins(3000, reward))
+            .unwrap();
+
+        suite.withdraw_funds(members[0]).unwrap();
+        suite.withdraw_funds(members[1]).unwrap();
+        suite.withdraw_funds(members[2]).unwrap();
+
+        assert_eq!(suite.native_balance(token, reward).unwrap(), 0);
+        assert_eq!(suite.native_balance(members[0], reward).unwrap(), 700);
+        assert_eq!(suite.native_balance(members[1], reward).unwrap(), 1100);
+        assert_eq!(suite.native_balance(members[2], reward).unwrap(), 1300);
     }
 }
