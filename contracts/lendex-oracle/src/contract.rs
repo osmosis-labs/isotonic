@@ -1,8 +1,6 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{
-    to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
-};
+use cosmwasm_std::{to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response};
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
@@ -72,15 +70,15 @@ pub fn execute(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
     use QueryMsg::*;
-    match msg {
-        Configuration {} => to_binary(&CONFIG.load(deps.storage)?),
-        Price { sell, buy } => to_binary(
-            &query::price(deps, env, &sell, &buy)
-                .map_err(|err| StdError::generic_err(err.to_string()))?,
-        ),
-    }
+
+    let res = match msg {
+        Configuration {} => to_binary(&CONFIG.load(deps.storage)?)?,
+        Price { sell, buy } => to_binary(&query::price(deps, env, &sell, &buy)?)?,
+    };
+
+    Ok(res)
 }
 
 mod query {
@@ -112,7 +110,7 @@ mod tests {
     use cosmwasm_std::{
         from_slice,
         testing::{mock_dependencies, mock_env, mock_info},
-        Addr, StdError,
+        Addr,
     };
 
     use crate::{msg::PriceResponse, time::Duration};
@@ -147,7 +145,12 @@ mod tests {
         )
     }
 
-    fn query_price(deps: Deps, env: Env, sell: &str, buy: &str) -> Result<PriceResponse, StdError> {
+    fn query_price(
+        deps: Deps,
+        env: Env,
+        sell: &str,
+        buy: &str,
+    ) -> Result<PriceResponse, ContractError> {
         let raw = query(
             deps,
             env,
@@ -156,7 +159,7 @@ mod tests {
                 buy: buy.to_string(),
             },
         )?;
-        from_slice(&raw)
+        Ok(from_slice(&raw)?)
     }
 
     fn mock_env_after_secs(secs: u64) -> Env {
@@ -225,10 +228,7 @@ mod tests {
 
         // Query after the last record already expired.
         let res = query_price(deps.as_ref(), mock_env_after_secs(355), "ATOM", "BTC").unwrap_err();
-        assert_eq!(
-            res,
-            StdError::generic_err("The prices for this trading pair are outdated")
-        );
+        assert_eq!(res, ContractError::OutdatedOracle {});
     }
 
     #[test]
@@ -238,9 +238,6 @@ mod tests {
 
         // Query a trading pair that was never recorded
         let res = query_price(deps.as_ref(), mock_env(), "ATOM", "BTC").unwrap_err();
-        assert_eq!(
-            res,
-            StdError::generic_err("There is no info about the prices for this trading pair")
-        );
+        assert_eq!(res, ContractError::NoInfo {});
     }
 }
