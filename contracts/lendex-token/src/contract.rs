@@ -50,7 +50,7 @@ pub fn instantiate(
 
     TOTAL_SUPPLY.save(deps.storage, &Uint128::zero())?;
     CONTROLLER.save(deps.storage, &deps.api.addr_validate(&msg.controller)?)?;
-    MULTIPLIER.save(deps.storage, &Decimal::one())?;
+    MULTIPLIER.save(deps.storage, &Decimal::permille(1))?;
 
     Ok(Response::new())
 }

@@ -1,7 +1,10 @@
 use super::suite::SuiteBuilder;
 
-use crate::msg::InterestResponse;
 use cosmwasm_std::{coin, Coin, Decimal, Timestamp};
+use lendex_token::DisplayAmount;
+
+use crate::msg::InterestResponse;
+use crate::state::SECONDS_IN_YEAR;
 
 #[test]
 fn query_interest() {
@@ -91,5 +94,114 @@ fn query_interest() {
             charge_period: Timestamp::from_seconds(300),
         },
         resp
+    );
+}
+
+#[test]
+fn charge_interest_borrow() {
+    let lender = "lender";
+    let borrower = "borrower";
+    let base_asset = "atom";
+    let mut suite = SuiteBuilder::new()
+        .with_funds(lender, &[coin(2000, base_asset)])
+        .with_interest(4, 20)
+        .with_base_asset(base_asset)
+        .build();
+
+    // Deposit some tokens
+    suite
+        .deposit(lender, &[Coin::new(2000, base_asset)])
+        .unwrap();
+
+    // Borrow some tokens
+    suite.borrow(borrower, 1600).unwrap();
+
+    let resp = suite.query_interest().unwrap();
+    assert_eq!(
+        InterestResponse {
+            utilisation: Decimal::percent(80),
+            interest: Decimal::percent(20),
+            charge_period: Timestamp::from_seconds(300),
+        },
+        resp
+    );
+
+    suite.advance_seconds((SECONDS_IN_YEAR) as u64);
+
+    // Repay some tokens
+    // interest is 20%
+    // that means btoken 1600 + 320
+    // repay 800 -> 1120 left btokens
+    suite.repay(borrower, coin(800, base_asset)).unwrap();
+
+    assert_eq!(
+        suite.query_btoken_info().unwrap().total_supply,
+        DisplayAmount::raw(1120u128)
+    );
+    suite.advance_seconds((SECONDS_IN_YEAR) as u64);
+
+    // Repay some tokens
+    // Utilisation is 48.3%
+    // interest is 13.66%
+    // btoken 1120 + 13.66% - 800 = 472.992
+    suite.repay(borrower, coin(800, base_asset)).unwrap();
+
+    assert_eq!(
+        suite.query_btoken_info().unwrap().total_supply,
+        DisplayAmount::raw(472u128)
+    );
+}
+
+#[test]
+fn charge_interest_deposit() {
+    let lender = "lender";
+    let borrower = "borrower";
+    let base_asset = "atom";
+    let mut suite = SuiteBuilder::new()
+        .with_funds(lender, &[coin(4000, base_asset)])
+        .with_interest(4, 20)
+        .with_base_asset(base_asset)
+        .build();
+
+    // Deposit some tokens
+    suite
+        .deposit(lender, &[Coin::new(2000, base_asset)])
+        .unwrap();
+
+    // Borrow some tokens
+    suite.borrow(borrower, 1600).unwrap();
+
+    suite.advance_seconds((SECONDS_IN_YEAR) as u64);
+
+    // Deposit some tokens
+    // interest is 20% (4% base + 20% slope * 80% utilization)
+    // that means ltoken 2000 + 1600*20% = 2320
+    // deposit 1000 -> 3320 left btokens
+    suite
+        .deposit(lender, &[Coin::new(1000, base_asset)])
+        .unwrap();
+
+    // TODO: rounding error
+    assert_eq!(
+        suite.query_ltoken_info().unwrap().total_supply,
+        DisplayAmount::raw(3318u128)
+    );
+
+    suite.advance_seconds((SECONDS_IN_YEAR) as u64);
+
+    // Repay some tokens
+    // Now utilisation is 57.84%,
+    // interest rate 15.57%
+    // amount of btokens - 1600 + 20% interests = 1920
+    // 1920 * 15.57% = 298.94 ltokens interests are made
+    // ltokens should go up to 3616.94
+    // 3616.94 + 1000 = 4616.94 ltokens
+    suite
+        .deposit(lender, &[Coin::new(1000, base_asset)])
+        .unwrap();
+
+    assert_eq!(
+        suite.query_ltoken_info().unwrap().total_supply,
+        DisplayAmount::raw(4617u128)
     );
 }

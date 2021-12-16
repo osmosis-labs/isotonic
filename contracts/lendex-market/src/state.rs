@@ -8,6 +8,8 @@ use lendex_token::msg::TokenInfoResponse;
 
 use crate::msg::Interest;
 
+pub const SECONDS_IN_YEAR: u128 = 31_556_736;
+
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct Config {
     pub ltoken_contract: Addr,
