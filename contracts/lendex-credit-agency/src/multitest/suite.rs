@@ -74,12 +74,12 @@ impl SuiteBuilder {
 pub struct Suite {
     /// The multitest app
     app: App,
-    /// Address of Market contract
+    /// Address of the Credit Agency contract
     contract: Addr,
 }
 
 impl Suite {
-    /// Queries market contract for configuration
+    /// Queries the Credit Agency contract for configuration
     pub fn query_config(&self) -> AnyResult<Config> {
         let resp: Config = self
             .app
