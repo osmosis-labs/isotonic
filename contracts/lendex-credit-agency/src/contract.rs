@@ -11,7 +11,7 @@ use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::state::{Config, CONFIG};
 
 // version info for migration info
-const CONTRACT_NAME: &str = "crates.io:lendex-market";
+const CONTRACT_NAME: &str = "crates.io:lendex-credit-agency";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
