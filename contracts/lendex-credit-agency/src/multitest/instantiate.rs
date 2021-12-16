@@ -11,7 +11,7 @@ fn market_instantiate_and_query_config() {
         Config {
             gov_contract: Addr::unchecked("gov"),
             lendex_market_id: 1,
-            ledex_token_id: 2
+            lendex_token_id: 2
         },
         suite.query_config().unwrap()
     );

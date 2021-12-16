@@ -6,7 +6,7 @@ use cw2::set_contract_version;
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
-use crate::state::{Config, CONFIG};
+use crate::state::{Config, CONFIG, NEXT_REPLY_ID};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:lendex-credit-agency";
@@ -24,9 +24,10 @@ pub fn instantiate(
     let cfg = Config {
         gov_contract: deps.api.addr_validate(&msg.gov_contract)?,
         lendex_market_id: msg.lendex_market_id,
-        ledex_token_id: msg.lendex_token_id,
+        lendex_token_id: msg.lendex_token_id,
     };
     CONFIG.save(deps.storage, &cfg)?;
+    NEXT_REPLY_ID.save(deps.storage, &0)?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
@@ -37,14 +38,14 @@ pub fn instantiate(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     use ExecuteMsg::*;
 
     match msg {
-        CreateMarket(market_cfg) => exec::create_market(deps, info, market_cfg),
+        CreateMarket(market_cfg) => exec::create_market(deps, env, info, market_cfg),
     }
 }
 
@@ -54,7 +55,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractErro
 
     let res = match msg {
         Configuration {} => to_binary(&CONFIG.load(deps.storage)?)?,
-        Market { base_asset } => to_binary(&query::market(deps, env, &base_asset)?)?,
+        Market { base_asset } => to_binary(&query::market(deps, env, base_asset)?)?,
         ListMarkets { start_after, limit } => {
             to_binary(&query::list_markets(deps, env, start_after, limit)?)?
         }
@@ -71,31 +72,96 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
 mod exec {
     use super::*;
 
-    use crate::msg::MarketConfig;
+    use cosmwasm_std::{ensure_eq, StdError, SubMsg, WasmMsg};
+
+    use crate::{
+        msg::MarketConfig,
+        state::{MarketState, MARKETS, REPLY_IDS},
+    };
 
     pub fn create_market(
-        _deps: DepsMut,
-        _info: MessageInfo,
-        _cfg: MarketConfig,
+        deps: DepsMut,
+        env: Env,
+        info: MessageInfo,
+        market_cfg: MarketConfig,
     ) -> Result<Response, ContractError> {
-        // TODO: assert caller is gov_contract
-        // TODO: create a new unique reply ID
-        // TODO: trigger market contract instantiation and ask for a `reply` on success (or always?)
-        todo!()
+        let cfg = CONFIG.load(deps.storage)?;
+        ensure_eq!(
+            info.sender,
+            cfg.gov_contract,
+            ContractError::Unauthorized {}
+        );
+
+        if let Some(state) = MARKETS.may_load(deps.storage, &market_cfg.base_asset)? {
+            use MarketState::*;
+
+            let err = match state {
+                Instantiating => ContractError::MarketCreating(market_cfg.base_asset),
+                Ready(_) => ContractError::MarketAlreadyExists(market_cfg.base_asset),
+            };
+            return Err(err);
+        }
+        MARKETS.save(
+            deps.storage,
+            &market_cfg.base_asset,
+            &MarketState::Instantiating,
+        )?;
+
+        let reply_id =
+            NEXT_REPLY_ID.update(deps.storage, |id| -> Result<_, StdError> { Ok(id + 1) })?;
+        REPLY_IDS.save(deps.storage, reply_id, &market_cfg.base_asset)?;
+
+        let market_msg = lendex_market::msg::InstantiateMsg {
+            name: market_cfg.name,
+            symbol: market_cfg.symbol,
+            decimals: market_cfg.decimals,
+            token_id: cfg.lendex_token_id,
+            base_asset: market_cfg.base_asset,
+            interest_rate: market_cfg.interest_rate,
+            distributed_token: market_cfg.distributed_token,
+        };
+        let market_instantiate = WasmMsg::Instantiate {
+            admin: Some(env.contract.address.to_string()),
+            code_id: cfg.lendex_market_id,
+            msg: to_binary(&market_msg)?,
+            funds: vec![],
+            label: format!("market_contract_{}", env.contract.address),
+        };
+
+        Ok(Response::new()
+            .add_attribute("action", "create_market")
+            .add_attribute("sender", info.sender)
+            .add_submessage(SubMsg::reply_on_success(market_instantiate, reply_id)))
     }
 }
 
 mod query {
-    use crate::msg::{ListMarketsResponse, MarketResponse};
+    use crate::{
+        msg::{ListMarketsResponse, MarketResponse},
+        state::MARKETS,
+    };
 
     use super::*;
 
     pub fn market(
-        _deps: Deps,
+        deps: Deps,
         _env: Env,
-        _base_asset: &str,
+        base_asset: String,
     ) -> Result<MarketResponse, ContractError> {
-        todo!()
+        // TODO: check expiration
+
+        let state = MARKETS
+            .may_load(deps.storage, &base_asset)?
+            .ok_or_else(|| ContractError::NoMarket(base_asset.clone()))?;
+
+        let addr = state
+            .to_addr()
+            .ok_or_else(|| ContractError::MarketCreating(base_asset.clone()))?;
+
+        Ok(MarketResponse {
+            base_asset,
+            market: addr,
+        })
     }
 
     pub fn list_markets(
@@ -109,23 +175,27 @@ mod query {
 }
 
 mod reply {
+    use crate::state::{MarketState, MARKETS, REPLY_IDS};
+
     use super::*;
 
     pub fn handle_market_instantiation_response(
-        _deps: DepsMut,
+        deps: DepsMut,
         _env: Env,
         msg: Reply,
     ) -> Result<Response, ContractError> {
         let id = msg.id;
-        let _res =
+        let res =
             parse_reply_instantiate_data(msg).map_err(|err| ContractError::ReplyParseFailure {
                 id,
                 err: err.to_string(),
             })?;
 
-        // TODO: verify msg.id corresponds to a market we're trying to instantiate
-        // TODO: store the market addr on success
-        // TODO: store some info about failure in case of, well... failure? if it makes sense?
-        todo!()
+        let base_asset = REPLY_IDS.load(deps.storage, id)?;
+        let addr = deps.api.addr_validate(&res.contract_address)?;
+
+        MARKETS.save(deps.storage, &base_asset, &MarketState::Ready(addr.clone()))?;
+
+        Ok(Response::new().add_attribute(format!("market_{}", base_asset), addr))
     }
 }

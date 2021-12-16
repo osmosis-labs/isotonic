@@ -2,7 +2,7 @@ use cosmwasm_std::Addr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cw_storage_plus::Item;
+use cw_storage_plus::{Item, Map};
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct Config {
@@ -11,7 +11,29 @@ pub struct Config {
     /// The CodeId of the lendex-market contract
     pub lendex_market_id: u64,
     /// The CodeId of the lendex-token contract
-    pub ledex_token_id: u64,
+    pub lendex_token_id: u64,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub enum MarketState {
+    Instantiating,
+    Ready(Addr),
+}
+
+impl MarketState {
+    pub fn to_addr(self) -> Option<Addr> {
+        match self {
+            MarketState::Instantiating => None,
+            MarketState::Ready(addr) => Some(addr),
+        }
+    }
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");
+/// A map of reply_id -> base_asset, used to tell which base asset
+/// a given instantiating contract will handle
+pub const REPLY_IDS: Map<u64, String> = Map::new("reply_ids");
+/// The next unused reply ID
+pub const NEXT_REPLY_ID: Item<u64> = Item::new("next_reply_id");
+/// A map of base asset -> market contract address
+pub const MARKETS: Map<&str, MarketState> = Map::new("market");

@@ -1,7 +1,6 @@
 use super::suite::SuiteBuilder;
 
 #[test]
-#[ignore]
 fn market_create() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
 
@@ -10,7 +9,6 @@ fn market_create() {
 }
 
 #[test]
-#[ignore]
 fn market_create_multiple() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
 
@@ -24,7 +22,6 @@ fn market_create_multiple() {
 }
 
 #[test]
-#[ignore]
 fn market_create_unauthorized() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
 

@@ -18,7 +18,7 @@ pub enum ContractError {
     #[error("No market set up for base asset {0}")]
     NoMarket(String),
 
-    #[error("Market for base asset {0} hasn't completed instantiation")]
+    #[error("A market for base asset {0} is still being created")]
     MarketCreating(String),
 
     #[error("A market for base asset {0} already exists")]
