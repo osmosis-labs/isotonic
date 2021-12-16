@@ -136,6 +136,9 @@ mod exec {
 }
 
 mod query {
+    use cosmwasm_std::{Order, StdResult};
+    use cw_storage_plus::Bound;
+
     use crate::{
         msg::{ListMarketsResponse, MarketResponse},
         state::MARKETS,
@@ -148,8 +151,6 @@ mod query {
         _env: Env,
         base_asset: String,
     ) -> Result<MarketResponse, ContractError> {
-        // TODO: check expiration
-
         let state = MARKETS
             .may_load(deps.storage, &base_asset)?
             .ok_or_else(|| ContractError::NoMarket(base_asset.clone()))?;
@@ -164,13 +165,37 @@ mod query {
         })
     }
 
+    // settings for pagination
+    const MAX_LIMIT: u32 = 30;
+    const DEFAULT_LIMIT: u32 = 10;
+
     pub fn list_markets(
-        _deps: Deps,
+        deps: Deps,
         _env: Env,
-        _start_after: Option<String>,
-        _limit: Option<u32>,
+        start_after: Option<String>,
+        limit: Option<u32>,
     ) -> Result<ListMarketsResponse, ContractError> {
-        todo!()
+        let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
+        let start = start_after.map(|addr| Bound::exclusive(addr.as_str()));
+
+        let markets: StdResult<Vec<_>> = MARKETS
+            .range(deps.storage, start, None, Order::Ascending)
+            .map(|m| {
+                let (key, market) = m?;
+
+                let base_asset = String::from_utf8(key)?;
+                let result = market.to_addr().map(|addr| MarketResponse {
+                    base_asset,
+                    market: addr,
+                });
+
+                Ok(result)
+            })
+            .filter_map(|m| m.transpose())
+            .take(limit)
+            .collect();
+
+        Ok(ListMarketsResponse { markets: markets? })
     }
 }
 

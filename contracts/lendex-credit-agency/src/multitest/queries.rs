@@ -22,7 +22,6 @@ fn query_market_does_not_exist() {
 // TODO: a test for when a market is not yet instantiated? or would that be too hard to mock?
 
 #[test]
-#[ignore]
 fn list_markets() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
 
@@ -38,11 +37,10 @@ fn list_markets() {
         .collect();
     list.sort();
 
-    assert_eq!(list, ["ATOM", "OSMO"]);
+    assert_eq!(list, ["ATOM", "BTC", "OSMO"]);
 }
 
 #[test]
-#[ignore]
 fn list_markets_empty_list() {
     let suite = SuiteBuilder::new().with_gov("gov").build();
 
@@ -58,7 +56,6 @@ fn generate_denoms(prefix: &str, start: u32, end: u32) -> Vec<String> {
 }
 
 #[test]
-#[ignore]
 fn list_markets_default_pagination() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
 
@@ -92,7 +89,6 @@ fn list_markets_default_pagination() {
 }
 
 #[test]
-#[ignore]
 fn list_markets_custom_pagination() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
 
