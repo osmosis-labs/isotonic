@@ -1,8 +1,6 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{
-    to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
-};
+use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response};
 use cw0::parse_reply_instantiate_data;
 use cw2::set_contract_version;
 
@@ -51,11 +49,18 @@ pub fn execute(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
     use QueryMsg::*;
-    match msg {
-        Configuration {} => to_binary(&CONFIG.load(deps.storage)?),
-    }
+
+    let res = match msg {
+        Configuration {} => to_binary(&CONFIG.load(deps.storage)?)?,
+        Market { base_asset } => to_binary(&query::market(deps, env, &base_asset)?)?,
+        ListMarkets { start_after, limit } => {
+            to_binary(&query::list_markets(deps, env, start_after, limit)?)?
+        }
+    };
+
+    Ok(res)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -80,7 +85,28 @@ mod exec {
     }
 }
 
-mod query {}
+mod query {
+    use crate::msg::{ListMarketsResponse, MarketResponse};
+
+    use super::*;
+
+    pub fn market(
+        _deps: Deps,
+        _env: Env,
+        _base_asset: &str,
+    ) -> Result<MarketResponse, ContractError> {
+        todo!()
+    }
+
+    pub fn list_markets(
+        _deps: Deps,
+        _env: Env,
+        _start_after: Option<String>,
+        _limit: Option<u32>,
+    ) -> Result<ListMarketsResponse, ContractError> {
+        todo!()
+    }
+}
 
 mod reply {
     use super::*;

@@ -1,3 +1,4 @@
+use cosmwasm_std::Addr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utils::interest::Interest;
@@ -39,4 +40,23 @@ pub struct MarketConfig {
 pub enum QueryMsg {
     /// Returns current configuration
     Configuration {},
+    /// Queries a market address by base asset
+    Market { base_asset: String },
+    /// List all base assets and the addresses of markets handling them.
+    /// Pagination by base asset
+    ListMarkets {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct MarketResponse {
+    pub base_asset: String,
+    pub market: Addr,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct ListMarketsResponse {
+    pub markets: Vec<MarketResponse>,
 }

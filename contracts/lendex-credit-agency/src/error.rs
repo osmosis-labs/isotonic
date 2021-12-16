@@ -14,4 +14,13 @@ pub enum ContractError {
 
     #[error("Invalid reply from submessage {id}, {err}")]
     ReplyParseFailure { id: u64, err: String },
+
+    #[error("No market set up for base asset {0}")]
+    NoMarket(String),
+
+    #[error("Market for base asset {0} hasn't completed instantiation")]
+    MarketCreating(String),
+
+    #[error("A market for base asset {0} already exists")]
+    MarketAlreadyExists(String),
 }
