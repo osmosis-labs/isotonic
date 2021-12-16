@@ -70,7 +70,7 @@ impl SuiteBuilder {
                 contract_id,
                 owner.clone(),
                 &InstantiateMsg {
-                    gov_contract: gov_contract.to_string(),
+                    gov_contract,
                     lendex_market_id,
                     lendex_token_id,
                 },
