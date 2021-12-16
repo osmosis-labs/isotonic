@@ -40,26 +40,40 @@ fn contract_token() -> Box<dyn Contract<Empty>> {
 
 /// Builder for test suite
 #[derive(Debug)]
-pub struct SuiteBuilder {}
+pub struct SuiteBuilder {
+    gov_contract: String,
+}
 
 impl SuiteBuilder {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            gov_contract: "owner".to_string(),
+        }
+    }
+
+    pub fn with_gov(mut self, gov: impl ToString) -> Self {
+        self.gov_contract = gov.to_string();
+        self
     }
 
     #[track_caller]
     pub fn build(self) -> Suite {
         let mut app = App::default();
         let owner = Addr::unchecked("owner");
+        let gov_contract = self.gov_contract;
 
-        let _token_id = app.store_code(contract_token());
-        let _market_id = app.store_code(contract_market());
+        let lendex_market_id = app.store_code(contract_market());
+        let lendex_token_id = app.store_code(contract_token());
         let contract_id = app.store_code(contract_credit_agency());
         let contract = app
             .instantiate_contract(
                 contract_id,
                 owner.clone(),
-                &InstantiateMsg {},
+                &InstantiateMsg {
+                    gov_contract: gov_contract.to_string(),
+                    lendex_market_id,
+                    lendex_token_id,
+                },
                 &[],
                 "credit-agency",
                 Some(owner.to_string()),

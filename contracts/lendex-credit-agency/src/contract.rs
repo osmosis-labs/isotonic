@@ -19,11 +19,15 @@ pub fn instantiate(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    _msg: InstantiateMsg,
+    msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    let cfg = Config {};
+    let cfg = Config {
+        gov_contract: deps.api.addr_validate(&msg.gov_contract)?,
+        lendex_market_id: msg.lendex_market_id,
+        ledex_token_id: msg.lendex_token_id,
+    };
     CONFIG.save(deps.storage, &cfg)?;
 
     Ok(Response::new()
