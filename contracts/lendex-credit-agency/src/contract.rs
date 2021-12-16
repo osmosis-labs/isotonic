@@ -38,12 +38,16 @@ pub fn instantiate(
 /// Execution entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
-    _info: MessageInfo,
-    _msg: ExecuteMsg,
+    info: MessageInfo,
+    msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    todo!()
+    use ExecuteMsg::*;
+
+    match msg {
+        CreateMarket(market_cfg) => exec::create_market(deps, info, market_cfg),
+    }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -59,14 +63,29 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
     reply::handle_market_instantiation_response(deps, env, msg)
 }
 
-mod exec {}
+mod exec {
+    use super::*;
+
+    use crate::msg::MarketConfig;
+
+    pub fn create_market(
+        _deps: DepsMut,
+        _info: MessageInfo,
+        _cfg: MarketConfig,
+    ) -> Result<Response, ContractError> {
+        // TODO: assert caller is gov_contract
+        // TODO: create a new unique reply ID
+        // TODO: trigger market contract instantiation and ask for a `reply` on success (or always?)
+        todo!()
+    }
+}
 
 mod query {}
 
 mod reply {
     use super::*;
 
-    pub(crate) fn handle_market_instantiation_response(
+    pub fn handle_market_instantiation_response(
         _deps: DepsMut,
         _env: Env,
         msg: Reply,

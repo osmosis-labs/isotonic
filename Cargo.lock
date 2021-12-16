@@ -417,6 +417,7 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
+ "utils",
 ]
 
 [[package]]
@@ -436,6 +437,7 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
+ "utils",
 ]
 
 [[package]]
