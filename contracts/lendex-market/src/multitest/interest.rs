@@ -104,6 +104,7 @@ fn charge_interest_borrow() {
     let base_asset = "atom";
     let mut suite = SuiteBuilder::new()
         .with_funds(lender, &[coin(2000, base_asset)])
+        .with_funds(borrower, &[coin(500, base_asset)])
         .with_interest(4, 20)
         .with_base_asset(base_asset)
         .build();
@@ -151,6 +152,14 @@ fn charge_interest_borrow() {
         suite.query_btoken_info().unwrap().total_supply,
         DisplayAmount::raw(474u128)
     );
+
+    // Repay the rest of debt (borrower had extra 500 tokens)
+    suite.repay(borrower, coin(474, base_asset)).unwrap();
+    // TODO: rounding error
+    assert_eq!(
+        suite.query_btoken_info().unwrap().total_supply,
+        DisplayAmount::raw(1u128)
+    );
 }
 
 #[test]
@@ -160,6 +169,7 @@ fn charge_interest_deposit() {
     let base_asset = "atom";
     let mut suite = SuiteBuilder::new()
         .with_funds(lender, &[coin(4000, base_asset)])
+        .with_funds(borrower, &[coin(2300, base_asset)])
         .with_interest(4, 20)
         .with_base_asset(base_asset)
         .build();
@@ -207,7 +217,20 @@ fn charge_interest_deposit() {
         DisplayAmount::raw(4616u128)
     );
 
-    suite.withdraw(lender, 4000 - 1600).unwrap();
+    // Borrower pays all of his debt
+    suite.repay(borrower, coin(2219, base_asset)).unwrap();
+    assert_eq!(
+        suite.query_btoken_info().unwrap().total_supply,
+        // TODO: rounding error
+        DisplayAmount::raw(1u128)
+    );
 
-    assert_eq!(suite.query_asset_balance(lender).unwrap(), 2400);
+    // ...which allows to withdraw all tokens with interests
+    suite.withdraw(lender, 4616).unwrap();
+    assert_eq!(suite.query_asset_balance(lender).unwrap(), 4616);
+    assert_eq!(
+        suite.query_ltoken_info().unwrap().total_supply,
+        // TODO: rounding error
+        DisplayAmount::raw(1u128)
+    );
 }
