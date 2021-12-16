@@ -1,0 +1,27 @@
+[package]
+name = "lendex-oracle"
+version = "0.1.0"
+authors = ["Tomasz Kurcz <tom@confio.gmbh>"]
+edition = "2018"
+description = "The Lendex Price Oracle"
+repository = "https://github.com/confio/lendex"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+backtraces = ["cosmwasm-std/backtraces"]
+library = []
+
+[dependencies]
+cosmwasm-std = { version = "1.0.0-beta" }
+cosmwasm-storage = { version = "1.0.0-beta" }
+cw-storage-plus = "0.10"
+cw2 = "0.10"
+schemars = "0.8.3"
+serde = { version = "1.0.127", default-features = false, features = ["derive"] }
+thiserror = { version = "1.0.26" }
+utils = { version = "0.1.0", path = "../../packages/utils" }
+
+[dev-dependencies]
+cosmwasm-schema = { version = "1.0.0-beta" }
