@@ -150,7 +150,15 @@ impl Suite {
     pub fn assert_market(&self, asset: &str) {
         let res = self.query_market(asset).unwrap();
         assert_eq!(res.base_asset, asset);
-        // TODO: verify res.market is an existing contract in the app at this point?
+
+        // We query the supposed market contract address to make extra sure
+        // it was instantiated properly and exists.
+        let resp: lendex_market::state::Config = self
+            .app
+            .wrap()
+            .query_wasm_smart(res.market, &lendex_market::msg::QueryMsg::Configuration {})
+            .unwrap();
+        assert_eq!(resp.base_asset, asset);
     }
 
     /// Queries the Credit Agency contract for a list of markets with pagination
