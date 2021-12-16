@@ -37,9 +37,7 @@ fn withdraw_overflow_is_handled() {
     // affect any balances.
     assert_eq!(
         suite.withdraw(lender, 150).unwrap_err().to_string(),
-        // Change in lendex-token MULTIPLIER value from 1% to 1 permille caused issue
-        // in error messages displying raw stored values
-        "Performing operation while there is not enough tokens, 100000 tokens available, 150000 needed"
+        "Performing operation while there is not enough tokens, 100 tokens available, 150 needed"
     );
     assert_eq!(suite.query_asset_balance(lender).unwrap(), 0);
     assert_eq!(suite.query_contract_asset_balance().unwrap(), 100);

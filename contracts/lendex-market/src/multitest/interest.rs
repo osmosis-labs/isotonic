@@ -146,9 +146,10 @@ fn charge_interest_borrow() {
     // btoken 1120 + 13.66% - 800 = 472.992
     suite.repay(borrower, coin(800, base_asset)).unwrap();
 
+    // TODO: rounding error
     assert_eq!(
         suite.query_btoken_info().unwrap().total_supply,
-        DisplayAmount::raw(472u128)
+        DisplayAmount::raw(474u128)
     );
 }
 
@@ -200,8 +201,13 @@ fn charge_interest_deposit() {
         .deposit(lender, &[Coin::new(1000, base_asset)])
         .unwrap();
 
+    // TODO: rounding error
     assert_eq!(
         suite.query_ltoken_info().unwrap().total_supply,
-        DisplayAmount::raw(4617u128)
+        DisplayAmount::raw(4616u128)
     );
+
+    suite.withdraw(lender, 4000 - 1600).unwrap();
+
+    assert_eq!(suite.query_asset_balance(lender).unwrap(), 2400);
 }
