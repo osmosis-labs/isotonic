@@ -19,8 +19,6 @@ fn query_market_does_not_exist() {
         .ends_with("No market set up for base asset OSMO"));
 }
 
-// TODO: a test for when a market is not yet instantiated? or would that be too hard to mock?
-
 #[test]
 fn list_markets() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
