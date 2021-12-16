@@ -1,7 +1,6 @@
 use super::suite::SuiteBuilder;
 
 #[test]
-#[ignore]
 fn query_market() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
 
@@ -11,12 +10,13 @@ fn query_market() {
 }
 
 #[test]
-#[ignore]
 fn query_market_does_not_exist() {
     let suite = SuiteBuilder::new().with_gov("gov").build();
 
     let err = suite.query_market("OSMO").unwrap_err();
-    assert_eq!(err.to_string(), "No market set up for base asset OSMO");
+    assert!(err
+        .to_string()
+        .ends_with("No market set up for base asset OSMO"));
 }
 
 // TODO: a test for when a market is not yet instantiated? or would that be too hard to mock?

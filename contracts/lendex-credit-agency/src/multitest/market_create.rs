@@ -35,16 +35,15 @@ fn market_create_unauthorized() {
 }
 
 #[test]
-#[ignore]
 fn market_create_already_exists() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
 
     suite.create_market_quick("gov", "osmo", "OSMO").unwrap();
+    let err = suite
+        .create_market_quick("gov", "osmo", "OSMO")
+        .unwrap_err();
     assert_eq!(
-        suite
-            .create_market_quick("random_dude", "osmo", "OSMO")
-            .unwrap_err()
-            .to_string(),
+        err.to_string(),
         "A market for base asset OSMO already exists"
     );
 }
