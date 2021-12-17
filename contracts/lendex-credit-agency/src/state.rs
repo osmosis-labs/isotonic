@@ -12,6 +12,9 @@ pub struct Config {
     pub lendex_market_id: u64,
     /// The CodeId of the lendex-token contract
     pub lendex_token_id: u64,
+    /// Token denom which would be distributed as reward token to lendex token holders.
+    /// This is `distributed_token` in the market contract.
+    pub reward_token: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]

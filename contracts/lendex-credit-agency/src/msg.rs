@@ -11,6 +11,9 @@ pub struct InstantiateMsg {
     pub lendex_market_id: u64,
     /// The CodeId of the lendex-token contract
     pub lendex_token_id: u64,
+    /// Token denom which would be distributed as reward token to lendex token holders.
+    /// This is `distributed_token` in the market contract.
+    pub reward_token: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -31,8 +34,6 @@ pub struct MarketConfig {
     pub base_asset: String,
     /// Interest rate curve
     pub interest_rate: Interest,
-    /// Token which would be distributed via created lendex contracts
-    pub distributed_token: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

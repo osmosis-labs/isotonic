@@ -25,6 +25,7 @@ pub fn instantiate(
         gov_contract: deps.api.addr_validate(&msg.gov_contract)?,
         lendex_market_id: msg.lendex_market_id,
         lendex_token_id: msg.lendex_token_id,
+        reward_token: msg.reward_token,
     };
     CONFIG.save(deps.storage, &cfg)?;
     NEXT_REPLY_ID.save(deps.storage, &0)?;
@@ -118,7 +119,7 @@ mod exec {
             token_id: cfg.lendex_token_id,
             base_asset: market_cfg.base_asset,
             interest_rate: market_cfg.interest_rate,
-            distributed_token: market_cfg.distributed_token,
+            distributed_token: cfg.reward_token,
         };
         let market_instantiate = WasmMsg::Instantiate {
             admin: Some(env.contract.address.to_string()),

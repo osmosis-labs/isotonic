@@ -45,12 +45,14 @@ fn contract_token() -> Box<dyn Contract<Empty>> {
 #[derive(Debug)]
 pub struct SuiteBuilder {
     gov_contract: String,
+    reward_token: String,
 }
 
 impl SuiteBuilder {
     pub fn new() -> Self {
         Self {
             gov_contract: "owner".to_string(),
+            reward_token: "reward".to_string(),
         }
     }
 
@@ -59,11 +61,15 @@ impl SuiteBuilder {
         self
     }
 
+    pub fn with_reward_token(mut self, denom: impl ToString) -> Self {
+        self.reward_token = denom.to_string();
+        self
+    }
+
     #[track_caller]
     pub fn build(self) -> Suite {
         let mut app = App::default();
         let owner = Addr::unchecked("owner");
-        let gov_contract = self.gov_contract;
 
         let lendex_market_id = app.store_code(contract_market());
         let lendex_token_id = app.store_code(contract_token());
@@ -73,9 +79,10 @@ impl SuiteBuilder {
                 contract_id,
                 owner.clone(),
                 &InstantiateMsg {
-                    gov_contract,
+                    gov_contract: self.gov_contract,
                     lendex_market_id,
                     lendex_token_id,
+                    reward_token: self.reward_token,
                 },
                 &[],
                 "credit-agency",
@@ -122,7 +129,6 @@ impl Suite {
                     base: Decimal::percent(3),
                     slope: Decimal::percent(20),
                 },
-                distributed_token: "osmo".to_owned(),
             },
         )
     }
