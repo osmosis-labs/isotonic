@@ -1,7 +1,8 @@
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Decimal};
+use utils::interest::Interest;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use utils::interest::Interest;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -14,6 +15,12 @@ pub struct InstantiateMsg {
     /// Token denom which would be distributed as reward token to lendex token holders.
     /// This is `distributed_token` in the market contract.
     pub reward_token: String,
+    /// Common Token denom (same for all markets)
+    pub common_token: String,
+    /// Ratio of how much tokens can be borrowed for one unit, 0 <= x < 1
+    pub collateral_ratio: Decimal,
+    /// Address of contract to query for price
+    pub price_oracle: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -36,6 +43,12 @@ pub struct MarketConfig {
     pub interest_rate: Interest,
     /// Define interest's charged period (in seconds)
     pub interest_charge_period: u64,
+    /// Common Token denom that comes from Credit Agency (same for all markets)
+    pub common_token: String,
+    /// Ratio of how much tokens can be borrowed for one unit, 0 <= x < 1
+    pub collateral_ratio: Decimal,
+    /// Address of contract to query for price
+    pub price_oracle: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

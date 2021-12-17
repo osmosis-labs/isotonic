@@ -26,6 +26,9 @@ pub fn instantiate(
         lendex_market_id: msg.lendex_market_id,
         lendex_token_id: msg.lendex_token_id,
         reward_token: msg.reward_token,
+        common_token: msg.common_token,
+        collateral_ratio: msg.collateral_ratio,
+        price_oracle: msg.price_oracle,
     };
     CONFIG.save(deps.storage, &cfg)?;
     NEXT_REPLY_ID.save(deps.storage, &0)?;
@@ -121,6 +124,9 @@ mod exec {
             interest_rate: market_cfg.interest_rate,
             distributed_token: cfg.reward_token,
             interest_charge_period: market_cfg.interest_charge_period,
+            common_token: cfg.common_token,
+            collateral_ratio: cfg.collateral_ratio,
+            price_oracle: cfg.price_oracle,
         };
         let market_instantiate = WasmMsg::Instantiate {
             admin: Some(env.contract.address.to_string()),

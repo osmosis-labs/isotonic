@@ -1,7 +1,7 @@
-use cosmwasm_std::Addr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use cosmwasm_std::{Addr, Decimal};
 use cw_storage_plus::{Item, Map};
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -15,6 +15,12 @@ pub struct Config {
     /// Token denom which would be distributed as reward token to lendex token holders.
     /// This is `distributed_token` in the market contract.
     pub reward_token: String,
+    /// Common Token denom that comes from Credit Agency (same for all markets)
+    pub common_token: String,
+    /// Ratio of how much tokens can be borrowed for one unit, 0 <= x < 1
+    pub collateral_ratio: Decimal,
+    /// Address of contract to query for price
+    pub price_oracle: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]

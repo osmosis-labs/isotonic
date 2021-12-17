@@ -83,6 +83,9 @@ impl SuiteBuilder {
                     lendex_market_id,
                     lendex_token_id,
                     reward_token: self.reward_token,
+                    common_token: "common".to_owned(),
+                    collateral_ratio: Decimal::percent(50),
+                    price_oracle: "oracle".to_owned(),
                 },
                 &[],
                 "credit-agency",
@@ -130,6 +133,9 @@ impl Suite {
                     slope: Decimal::percent(20),
                 },
                 interest_charge_period: 300, // seconds
+                common_token: "common".to_owned(),
+                collateral_ratio: Decimal::percent(50),
+                price_oracle: "oracle".to_owned(),
             },
         )
     }
