@@ -180,11 +180,10 @@ mod query {
         let start = start_after.map(|addr| Bound::exclusive(addr.as_str()));
 
         let markets: StdResult<Vec<_>> = MARKETS
-            .range(deps.storage, start, None, Order::Ascending)
+            .range_de(deps.storage, start, None, Order::Ascending)
             .map(|m| {
-                let (key, market) = m?;
+                let (base_asset, market) = m?;
 
-                let base_asset = String::from_utf8(key)?;
                 let result = market.to_addr().map(|addr| MarketResponse {
                     base_asset,
                     market: addr,
