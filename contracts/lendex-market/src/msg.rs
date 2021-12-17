@@ -22,6 +22,12 @@ pub struct InstantiateMsg {
     pub distributed_token: String,
     /// Define interest's charged period (in seconds)
     pub interest_charge_period: u64,
+    /// Common Token denom that comes from Credit Agency (same for all markets)
+    pub common_token: String,
+    /// Ratio of how much tokens can be borrowed for one unit, 0 <= x < 1
+    pub collateral_ratio: Decimal,
+    /// Address of contract to query for price
+    pub price_oracle: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

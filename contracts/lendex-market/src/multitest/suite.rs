@@ -52,6 +52,12 @@ pub struct SuiteBuilder {
     interest_slope: Decimal,
     /// Interest charge period (in seconds)
     interest_charge_period: u64,
+    /// Common Token denom that comes from Credit Agency (same for all markets)
+    common_token: String,
+    /// Ratio of how much tokens can be borrowed for one unit, 0 <= x < 1
+    collateral_ratio: Decimal,
+    /// Address of contract to query for price
+    price_oracle: String,
 }
 
 impl SuiteBuilder {
@@ -66,6 +72,9 @@ impl SuiteBuilder {
             interest_base: Decimal::percent(3),
             interest_slope: Decimal::percent(20),
             interest_charge_period: 300,
+            common_token: "common".to_owned(),
+            collateral_ratio: Decimal::percent(50),
+            price_oracle: "oracle".to_owned(),
         }
     }
 
@@ -118,6 +127,9 @@ impl SuiteBuilder {
                     },
                     distributed_token: "osmo".to_owned(),
                     interest_charge_period: self.interest_charge_period,
+                    common_token: self.common_token,
+                    collateral_ratio: self.collateral_ratio,
+                    price_oracle: self.price_oracle,
                 },
                 &[],
                 "market",
