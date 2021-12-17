@@ -176,6 +176,11 @@ mod execute {
         CONFIG.save(deps.storage, &cfg)?;
 
         let tokens_info = query::token_info(deps.as_ref(), &cfg)?;
+        // safety - if there are no ltokens, don't charge interest (would panic later)
+        if tokens_info.ltoken.total_supply.display_amount() == Uint128::zero() {
+            return Ok(vec![]);
+        }
+
         let interest = query::interest(&cfg, &tokens_info)?;
 
         // calculate_interest() * epochs_passed * epoch_length / SECONDS_IN_YEAR
