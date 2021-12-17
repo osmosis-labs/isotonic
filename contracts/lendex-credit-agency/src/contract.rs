@@ -117,7 +117,7 @@ mod exec {
             symbol: market_cfg.symbol,
             decimals: market_cfg.decimals,
             token_id: cfg.lendex_token_id,
-            base_asset: market_cfg.base_asset,
+            base_asset: market_cfg.base_asset.clone(),
             interest_rate: market_cfg.interest_rate,
             distributed_token: cfg.reward_token,
         };
@@ -126,7 +126,7 @@ mod exec {
             code_id: cfg.lendex_market_id,
             msg: to_binary(&market_msg)?,
             funds: vec![],
-            label: format!("market_contract_{}", env.contract.address),
+            label: format!("market_contract_{}", market_cfg.base_asset),
         };
 
         Ok(Response::new()
