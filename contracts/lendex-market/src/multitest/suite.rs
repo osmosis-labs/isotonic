@@ -3,9 +3,10 @@ use anyhow::Result as AnyResult;
 use cosmwasm_std::{Addr, Coin, Decimal, Empty, StdResult, Uint128};
 use cw20::BalanceResponse;
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
+use utils::interest::Interest;
 
 use crate::msg::{
-    ExecuteMsg, InstantiateMsg, Interest, InterestResponse, QueryMsg, TransferableAmountResponse,
+    ExecuteMsg, InstantiateMsg, InterestResponse, QueryMsg, TransferableAmountResponse,
 };
 use crate::state::Config;
 

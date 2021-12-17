@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use utils::interest::Interest;
 
-use crate::msg::Interest;
 use cosmwasm_std::Addr;
 use cw_storage_plus::Item;
 

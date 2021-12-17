@@ -1,7 +1,7 @@
 use cosmwasm_std::{Addr, Decimal};
+use utils::interest::Interest;
 
 use super::suite::SuiteBuilder;
-use crate::msg::Interest;
 use crate::state::Config;
 
 #[test]
