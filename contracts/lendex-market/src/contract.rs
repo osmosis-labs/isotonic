@@ -316,6 +316,7 @@ mod execute {
         Ok(true)
     }
 
+    /// Handler for `ExecuteMsg::Borrow`
     pub fn borrow(
         deps: DepsMut,
         env: Env,
@@ -364,6 +365,7 @@ mod execute {
         Ok(response)
     }
 
+    /// Handler for `ExecuteMsg::Repay`
     pub fn repay(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
         let funds_sent = validate_funds(&info.funds, &cfg.market_token)?;
@@ -457,6 +459,7 @@ mod query {
         Ok(token_balance(deps, &config.ltoken_contract, account.to_string())?.balance)
     }
 
+    /// Handler for `QueryMsg::TransferableAmount`
     pub fn transferable_amount(
         deps: Deps,
         token: Addr,
@@ -468,9 +471,8 @@ mod query {
                 transferable: Uint128::zero(),
             })
         } else if token == config.ltoken_contract {
-            let resp = token_balance(deps, &token, account)?;
             Ok(TransferableAmountResponse {
-                transferable: resp.balance,
+                transferable: ltoken_balance(deps, &config, account)?,
             })
         } else {
             Err(StdError::generic_err(format!(
@@ -497,6 +499,7 @@ mod query {
         Ok(TokensInfo { ltoken, btoken })
     }
 
+    /// Handler for `QueryMsg::Interest`
     pub fn interest(config: &Config, tokens_info: &TokensInfo) -> StdResult<InterestResponse> {
         let utilisation = if tokens_info.ltoken.total_supply.is_zero() {
             Decimal::zero()
@@ -518,18 +521,26 @@ mod query {
         })
     }
 
-    fn price_from_oracle(deps: Deps, config: &Config) -> StdResult<Decimal> {
+    fn price_ratio_from_oracle(deps: Deps, config: &Config) -> StdResult<Decimal> {
+        let common_token = config.common_token.clone();
+        let market_token = config.market_token.clone();
+        // If denoms are the same, then ratio is 1.0
+        if common_token == market_token {
+            return Ok(Decimal::one());
+        }
+
         use lendex_oracle::msg::*;
         let price_response: PriceResponse = deps.querier.query_wasm_smart(
             config.price_oracle.clone(),
             &QueryMsg::Price {
-                sell: config.base_asset.clone(),
-                buy: config.common_token.clone(),
+                sell: common_token,
+                buy: market_token,
             },
         )?;
         Ok(price_response.rate)
     }
 
+    /// Handler for `QueryMsg::CreditLine`
     pub fn credit_line(deps: Deps, account: Addr) -> StdResult<CreditLineResponse> {
         let config = CONFIG.load(deps.storage)?;
         let collateral = ltoken_balance(deps, &config, &account)?;
@@ -537,18 +548,15 @@ mod query {
         if collateral.is_zero() && debt.is_zero() {
             return Ok(CreditLineResponse::zero());
         }
-        // adjust to common_token
-        // note: care must be take if this is common/local or local/common... maybe good types?
-        let _price = price_from_oracle(deps, &config)?;
-        // let collateral = collateral * price;
-        // // here I assume it is common/local
-        // let debt = debt * price;
-        // let credit_line = collateral * config.collateral_ratio;
-        // return Ok(CreditLineResponse {
-        //     collateral,
-        //     debt,
-        //     credit_line,
-        // });
-        unimplemented!();
+
+        let price_ratio = price_ratio_from_oracle(deps, &config)?;
+        let collateral = collateral * price_ratio;
+        let debt = debt * price_ratio;
+        let credit_line = collateral * config.collateral_ratio;
+        Ok(CreditLineResponse {
+            collateral,
+            debt,
+            credit_line,
+        })
     }
 }
