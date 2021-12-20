@@ -16,7 +16,7 @@ pub struct Config {
     pub symbol: String,
     pub decimals: u8,
     pub token_id: u64,
-    pub base_asset: String,
+    pub market_token: String,
     /// Interest rate calculation
     pub rates: Interest,
     pub interest_charge_period: u64,

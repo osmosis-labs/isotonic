@@ -17,7 +17,7 @@ fn market_instantiate_and_query_config() {
             symbol: "LDX".to_owned(),
             decimals: 9,
             token_id: 1,
-            base_asset: "native_denom".to_owned(),
+            market_token: "native_denom".to_owned(),
             rates: Interest::Linear {
                 base: Decimal::percent(3),
                 slope: Decimal::percent(20)

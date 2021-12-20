@@ -7,7 +7,7 @@ fn withdraw_works() {
     let lender = "lender";
     let mut suite = SuiteBuilder::new()
         .with_funds(lender, &[coin(100, "ATOM")])
-        .with_base_asset("ATOM")
+        .with_market_token("ATOM")
         .build();
 
     // Deposit some tokens so we have something to withdraw.
@@ -27,7 +27,7 @@ fn withdraw_overflow_is_handled() {
     let lender = "lender";
     let mut suite = SuiteBuilder::new()
         .with_funds(lender, &[coin(100, "ATOM")])
-        .with_base_asset("ATOM")
+        .with_market_token("ATOM")
         .build();
 
     // Deposit some tokens so we have something to withdraw.

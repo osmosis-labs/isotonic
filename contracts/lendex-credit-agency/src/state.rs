@@ -33,7 +33,7 @@ impl MarketState {
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");
-/// A map of reply_id -> base_asset, used to tell which base asset
+/// A map of reply_id -> market_token, used to tell which base asset
 /// a given instantiating contract will handle
 pub const REPLY_IDS: Map<u64, String> = Map::new("reply_ids");
 /// The next unused reply ID

@@ -41,7 +41,7 @@ pub struct SuiteBuilder {
     /// Lendex token precision
     decimals: u8,
     /// Native denom for the base asset
-    base_asset: String,
+    market_token: String,
     /// Initial funds to provide for testing
     funds: Vec<(Addr, Vec<Coin>)>,
     /// Initial funds stored on contract
@@ -60,7 +60,7 @@ impl SuiteBuilder {
             name: "lendex".to_owned(),
             symbol: "LDX".to_owned(),
             decimals: 9,
-            base_asset: "native_denom".to_owned(),
+            market_token: "native_denom".to_owned(),
             funds: vec![],
             contract_funds: None,
             interest_base: Decimal::percent(3),
@@ -69,8 +69,8 @@ impl SuiteBuilder {
         }
     }
 
-    pub fn with_base_asset(mut self, denom: impl Into<String>) -> Self {
-        self.base_asset = denom.into();
+    pub fn with_market_token(mut self, denom: impl Into<String>) -> Self {
+        self.market_token = denom.into();
         self
     }
 
@@ -98,7 +98,7 @@ impl SuiteBuilder {
         let mut app = App::default();
         let owner = Addr::unchecked("owner");
 
-        let base_asset = self.base_asset;
+        let market_token = self.market_token;
 
         let token_id = app.store_code(contract_token());
         let contract_id = app.store_code(contract_market());
@@ -111,7 +111,7 @@ impl SuiteBuilder {
                     symbol: self.symbol,
                     decimals: self.decimals,
                     token_id,
-                    base_asset: base_asset.clone(),
+                    market_token: market_token.clone(),
                     interest_rate: Interest::Linear {
                         base: self.interest_base,
                         slope: self.interest_slope,
@@ -154,7 +154,7 @@ impl SuiteBuilder {
             contract,
             ltoken_contract: config.ltoken_contract,
             btoken_contract: config.btoken_contract,
-            base_asset,
+            market_token,
         }
     }
 }
@@ -170,7 +170,7 @@ pub struct Suite {
     /// Address of BToken contract
     btoken_contract: Addr,
     /// The base asset deposited and lended by the contract
-    base_asset: String,
+    market_token: String,
 }
 
 impl Suite {
@@ -244,7 +244,7 @@ impl Suite {
         let amount = self
             .app
             .wrap()
-            .query_balance(owner, &self.base_asset)?
+            .query_balance(owner, &self.market_token)?
             .amount;
         Ok(amount.into())
     }

@@ -56,7 +56,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractErro
 
     let res = match msg {
         Configuration {} => to_binary(&CONFIG.load(deps.storage)?)?,
-        Market { base_asset } => to_binary(&query::market(deps, env, base_asset)?)?,
+        Market { market_token } => to_binary(&query::market(deps, env, market_token)?)?,
         ListMarkets { start_after, limit } => {
             to_binary(&query::list_markets(deps, env, start_after, limit)?)?
         }
@@ -93,31 +93,31 @@ mod exec {
             ContractError::Unauthorized {}
         );
 
-        if let Some(state) = MARKETS.may_load(deps.storage, &market_cfg.base_asset)? {
+        if let Some(state) = MARKETS.may_load(deps.storage, &market_cfg.market_token)? {
             use MarketState::*;
 
             let err = match state {
-                Instantiating => ContractError::MarketCreating(market_cfg.base_asset),
-                Ready(_) => ContractError::MarketAlreadyExists(market_cfg.base_asset),
+                Instantiating => ContractError::MarketCreating(market_cfg.market_token),
+                Ready(_) => ContractError::MarketAlreadyExists(market_cfg.market_token),
             };
             return Err(err);
         }
         MARKETS.save(
             deps.storage,
-            &market_cfg.base_asset,
+            &market_cfg.market_token,
             &MarketState::Instantiating,
         )?;
 
         let reply_id =
             NEXT_REPLY_ID.update(deps.storage, |id| -> Result<_, StdError> { Ok(id + 1) })?;
-        REPLY_IDS.save(deps.storage, reply_id, &market_cfg.base_asset)?;
+        REPLY_IDS.save(deps.storage, reply_id, &market_cfg.market_token)?;
 
         let market_msg = lendex_market::msg::InstantiateMsg {
             name: market_cfg.name,
             symbol: market_cfg.symbol,
             decimals: market_cfg.decimals,
             token_id: cfg.lendex_token_id,
-            base_asset: market_cfg.base_asset.clone(),
+            market_token: market_cfg.market_token.clone(),
             interest_rate: market_cfg.interest_rate,
             distributed_token: cfg.reward_token,
             interest_charge_period: market_cfg.interest_charge_period,
@@ -127,7 +127,7 @@ mod exec {
             code_id: cfg.lendex_market_id,
             msg: to_binary(&market_msg)?,
             funds: vec![],
-            label: format!("market_contract_{}", market_cfg.base_asset),
+            label: format!("market_contract_{}", market_cfg.market_token),
         };
 
         Ok(Response::new()
@@ -151,18 +151,18 @@ mod query {
     pub fn market(
         deps: Deps,
         _env: Env,
-        base_asset: String,
+        market_token: String,
     ) -> Result<MarketResponse, ContractError> {
         let state = MARKETS
-            .may_load(deps.storage, &base_asset)?
-            .ok_or_else(|| ContractError::NoMarket(base_asset.clone()))?;
+            .may_load(deps.storage, &market_token)?
+            .ok_or_else(|| ContractError::NoMarket(market_token.clone()))?;
 
         let addr = state
             .to_addr()
-            .ok_or_else(|| ContractError::MarketCreating(base_asset.clone()))?;
+            .ok_or_else(|| ContractError::MarketCreating(market_token.clone()))?;
 
         Ok(MarketResponse {
-            base_asset,
+            market_token,
             market: addr,
         })
     }
@@ -183,10 +183,10 @@ mod query {
         let markets: StdResult<Vec<_>> = MARKETS
             .range_de(deps.storage, start, None, Order::Ascending)
             .map(|m| {
-                let (base_asset, market) = m?;
+                let (market_token, market) = m?;
 
                 let result = market.to_addr().map(|addr| MarketResponse {
-                    base_asset,
+                    market_token,
                     market: addr,
                 });
 
@@ -217,11 +217,15 @@ mod reply {
                 err: err.to_string(),
             })?;
 
-        let base_asset = REPLY_IDS.load(deps.storage, id)?;
+        let market_token = REPLY_IDS.load(deps.storage, id)?;
         let addr = deps.api.addr_validate(&res.contract_address)?;
 
-        MARKETS.save(deps.storage, &base_asset, &MarketState::Ready(addr.clone()))?;
+        MARKETS.save(
+            deps.storage,
+            &market_token,
+            &MarketState::Ready(addr.clone()),
+        )?;
 
-        Ok(Response::new().add_attribute(format!("market_{}", base_asset), addr))
+        Ok(Response::new().add_attribute(format!("market_{}", market_token), addr))
     }
 }

@@ -11,13 +11,16 @@ pub struct InstantiateMsg {
     pub symbol: String,
     pub decimals: u8,
     pub token_id: u64,
-    pub base_asset: String,
+    pub market_token: String,
+    pub interest_rate: Interest,
+    pub distributed_token: String,
+    pub interest_charge_period: u64,
 }
 ```
 
 ## Messages
 
-`Deposit {}` - deposits funds. If denom matches `base_asset`, proper amount of tokens will be minted and sent to ltoken account
+`Deposit {}` - deposits funds. If denom matches `market_token`, proper amount of tokens will be minted and sent to ltoken account
 
 `Withdraw { amount: Uint128 }` - requests to withdraw the amount of ltokens
 

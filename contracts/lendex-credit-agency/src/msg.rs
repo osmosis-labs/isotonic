@@ -31,7 +31,7 @@ pub struct MarketConfig {
     /// Decimals for sub-tokens `L` and `B`
     pub decimals: u8,
     /// Native denom for the base asset
-    pub base_asset: String,
+    pub market_token: String,
     /// Interest rate curve
     pub interest_rate: Interest,
     /// Define interest's charged period (in seconds)
@@ -44,7 +44,7 @@ pub enum QueryMsg {
     /// Returns current configuration
     Configuration {},
     /// Queries a market address by base asset
-    Market { base_asset: String },
+    Market { market_token: String },
     /// List all base assets and the addresses of markets handling them.
     /// Pagination by base asset
     ListMarkets {
@@ -55,7 +55,7 @@ pub enum QueryMsg {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct MarketResponse {
-    pub base_asset: String,
+    pub market_token: String,
     pub market: Addr,
 }
 

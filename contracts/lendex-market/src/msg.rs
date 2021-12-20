@@ -14,8 +14,8 @@ pub struct InstantiateMsg {
     pub decimals: u8,
     /// CodeId used to create sub-tokens `L` and `B`
     pub token_id: u64,
-    /// Native denom for the base asset
-    pub base_asset: String,
+    /// Native denom for the market tokene
+    pub market_token: String,
     /// Interest rate curve
     pub interest_rate: Interest,
     /// Token which would be distributed via created lendex contracts
@@ -27,13 +27,13 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    /// X base_asset must be sent along with this message. If it matches, X l_token is minted of the sender address.
-    /// The underlying base_asset is stored in this Market contract
+    /// X market_token must be sent along with this message. If it matches, X l_token is minted of the sender address.
+    /// The underlying market_token is stored in this Market contract
     Deposit {},
     /// This requests to withdraw the amount of L Tokens. More specifically,
     /// the contract will burn amount L Tokens and return that to the lender in base asset.
     Withdraw { amount: Uint128 },
-    /// If sent tokens' denom matches base_asset, burns tokens from sender's address
+    /// If sent tokens' denom matches market_token, burns tokens from sender's address
     Repay {},
     /// Dispatches two messages, one to mint amount of BToken for this sender,
     /// and the other to send amount base asset to the sender
