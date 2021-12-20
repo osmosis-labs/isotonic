@@ -4,6 +4,10 @@
 
 [Full Changelog](https://github.com/confio/lendex/compare/v0.1.0...HEAD)
 
+## [v0.2.0](https://github.com/confio/lendex/tree/v0.2.0) (2021-12-20)
+
+[Full Changelog](https://github.com/confio/lendex/compare/v0.1.0...v0.2.0)
+
 **Implemented enhancements:**
 
 -  Remove schemas, and publish them with artifacts on release tags [\#33](https://github.com/confio/lendex/issues/33)
