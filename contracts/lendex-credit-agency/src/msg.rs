@@ -34,6 +34,8 @@ pub struct MarketConfig {
     pub base_asset: String,
     /// Interest rate curve
     pub interest_rate: Interest,
+    /// Define interest's charged period (in seconds)
+    pub interest_charge_period: u64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

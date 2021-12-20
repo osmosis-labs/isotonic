@@ -1,4 +1,4 @@
-use anyhow::Result as AnyResult;
+use anyhow::{anyhow, Result as AnyResult};
 
 use cosmwasm_std::{Addr, Coin, Decimal, Empty, StdResult, Uint128};
 use cw20::BalanceResponse;
@@ -46,6 +46,12 @@ pub struct SuiteBuilder {
     funds: Vec<(Addr, Vec<Coin>)>,
     /// Initial funds stored on contract
     contract_funds: Option<Coin>,
+    /// Initial interest rate
+    interest_base: Decimal,
+    /// Initial interest slope
+    interest_slope: Decimal,
+    /// Interest charge period (in seconds)
+    interest_charge_period: u64,
 }
 
 impl SuiteBuilder {
@@ -57,6 +63,9 @@ impl SuiteBuilder {
             base_asset: "native_denom".to_owned(),
             funds: vec![],
             contract_funds: None,
+            interest_base: Decimal::percent(3),
+            interest_slope: Decimal::percent(20),
+            interest_charge_period: 300,
         }
     }
 
@@ -74,6 +83,13 @@ impl SuiteBuilder {
     /// Sets initial amount of distributable tokens on address
     pub fn with_contract_funds(mut self, funds: Coin) -> Self {
         self.contract_funds = Some(funds);
+        self
+    }
+
+    /// Sets initial interest base and slope (in percentage)
+    pub fn with_interest(mut self, base: u64, slope: u64) -> Self {
+        self.interest_base = Decimal::percent(base);
+        self.interest_slope = Decimal::percent(slope);
         self
     }
 
@@ -97,10 +113,11 @@ impl SuiteBuilder {
                     token_id,
                     base_asset: base_asset.clone(),
                     interest_rate: Interest::Linear {
-                        base: Decimal::percent(3),
-                        slope: Decimal::percent(20),
+                        base: self.interest_base,
+                        slope: self.interest_slope,
                     },
                     distributed_token: "osmo".to_owned(),
+                    interest_charge_period: self.interest_charge_period,
                 },
                 &[],
                 "market",
@@ -157,6 +174,17 @@ pub struct Suite {
 }
 
 impl Suite {
+    pub fn app(&mut self) -> &mut App {
+        &mut self.app
+    }
+
+    pub fn advance_seconds(&mut self, seconds: u64) {
+        self.app.update_block(|block| {
+            block.time = block.time.plus_seconds(seconds);
+            block.height += std::cmp::max(1, seconds / 5); // block time
+        });
+    }
+
     /// Gives btoken contract address back
     pub fn btoken(&self) -> Addr {
         self.btoken_contract.clone()
@@ -281,5 +309,23 @@ impl Suite {
             .wrap()
             .query_wasm_smart(self.contract.clone(), &QueryMsg::Interest {})?;
         Ok(resp)
+    }
+
+    /// Queries btoken contract for token info
+    pub fn query_btoken_info(&self) -> AnyResult<lendex_token::msg::TokenInfoResponse> {
+        let btoken = self.btoken_contract.clone();
+        self.app
+            .wrap()
+            .query_wasm_smart(btoken, &lendex_token::msg::QueryMsg::TokenInfo {})
+            .map_err(|err| anyhow!(err))
+    }
+
+    /// Queries ltoken contract for token info
+    pub fn query_ltoken_info(&self) -> AnyResult<lendex_token::msg::TokenInfoResponse> {
+        let ltoken = self.ltoken_contract.clone();
+        self.app
+            .wrap()
+            .query_wasm_smart(ltoken, &lendex_token::msg::QueryMsg::TokenInfo {})
+            .map_err(|err| anyhow!(err))
     }
 }

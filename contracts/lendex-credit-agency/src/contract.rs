@@ -120,6 +120,7 @@ mod exec {
             base_asset: market_cfg.base_asset.clone(),
             interest_rate: market_cfg.interest_rate,
             distributed_token: cfg.reward_token,
+            interest_charge_period: market_cfg.interest_charge_period,
         };
         let market_instantiate = WasmMsg::Instantiate {
             admin: Some(env.contract.address.to_string()),

@@ -6,7 +6,8 @@ use crate::state::Config;
 
 #[test]
 fn market_instantiate_and_query_config() {
-    let suite = SuiteBuilder::new().build();
+    let mut suite = SuiteBuilder::new().build();
+    let time = suite.app().block_info().time.seconds();
 
     assert_eq!(
         Config {
@@ -20,7 +21,10 @@ fn market_instantiate_and_query_config() {
             rates: Interest::Linear {
                 base: Decimal::percent(3),
                 slope: Decimal::percent(20)
-            }
+            },
+            interest_charge_period: 300,
+            // env.block.time.seconds() - env.block.time.seconds() % epoch_length
+            last_charged: time - time % 300
         },
         suite.query_config().unwrap()
     );
