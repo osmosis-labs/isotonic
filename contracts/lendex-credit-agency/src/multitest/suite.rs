@@ -129,6 +129,7 @@ impl Suite {
                     base: Decimal::percent(3),
                     slope: Decimal::percent(20),
                 },
+                interest_charge_period: 300, // seconds
             },
         )
     }
