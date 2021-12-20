@@ -518,6 +518,18 @@ mod query {
         })
     }
 
+    fn price_from_oracle(deps: Deps, config: &Config) -> StdResult<Decimal> {
+        use lendex_oracle::msg::*;
+        let price_response: PriceResponse = deps.querier.query_wasm_smart(
+            config.price_oracle.clone(),
+            &QueryMsg::Price {
+                sell: config.base_asset.clone(),
+                buy: config.common_token.clone(),
+            },
+        )?;
+        Ok(price_response.rate)
+    }
+
     pub fn credit_line(deps: Deps, account: Addr) -> StdResult<CreditLineResponse> {
         let config = CONFIG.load(deps.storage)?;
         let collateral = ltoken_balance(deps, &config, &account)?;
@@ -527,7 +539,7 @@ mod query {
         }
         // adjust to common_token
         // note: care must be take if this is common/local or local/common... maybe good types?
-        // let price = query_price_oracle()?;
+        let _price = price_from_oracle(deps, &config)?;
         // let collateral = collateral * price;
         // // here I assume it is common/local
         // let debt = debt * price;
