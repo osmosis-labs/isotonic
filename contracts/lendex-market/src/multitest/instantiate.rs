@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Decimal, Timestamp};
+use cosmwasm_std::{Addr, Decimal};
 use utils::interest::Interest;
 
 use super::suite::SuiteBuilder;

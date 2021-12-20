@@ -2,11 +2,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utils::interest::Interest;
 
-use cosmwasm_std::{Addr, Timestamp};
+use cosmwasm_std::Addr;
 use cw_storage_plus::Item;
 use lendex_token::msg::TokenInfoResponse;
-
-use crate::msg::Interest;
 
 pub const SECONDS_IN_YEAR: u128 = 31_556_736;
 
