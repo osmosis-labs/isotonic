@@ -522,12 +522,11 @@ mod query {
         let config = CONFIG.load(deps.storage)?;
         let collateral = ltoken_balance(deps, &config, &account)?;
         let debt = btoken_balance(deps, &config, &account)?;
-        unimplemented!();
-        // if collateral.is_zero() && borrowed.is_zero() {
-        //     return Ok(CreditLineResponse::zero());
-        // }
-        // // adjust to common_token
-        // // note: care must be take if this is common/local or local/common... maybe good types?
+        if collateral.is_zero() && debt.is_zero() {
+            return Ok(CreditLineResponse::zero());
+        }
+        // adjust to common_token
+        // note: care must be take if this is common/local or local/common... maybe good types?
         // let price = query_price_oracle()?;
         // let collateral = collateral * price;
         // // here I assume it is common/local
@@ -538,5 +537,6 @@ mod query {
         //     debt,
         //     credit_line,
         // });
+        unimplemented!();
     }
 }

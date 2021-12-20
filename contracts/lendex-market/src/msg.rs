@@ -80,10 +80,20 @@ pub struct TransferableAmountResponse {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct CreditLineResponse {
-    /// total value of L-Tokens in common_token
+    /// Total value of L-Tokens in common_token
     pub collateral: Uint128,
     /// collateral * collateral_ratio
     pub credit_line: Uint128,
-    /// total value of B-Tokens in common_token
+    /// Total value of B-Tokens in common_token
     pub debt: Uint128,
+}
+
+impl CreditLineResponse {
+    pub fn zero() -> Self {
+        CreditLineResponse {
+            collateral: Uint128::zero(),
+            credit_line: Uint128::zero(),
+            debt: Uint128::zero(),
+        }
+    }
 }
