@@ -6,7 +6,7 @@ fn query_market() {
 
     suite.create_market_quick("gov", "osmo", "OSMO").unwrap();
     let res = suite.query_market("OSMO").unwrap();
-    assert_eq!(res.base_asset, "OSMO");
+    assert_eq!(res.market_token, "OSMO");
 }
 
 #[test]
@@ -31,7 +31,7 @@ fn list_markets() {
         .unwrap()
         .markets
         .into_iter()
-        .map(|r| r.base_asset)
+        .map(|r| r.market_token)
         .collect();
     list.sort();
 
@@ -70,7 +70,7 @@ fn list_markets_default_pagination() {
         .unwrap()
         .markets
         .into_iter()
-        .map(|r| r.base_asset)
+        .map(|r| r.market_token)
         .collect();
     list1.sort();
     assert_eq!(list1, generate_denoms("TOKEN", 0, 10));
@@ -80,7 +80,7 @@ fn list_markets_default_pagination() {
         .unwrap()
         .markets
         .into_iter()
-        .map(|r| r.base_asset)
+        .map(|r| r.market_token)
         .collect();
     list2.sort();
     assert_eq!(list2, generate_denoms("TOKEN", 10, 15));
@@ -103,7 +103,7 @@ fn list_markets_custom_pagination() {
         .unwrap()
         .markets
         .into_iter()
-        .map(|r| r.base_asset)
+        .map(|r| r.market_token)
         .collect();
     list1.sort();
     assert_eq!(list1, generate_denoms("TOKEN", 0, 3));
@@ -113,7 +113,7 @@ fn list_markets_custom_pagination() {
         .unwrap()
         .markets
         .into_iter()
-        .map(|r| r.base_asset)
+        .map(|r| r.market_token)
         .collect();
     list2.sort();
     assert_eq!(list2, generate_denoms("TOKEN", 3, 5));

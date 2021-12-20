@@ -66,7 +66,7 @@ pub fn instantiate(
         symbol: msg.symbol,
         decimals: msg.decimals,
         token_id: msg.token_id,
-        base_asset: msg.base_asset,
+        market_token: msg.market_token,
         rates: msg.interest_rate,
         interest_charge_period: msg.interest_charge_period,
         last_charged: env.block.time.seconds()
@@ -218,20 +218,20 @@ mod execute {
     /// amount of funds sent, or error if:
     /// * No funds were passed with the message (`NoFundsSent` error)
     /// * Multiple denoms were sent (`ExtraDenoms` error)
-    /// * A single denom different than cfg.base_asset was sent (`InvalidDenom` error)
-    fn validate_funds(funds: &[Coin], base_asset_denom: &str) -> Result<Uint128, ContractError> {
+    /// * A single denom different than cfg.market_token was sent (`InvalidDenom` error)
+    fn validate_funds(funds: &[Coin], market_token_denom: &str) -> Result<Uint128, ContractError> {
         match funds {
             [] => Err(ContractError::NoFundsSent {}),
-            [Coin { denom, amount }] if denom == base_asset_denom => Ok(*amount),
-            [_] => Err(ContractError::InvalidDenom(base_asset_denom.to_string())),
-            _ => Err(ContractError::ExtraDenoms(base_asset_denom.to_string())),
+            [Coin { denom, amount }] if denom == market_token_denom => Ok(*amount),
+            [_] => Err(ContractError::InvalidDenom(market_token_denom.to_string())),
+            _ => Err(ContractError::ExtraDenoms(market_token_denom.to_string())),
         }
     }
 
     /// Handler for `ExecuteMsg::Deposit`
     pub fn deposit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
-        let funds_sent = validate_funds(&info.funds, &cfg.base_asset)?;
+        let funds_sent = validate_funds(&info.funds, &cfg.market_token)?;
 
         let mut response = Response::new();
 
@@ -296,7 +296,7 @@ mod execute {
         // Send the base assets from contract to lender
         let send_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: info.sender.to_string(),
-            amount: vec![coin(amount.u128(), cfg.base_asset)],
+            amount: vec![coin(amount.u128(), cfg.market_token)],
         });
 
         response = response
@@ -349,7 +349,7 @@ mod execute {
         // Sent tokens to sender's account
         let bank_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: info.sender.to_string(),
-            amount: vec![coin(amount.u128(), cfg.base_asset)],
+            amount: vec![coin(amount.u128(), cfg.market_token)],
         });
 
         response = response
@@ -362,7 +362,7 @@ mod execute {
 
     pub fn repay(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
-        let funds_sent = validate_funds(&info.funds, &cfg.base_asset)?;
+        let funds_sent = validate_funds(&info.funds, &cfg.market_token)?;
 
         // Check balance of btokens to repay
         let response: BalanceResponse = deps.querier.query_wasm_smart(
@@ -408,7 +408,7 @@ mod execute {
             let tokens_to_return = funds_sent - repay_amount;
             let bank_msg = CosmosMsg::Bank(BankMsg::Send {
                 to_address: info.sender.to_string(),
-                amount: vec![coin(tokens_to_return.u128(), cfg.base_asset)],
+                amount: vec![coin(tokens_to_return.u128(), cfg.market_token)],
             });
             response = response.add_message(bank_msg);
         }

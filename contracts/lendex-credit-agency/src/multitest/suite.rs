@@ -116,7 +116,7 @@ impl Suite {
         &mut self,
         caller: &str,
         lendex_token: &str,
-        base_asset: &str,
+        market_token: &str,
     ) -> AnyResult<AppResponse> {
         self.create_market(
             caller,
@@ -124,7 +124,7 @@ impl Suite {
                 name: lendex_token.to_string(),
                 symbol: lendex_token.to_string(),
                 decimals: 9,
-                base_asset: base_asset.to_string(),
+                market_token: market_token.to_string(),
                 interest_rate: Interest::Linear {
                     base: Decimal::percent(3),
                     slope: Decimal::percent(20),
@@ -148,7 +148,7 @@ impl Suite {
         let resp: MarketResponse = self.app.wrap().query_wasm_smart(
             self.contract.clone(),
             &QueryMsg::Market {
-                base_asset: asset.to_string(),
+                market_token: asset.to_string(),
             },
         )?;
         Ok(resp)
@@ -156,7 +156,7 @@ impl Suite {
 
     pub fn assert_market(&self, asset: &str) {
         let res = self.query_market(asset).unwrap();
-        assert_eq!(res.base_asset, asset);
+        assert_eq!(res.market_token, asset);
 
         // We query the supposed market contract address to make extra sure
         // it was instantiated properly and exists.
@@ -165,7 +165,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(res.market, &lendex_market::msg::QueryMsg::Configuration {})
             .unwrap();
-        assert_eq!(resp.base_asset, asset);
+        assert_eq!(resp.market_token, asset);
     }
 
     /// Queries the Credit Agency contract for a list of markets with pagination

@@ -10,10 +10,10 @@ use crate::state::SECONDS_IN_YEAR;
 fn query_interest() {
     let lender = "lender";
     let borrower = "borrower";
-    let base_asset = "atom";
+    let market_token = "atom";
     let mut suite = SuiteBuilder::new()
-        .with_funds(lender, &[coin(150, base_asset)])
-        .with_base_asset(base_asset)
+        .with_funds(lender, &[coin(150, market_token)])
+        .with_market_token(market_token)
         .build();
 
     // At first, the lender has no l-token, and the contract has no base asset.
@@ -33,7 +33,7 @@ fn query_interest() {
 
     // Deposit some tokens
     suite
-        .deposit(lender, &[Coin::new(100, base_asset)])
+        .deposit(lender, &[Coin::new(100, market_token)])
         .unwrap();
 
     // After the deposit, the lender has 100 l-token and the contract has 100 base asset.
@@ -67,7 +67,7 @@ fn query_interest() {
     );
 
     // Repay some tokens
-    suite.repay(borrower, Coin::new(5, base_asset)).unwrap();
+    suite.repay(borrower, Coin::new(5, market_token)).unwrap();
 
     // Utilisation is now 5% ((10-5)/100).
     // The interest changed according to the linear formula: 3% + 20% * 5% = 3% + 1% = 4%.
@@ -82,7 +82,9 @@ fn query_interest() {
     );
 
     // Lend some more
-    suite.deposit(lender, &[Coin::new(50, base_asset)]).unwrap();
+    suite
+        .deposit(lender, &[Coin::new(50, market_token)])
+        .unwrap();
 
     // Utilisation is now ~3.33% ((10-5)/(100+50)).
     // The interest changed according to the linear formula: 3% + 20% * 3.33% = 3% + 0.67% = 3.67%.
@@ -101,17 +103,17 @@ fn query_interest() {
 fn charge_interest_borrow() {
     let lender = "lender";
     let borrower = "borrower";
-    let base_asset = "atom";
+    let market_token = "atom";
     let mut suite = SuiteBuilder::new()
-        .with_funds(lender, &[coin(2000, base_asset)])
-        .with_funds(borrower, &[coin(500, base_asset)])
+        .with_funds(lender, &[coin(2000, market_token)])
+        .with_funds(borrower, &[coin(500, market_token)])
         .with_interest(4, 20)
-        .with_base_asset(base_asset)
+        .with_market_token(market_token)
         .build();
 
     // Deposit some tokens
     suite
-        .deposit(lender, &[Coin::new(2000, base_asset)])
+        .deposit(lender, &[Coin::new(2000, market_token)])
         .unwrap();
 
     // Borrow some tokens
@@ -133,7 +135,7 @@ fn charge_interest_borrow() {
     // interest is 20%
     // that means btoken 1600 + 320
     // repay 800 -> 1120 left btokens
-    suite.repay(borrower, coin(800, base_asset)).unwrap();
+    suite.repay(borrower, coin(800, market_token)).unwrap();
 
     assert_eq!(
         suite.query_btoken_info().unwrap().total_supply,
@@ -145,7 +147,7 @@ fn charge_interest_borrow() {
     // Utilisation is 48.3%
     // interest is 13.66%
     // btoken 1120 + 13.66% - 800 = 472.992
-    suite.repay(borrower, coin(800, base_asset)).unwrap();
+    suite.repay(borrower, coin(800, market_token)).unwrap();
 
     // TODO: rounding error
     assert_eq!(
@@ -154,7 +156,7 @@ fn charge_interest_borrow() {
     );
 
     // Repay the rest of debt (borrower had extra 500 tokens)
-    suite.repay(borrower, coin(474, base_asset)).unwrap();
+    suite.repay(borrower, coin(474, market_token)).unwrap();
     // TODO: rounding error
     assert_eq!(
         suite.query_btoken_info().unwrap().total_supply,
@@ -166,17 +168,17 @@ fn charge_interest_borrow() {
 fn charge_interest_deposit() {
     let lender = "lender";
     let borrower = "borrower";
-    let base_asset = "atom";
+    let market_token = "atom";
     let mut suite = SuiteBuilder::new()
-        .with_funds(lender, &[coin(4000, base_asset)])
-        .with_funds(borrower, &[coin(2300, base_asset)])
+        .with_funds(lender, &[coin(4000, market_token)])
+        .with_funds(borrower, &[coin(2300, market_token)])
         .with_interest(4, 20)
-        .with_base_asset(base_asset)
+        .with_market_token(market_token)
         .build();
 
     // Deposit some tokens
     suite
-        .deposit(lender, &[Coin::new(2000, base_asset)])
+        .deposit(lender, &[Coin::new(2000, market_token)])
         .unwrap();
 
     // Borrow some tokens
@@ -189,7 +191,7 @@ fn charge_interest_deposit() {
     // that means ltoken 2000 + 1600*20% = 2320
     // deposit 1000 -> 3320 left btokens
     suite
-        .deposit(lender, &[Coin::new(1000, base_asset)])
+        .deposit(lender, &[Coin::new(1000, market_token)])
         .unwrap();
 
     // TODO: rounding error
@@ -208,7 +210,7 @@ fn charge_interest_deposit() {
     // ltokens should go up to 3616.94
     // 3616.94 + 1000 = 4616.94 ltokens
     suite
-        .deposit(lender, &[Coin::new(1000, base_asset)])
+        .deposit(lender, &[Coin::new(1000, market_token)])
         .unwrap();
 
     // TODO: rounding error
@@ -218,7 +220,7 @@ fn charge_interest_deposit() {
     );
 
     // Borrower pays all of his debt
-    suite.repay(borrower, coin(2219, base_asset)).unwrap();
+    suite.repay(borrower, coin(2219, market_token)).unwrap();
     assert_eq!(
         suite.query_btoken_info().unwrap().total_supply,
         // TODO: rounding error

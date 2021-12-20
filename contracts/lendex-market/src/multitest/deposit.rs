@@ -7,7 +7,7 @@ fn deposit_works() {
     let lender = "lender";
     let mut suite = SuiteBuilder::new()
         .with_funds(lender, &[coin(100, "ATOM")])
-        .with_base_asset("ATOM")
+        .with_market_token("ATOM")
         .build();
 
     // At first, the lender has no l-token, and the contract has no base asset.
@@ -26,7 +26,7 @@ fn deposit_multiple_denoms_fails() {
     let lender = "lender";
     let mut suite = SuiteBuilder::new()
         .with_funds(lender, &[coin(100, "ATOM"), coin(50, "BTC")])
-        .with_base_asset("ATOM")
+        .with_market_token("ATOM")
         .build();
 
     assert_eq!(
@@ -43,7 +43,7 @@ fn deposit_wrong_denom_fails() {
     let lender = "lender";
     let mut suite = SuiteBuilder::new()
         .with_funds(lender, &[coin(50, "BTC")])
-        .with_base_asset("ATOM")
+        .with_market_token("ATOM")
         .build();
 
     assert_eq!(
@@ -58,7 +58,7 @@ fn deposit_wrong_denom_fails() {
 #[test]
 fn deposit_nothing_fails() {
     let lender = "lender";
-    let mut suite = SuiteBuilder::new().with_base_asset("ATOM").build();
+    let mut suite = SuiteBuilder::new().with_market_token("ATOM").build();
 
     assert_eq!(
         suite.deposit(lender, &[]).unwrap_err().to_string(),
@@ -69,10 +69,10 @@ fn deposit_nothing_fails() {
 #[test]
 fn query_transferable_amount() {
     let lender = "lender";
-    let base_asset = "base";
+    let market_token = "base";
     let mut suite = SuiteBuilder::new()
-        .with_base_asset(base_asset)
-        .with_funds(lender, &[coin(100, base_asset)])
+        .with_market_token(market_token)
+        .with_funds(lender, &[coin(100, market_token)])
         .build();
 
     let btoken = suite.btoken();
@@ -86,7 +86,7 @@ fn query_transferable_amount() {
     assert_eq!(Uint128::zero(), resp);
 
     // Deposit base asset and mint some L tokens, then query again
-    suite.deposit(lender, &[coin(100, base_asset)]).unwrap();
+    suite.deposit(lender, &[coin(100, market_token)]).unwrap();
     let resp = suite.query_transferable_amount(ltoken, lender).unwrap();
     assert_eq!(Uint128::new(100), resp);
 
