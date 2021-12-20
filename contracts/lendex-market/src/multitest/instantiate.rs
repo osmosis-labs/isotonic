@@ -24,7 +24,10 @@ fn market_instantiate_and_query_config() {
             },
             interest_charge_period: 300,
             // env.block.time.seconds() - env.block.time.seconds() % epoch_length
-            last_charged: time - time % 300
+            last_charged: time - time % 300,
+            common_token: "common".to_owned(),
+            collateral_ratio: Decimal::percent(50),
+            price_oracle: "oracle".to_owned(),
         },
         suite.query_config().unwrap()
     );

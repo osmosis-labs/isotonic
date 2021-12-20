@@ -60,6 +60,8 @@ pub enum QueryMsg {
     },
     /// Returns current utilisation and interest rates
     Interest {},
+    /// Returns CreditLineResponse
+    CreditLine { account: String },
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -73,4 +75,15 @@ pub struct InterestResponse {
 #[serde(rename_all = "snake_case")]
 pub struct TransferableAmountResponse {
     pub transferable: Uint128,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct CreditLineResponse {
+    /// total value of L-Tokens in common_token
+    pub collateral: Uint128,
+    /// collateral * collateral_ratio
+    pub credit_line: Uint128,
+    /// total value of B-Tokens in common_token
+    pub debt: Uint128,
 }

@@ -6,11 +6,12 @@ use cosmwasm_std::{
 };
 use cw0::parse_reply_instantiate_data;
 use cw2::set_contract_version;
-use cw20::BalanceResponse;
 use utils::interest::Interest;
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, TransferableAmountResponse};
+use crate::msg::{
+    CreditLineResponse, ExecuteMsg, InstantiateMsg, QueryMsg, TransferableAmountResponse,
+};
 use crate::state::{Config, CONFIG, SECONDS_IN_YEAR};
 
 // version info for migration info
@@ -71,6 +72,9 @@ pub fn instantiate(
         interest_charge_period: msg.interest_charge_period,
         last_charged: env.block.time.seconds()
             - env.block.time.seconds() % msg.interest_charge_period,
+        common_token: msg.common_token,
+        collateral_ratio: msg.collateral_ratio,
+        price_oracle: msg.price_oracle,
     };
     CONFIG.save(deps.storage, &cfg)?;
 
@@ -364,21 +368,10 @@ mod execute {
         let cfg = CONFIG.load(deps.storage)?;
         let funds_sent = validate_funds(&info.funds, &cfg.market_token)?;
 
-        // Check balance of btokens to repay
-        let response: BalanceResponse = deps.querier.query_wasm_smart(
-            &cfg.btoken_contract,
-            &lendex_token::QueryMsg::Balance {
-                address: info.sender.to_string(),
-            },
-        )?;
-        let balance = response.balance;
+        let debt = query::btoken_balance(deps.as_ref(), &cfg, &info.sender)?;
         // If there are more tokens sent then there are to repay, burn only desired
         // amount and return the difference
-        let repay_amount = if funds_sent <= balance {
-            funds_sent
-        } else {
-            balance
-        };
+        let repay_amount = if funds_sent <= debt { funds_sent } else { debt };
 
         let mut response = Response::new();
 
@@ -426,6 +419,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             to_binary(&query::transferable_amount(deps, token, account)?)
         }
         Interest {} => to_binary(&query::calculate_interest(deps)?),
+        CreditLine { account } => {
+            let account = deps.api.addr_validate(&account)?;
+            to_binary(&query::credit_line(deps, account)?)
+        }
     }
 }
 
@@ -439,6 +436,27 @@ mod query {
     use crate::msg::InterestResponse;
     use crate::state::TokensInfo;
 
+    fn token_balance(
+        deps: Deps,
+        token_contract: &Addr,
+        address: String,
+    ) -> StdResult<BalanceResponse> {
+        deps.querier
+            .query_wasm_smart(token_contract, &lendex_token::QueryMsg::Balance { address })
+    }
+
+    pub fn btoken_balance(
+        deps: Deps,
+        config: &Config,
+        account: impl ToString,
+    ) -> StdResult<Uint128> {
+        Ok(token_balance(deps, &config.btoken_contract, account.to_string())?.balance)
+    }
+
+    fn ltoken_balance(deps: Deps, config: &Config, account: impl ToString) -> StdResult<Uint128> {
+        Ok(token_balance(deps, &config.ltoken_contract, account.to_string())?.balance)
+    }
+
     pub fn transferable_amount(
         deps: Deps,
         token: Addr,
@@ -450,10 +468,7 @@ mod query {
                 transferable: Uint128::zero(),
             })
         } else if token == config.ltoken_contract {
-            let resp: BalanceResponse = deps
-                .querier
-                .query_wasm_smart(&token, &QueryMsg::Balance { address: account })?;
-
+            let resp = token_balance(deps, &token, account)?;
             Ok(TransferableAmountResponse {
                 transferable: resp.balance,
             })
@@ -501,5 +516,27 @@ mod query {
             utilisation,
             charge_period: Timestamp::from_seconds(config.interest_charge_period),
         })
+    }
+
+    pub fn credit_line(deps: Deps, account: Addr) -> StdResult<CreditLineResponse> {
+        let config = CONFIG.load(deps.storage)?;
+        let collateral = ltoken_balance(deps, &config, &account)?;
+        let debt = btoken_balance(deps, &config, &account)?;
+        unimplemented!();
+        // if collateral.is_zero() && borrowed.is_zero() {
+        //     return Ok(CreditLineResponse::zero());
+        // }
+        // // adjust to common_token
+        // // note: care must be take if this is common/local or local/common... maybe good types?
+        // let price = query_price_oracle()?;
+        // let collateral = collateral * price;
+        // // here I assume it is common/local
+        // let debt = debt * price;
+        // let credit_line = collateral * config.collateral_ratio;
+        // return Ok(CreditLineResponse {
+        //     collateral,
+        //     debt,
+        //     credit_line,
+        // });
     }
 }
