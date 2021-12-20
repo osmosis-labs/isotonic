@@ -33,7 +33,7 @@ pub struct MarketConfig {
     pub symbol: String,
     /// Decimals for sub-tokens `L` and `B`
     pub decimals: u8,
-    /// Native denom for the base asset
+    /// Native denom for the market token
     pub market_token: String,
     /// Interest rate curve
     pub interest_rate: Interest,
@@ -50,7 +50,7 @@ pub struct MarketConfig {
 pub enum QueryMsg {
     /// Returns current configuration
     Configuration {},
-    /// Queries a market address by base asset
+    /// Queries a market address by market token
     Market { market_token: String },
     /// List all base assets and the addresses of markets handling them.
     /// Pagination by base asset

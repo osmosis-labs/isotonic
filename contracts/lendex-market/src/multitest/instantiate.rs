@@ -11,12 +11,12 @@ fn market_instantiate_and_query_config() {
 
     assert_eq!(
         Config {
-            ltoken_contract: Addr::unchecked("Contract #1"),
-            btoken_contract: Addr::unchecked("Contract #2"),
+            ltoken_contract: Addr::unchecked("Contract #2"),
+            btoken_contract: Addr::unchecked("Contract #3"),
             name: "lendex".to_owned(),
             symbol: "LDX".to_owned(),
             decimals: 9,
-            token_id: 1,
+            token_id: 2,
             market_token: "native_denom".to_owned(),
             rates: Interest::Linear {
                 base: Decimal::percent(3),
@@ -27,7 +27,7 @@ fn market_instantiate_and_query_config() {
             last_charged: time - time % 300,
             common_token: "common".to_owned(),
             collateral_ratio: Decimal::percent(50),
-            price_oracle: "oracle".to_owned(),
+            price_oracle: "Contract #0".to_owned(),
         },
         suite.query_config().unwrap()
     );
