@@ -1,6 +1,6 @@
 [package]
 name = "lendex-oracle"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Tomasz Kurcz <tom@confio.gmbh>"]
 edition = "2018"
 description = "The Lendex Price Oracle"
@@ -21,7 +21,7 @@ cw2 = "0.10"
 schemars = "0.8.3"
 serde = { version = "1.0.127", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.26" }
-utils = { version = "0.1.0", path = "../../packages/utils" }
+utils = { version = "0.2.0", path = "../../packages/utils" }
 
 [dev-dependencies]
 cosmwasm-schema = { version = "1.0.0-beta" }
