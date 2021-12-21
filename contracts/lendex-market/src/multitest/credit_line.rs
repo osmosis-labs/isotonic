@@ -33,8 +33,8 @@ fn lender_deposits_money() {
     let market_token = "atom";
     let mut suite = SuiteBuilder::new()
         .with_funds(lender, &[coin(1000, market_token)])
-        // collateral ratio is 0.5
-        .with_collateral_ratio(Decimal::percent(50))
+        // collateral ratio is 0.7
+        .with_collateral_ratio(Decimal::percent(70))
         .with_market_token(market_token)
         .build();
 
@@ -55,8 +55,8 @@ fn lender_deposits_money() {
         CreditLineResponse {
             // 1000 collateral * 0.5 oracle's price
             collateral: Uint128::new(500),
-            // 1000 collateral * 0.5 oracle's price * 0.5 collateral_ratio
-            credit_line: Uint128::new(250),
+            // 1000 collateral * 0.5 oracle's price * 0.7 collateral_ratio
+            credit_line: Uint128::new(350),
             // no debt because of lack of btokens
             debt: Uint128::zero(),
         }
@@ -71,8 +71,8 @@ fn deposits_and_borrows_money() {
     let mut suite = SuiteBuilder::new()
         .with_funds(lender, &[coin(1000, market_token)])
         .with_funds(borrower, &[coin(100, market_token)])
-        // collateral ratio is 0.5
-        .with_collateral_ratio(Decimal::percent(50))
+        // collateral ratio is 0.7
+        .with_collateral_ratio(Decimal::percent(70))
         .with_market_token(market_token)
         .build();
 
@@ -100,8 +100,8 @@ fn deposits_and_borrows_money() {
         CreditLineResponse {
             // 1000 collateral * 0.5 oracle's price
             collateral: Uint128::new(500),
-            // 1000 collateral * 0.5 oracle's price * 0.5 collateral_ratio
-            credit_line: Uint128::new(250),
+            // 1000 collateral * 0.5 oracle's price * 0.7 collateral_ratio
+            credit_line: Uint128::new(350),
             // no debt because of lack of btokens
             debt: Uint128::zero(),
         }
@@ -112,8 +112,8 @@ fn deposits_and_borrows_money() {
         CreditLineResponse {
             // 1100 collateral (deposited) * 0.5 oracle's price
             collateral: Uint128::new(550),
-            // 1100 collateral * 0.5 oracle's price * 0.5 collateral_ratio
-            credit_line: Uint128::new(275),
+            // 1100 collateral * 0.5 oracle's price * 0.7 collateral_ratio
+            credit_line: Uint128::new(385),
             // 1000 borrowed * 0.5 oracle's price
             debt: Uint128::new(500),
         }
