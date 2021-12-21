@@ -28,7 +28,56 @@ fn oracle_price_not_set() {
 }
 
 #[test]
-fn lender_deposits_money() {
+fn zero_credit_line() {
+    let lender = "lender";
+    let market_token = "atom";
+    let mut suite = SuiteBuilder::new().with_market_token(market_token).build();
+
+    suite.oracle_set_price(Decimal::percent(50)).unwrap();
+
+    // No tokens were neither deposited nor borrowed, so credit line is zero
+    let credit_line = suite.query_credit_line(lender).unwrap();
+    assert_eq!(credit_line, CreditLineResponse::zero());
+}
+
+#[test]
+fn borrower_borrows_tokens() {
+    let lender = "lender";
+    let borrower = "borrower";
+    let market_token = "atom";
+    let mut suite = SuiteBuilder::new()
+        .with_funds(lender, &[coin(1000, market_token)])
+        // collateral ratio is 0.7
+        .with_collateral_ratio(Decimal::percent(70))
+        .with_market_token(market_token)
+        .build();
+
+    // sell/buy ratio between common_token and market_token is 0.5
+    suite.oracle_set_price(Decimal::percent(50)).unwrap();
+
+    // Lender deposits coints
+    suite
+        .deposit(lender, &[Coin::new(1000, market_token)])
+        .unwrap();
+    // Now borrower borrows it
+    suite.borrow(borrower, 1000).unwrap();
+
+    assert_eq!(suite.query_btoken_balance(borrower).unwrap().u128(), 1000);
+
+    let credit_line = suite.query_credit_line(borrower).unwrap();
+    assert_eq!(
+        credit_line,
+        CreditLineResponse {
+            collateral: Uint128::zero(),
+            credit_line: Uint128::zero(),
+            // 1000 borrowed * 0.5 oracle's price
+            debt: Uint128::new(500),
+        }
+    );
+}
+
+#[test]
+fn lender_deposits_tokens() {
     let lender = "lender";
     let market_token = "atom";
     let mut suite = SuiteBuilder::new()
@@ -64,7 +113,7 @@ fn lender_deposits_money() {
 }
 
 #[test]
-fn deposits_and_borrows_money() {
+fn deposits_and_borrows_tokens() {
     let lender = "lender";
     let borrower = "borrower";
     let market_token = "atom";
@@ -116,6 +165,53 @@ fn deposits_and_borrows_money() {
             credit_line: Uint128::new(385),
             // 1000 borrowed * 0.5 oracle's price
             debt: Uint128::new(500),
+        }
+    );
+}
+
+#[test]
+fn deposits_and_borrows_tokens_no_common_token() {
+    let lender = "lender";
+    let borrower = "borrower";
+    let market_token = "atom";
+    let mut suite = SuiteBuilder::new()
+        .with_funds(lender, &[coin(1000, market_token)])
+        .with_funds(borrower, &[coin(100, market_token)])
+        .with_collateral_ratio(Decimal::percent(70))
+        .with_market_token(market_token)
+        .with_common_token(None)
+        .build();
+
+    suite
+        .deposit(lender, &[Coin::new(1000, market_token)])
+        .unwrap();
+    suite.borrow(borrower, 1000).unwrap();
+    suite
+        .deposit(borrower, &[Coin::new(1100, market_token)])
+        .unwrap();
+
+    let credit_line = suite.query_credit_line(lender).unwrap();
+    assert_eq!(
+        credit_line,
+        CreditLineResponse {
+            // 1000 collateral * 1.0 oracle's price (no common_token denom)
+            collateral: Uint128::new(1000),
+            // 1000 collateral * 0.5 oracle's price * 0.7 collateral_ratio
+            credit_line: Uint128::new(700),
+            // no debt because of lack of btokens
+            debt: Uint128::zero(),
+        }
+    );
+    let credit_line = suite.query_credit_line(borrower).unwrap();
+    assert_eq!(
+        credit_line,
+        CreditLineResponse {
+            // 1100 collateral (deposited) * 1.0 oracle's price
+            collateral: Uint128::new(1100),
+            // 1100 collateral * 1.0 oracle's price * 0.7 collateral_ratio
+            credit_line: Uint128::new(770),
+            // 1000 borrowed * 1.0 oracle's price
+            debt: Uint128::new(1000),
         }
     );
 }

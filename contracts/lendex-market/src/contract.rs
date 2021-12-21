@@ -526,15 +526,16 @@ mod query {
         let market_token = config.market_token.clone();
         match common_token {
             Some(common_token) if common_token != market_token => {
-                use lendex_oracle::msg::*;
+                use lendex_oracle::msg::{PriceResponse, QueryMsg::Price};
                 let price_response: PriceResponse = deps.querier.query_wasm_smart(
                     config.price_oracle.clone(),
-                    &QueryMsg::Price {
+                    // Ratio is market_token / common_token
+                    &Price {
                         sell: common_token,
                         buy: market_token,
                     },
                 )?;
-                Ok(price_response.rate)
+                Ok(Decimal::from_ratio(1u64, price_response.rate))
             }
             // If common_token is None or if denoms are the same - then ratio is 1.0
             _ => Ok(Decimal::one()),

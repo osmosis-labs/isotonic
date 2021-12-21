@@ -91,6 +91,11 @@ impl SuiteBuilder {
         self
     }
 
+    pub fn with_common_token(mut self, denom: impl Into<Option<String>>) -> Self {
+        self.common_token = denom.into();
+        self
+    }
+
     /// Sets initial amount of distributable tokens on address
     pub fn with_funds(mut self, addr: &str, funds: &[Coin]) -> Self {
         self.funds.push((Addr::unchecked(addr), funds.into()));
