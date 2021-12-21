@@ -70,8 +70,8 @@ fn borrower_borrows_tokens() {
         CreditLineResponse {
             collateral: Uint128::zero(),
             credit_line: Uint128::zero(),
-            // 1000 borrowed * 0.5 oracle's price
-            debt: Uint128::new(500),
+            // 1000 borrowed / 0.5 oracle's price
+            debt: Uint128::new(2000),
         }
     );
 }
@@ -102,10 +102,10 @@ fn lender_deposits_tokens() {
     assert_eq!(
         credit_line,
         CreditLineResponse {
-            // 1000 collateral * 0.5 oracle's price
-            collateral: Uint128::new(500),
-            // 1000 collateral * 0.5 oracle's price * 0.7 collateral_ratio
-            credit_line: Uint128::new(350),
+            // 1000 collateral / 0.5 oracle's price
+            collateral: Uint128::new(2000),
+            // 1000 collateral / 0.5 oracle's price * 0.7 collateral_ratio
+            credit_line: Uint128::new(1400),
             // no debt because of lack of btokens
             debt: Uint128::zero(),
         }
@@ -147,10 +147,10 @@ fn deposits_and_borrows_tokens() {
     assert_eq!(
         credit_line,
         CreditLineResponse {
-            // 1000 collateral * 0.5 oracle's price
-            collateral: Uint128::new(500),
-            // 1000 collateral * 0.5 oracle's price * 0.7 collateral_ratio
-            credit_line: Uint128::new(350),
+            // 1000 collateral / 0.5 oracle's price
+            collateral: Uint128::new(2000),
+            // 1000 collateral / 0.5 oracle's price * 0.7 collateral_ratio
+            credit_line: Uint128::new(1400),
             // no debt because of lack of btokens
             debt: Uint128::zero(),
         }
@@ -159,12 +159,12 @@ fn deposits_and_borrows_tokens() {
     assert_eq!(
         credit_line,
         CreditLineResponse {
-            // 1100 collateral (deposited) * 0.5 oracle's price
-            collateral: Uint128::new(550),
-            // 1100 collateral * 0.5 oracle's price * 0.7 collateral_ratio
-            credit_line: Uint128::new(385),
-            // 1000 borrowed * 0.5 oracle's price
-            debt: Uint128::new(500),
+            // 1100 collateral (deposited) / 0.5 oracle's price
+            collateral: Uint128::new(2200),
+            // 1100 collateral / 0.5 oracle's price * 0.7 collateral_ratio
+            credit_line: Uint128::new(1540),
+            // 1000 borrowed / 0.5 oracle's price
+            debt: Uint128::new(2000),
         }
     );
 }

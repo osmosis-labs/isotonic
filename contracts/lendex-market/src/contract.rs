@@ -373,7 +373,7 @@ mod execute {
         let debt = query::btoken_balance(deps.as_ref(), &cfg, &info.sender)?;
         // If there are more tokens sent then there are to repay, burn only desired
         // amount and return the difference
-        let repay_amount = if funds_sent <= debt { funds_sent } else { debt };
+        let repay_amount = std::cmp::min(funds_sent, debt);
 
         let mut response = Response::new();
 
@@ -431,7 +431,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 mod query {
     use super::*;
 
-    use cosmwasm_std::{Decimal, StdError, Uint128};
+    use cosmwasm_std::{Decimal, Fraction, StdError, Uint128};
     use cw20::BalanceResponse;
     use lendex_token::msg::{QueryMsg, TokenInfoResponse};
 
@@ -535,7 +535,9 @@ mod query {
                         buy: market_token,
                     },
                 )?;
-                Ok(Decimal::from_ratio(1u64, price_response.rate))
+                let rate = price_response.rate;
+                // Inverse the rate
+                Ok(Decimal::from_ratio(rate.denominator(), rate.numerator()))
             }
             // If common_token is None or if denoms are the same - then ratio is 1.0
             _ => Ok(Decimal::one()),
