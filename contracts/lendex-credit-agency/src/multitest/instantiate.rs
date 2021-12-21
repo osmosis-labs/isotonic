@@ -16,7 +16,7 @@ fn market_instantiate_and_query_config() {
             lendex_market_id: 1,
             lendex_token_id: 2,
             reward_token: "ENG".to_owned(),
-            common_token: "common".to_owned(),
+            common_token: Some("common".to_owned()),
         },
         suite.query_config().unwrap()
     );

@@ -16,7 +16,7 @@ pub struct Config {
     /// This is `distributed_token` in the market contract.
     pub reward_token: String,
     /// Common Token denom (same for all markets)
-    pub common_token: String,
+    pub common_token: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]

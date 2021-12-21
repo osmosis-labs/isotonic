@@ -524,20 +524,21 @@ mod query {
     fn price_ratio_from_oracle(deps: Deps, config: &Config) -> StdResult<Decimal> {
         let common_token = config.common_token.clone();
         let market_token = config.market_token.clone();
-        // If denoms are the same, then ratio is 1.0
-        if common_token == market_token {
-            return Ok(Decimal::one());
+        match common_token {
+            Some(common_token) if common_token != market_token => {
+                use lendex_oracle::msg::*;
+                let price_response: PriceResponse = deps.querier.query_wasm_smart(
+                    config.price_oracle.clone(),
+                    &QueryMsg::Price {
+                        sell: common_token,
+                        buy: market_token,
+                    },
+                )?;
+                Ok(price_response.rate)
+            }
+            // If common_token is None or if denoms are the same - then ratio is 1.0
+            _ => Ok(Decimal::one()),
         }
-
-        use lendex_oracle::msg::*;
-        let price_response: PriceResponse = deps.querier.query_wasm_smart(
-            config.price_oracle.clone(),
-            &QueryMsg::Price {
-                sell: common_token,
-                buy: market_token,
-            },
-        )?;
-        Ok(price_response.rate)
     }
 
     /// Handler for `QueryMsg::CreditLine`
@@ -558,5 +559,46 @@ mod query {
             debt,
             credit_line,
         })
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        use cosmwasm_std::testing::mock_dependencies;
+
+        #[test]
+        fn price_ratio_doesnt_need_query_if_common_token_is_not_set() {
+            let deps = mock_dependencies();
+            let config = Config {
+                ltoken_contract: Addr::unchecked("Contract #2"),
+                btoken_contract: Addr::unchecked("Contract #3"),
+                name: "lendex".to_owned(),
+                symbol: "LDX".to_owned(),
+                decimals: 9,
+                token_id: 2,
+                market_token: "market_token".to_owned(),
+                rates: Interest::Linear {
+                    base: Decimal::percent(3),
+                    slope: Decimal::percent(20),
+                },
+                interest_charge_period: 300,
+                last_charged: 300,
+                common_token: None,
+                collateral_ratio: Decimal::percent(50),
+                price_oracle: "Contract #0".to_owned(),
+            };
+            // common_token is not set
+            let ratio = price_ratio_from_oracle(deps.as_ref(), &config).unwrap();
+            assert_eq!(ratio, Decimal::one());
+
+            let config = Config {
+                common_token: Some("market_token".to_owned()),
+                ..config
+            };
+            // common_token is same as market_token
+            let ratio = price_ratio_from_oracle(deps.as_ref(), &config).unwrap();
+            assert_eq!(ratio, Decimal::one());
+        }
     }
 }
