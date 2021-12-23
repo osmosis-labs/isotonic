@@ -522,10 +522,8 @@ mod query {
     }
 
     fn price_ratio_from_oracle(deps: Deps, config: &Config) -> StdResult<Decimal> {
-        let common_token = config.common_token.clone();
-        let market_token = config.market_token.clone();
         // If denoms are the same, just return 1:1
-        if common_token == market_token {
+        if config.common_token == config.market_token {
             Ok(Decimal::one())
         } else {
             use lendex_oracle::msg::{PriceResponse, QueryMsg::Price};
@@ -533,8 +531,8 @@ mod query {
                 config.price_oracle.clone(),
                 // Ratio is market_token / common_token
                 &Price {
-                    sell: common_token,
-                    buy: market_token,
+                    sell: config.common_token.clone(),
+                    buy: config.market_token.clone(),
                 },
             )?;
             let rate = price_response.rate;

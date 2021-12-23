@@ -35,7 +35,7 @@ fn zero_credit_line() {
 
     suite.oracle_set_price(Decimal::percent(50)).unwrap();
 
-    // No tokens were neither deposited nor borrowed, so credit line is zero
+    // No tokens were deposited nor borrowed, so credit line is zero
     let credit_line = suite.query_credit_line(lender).unwrap();
     assert_eq!(credit_line, CreditLineResponse::zero());
 }
