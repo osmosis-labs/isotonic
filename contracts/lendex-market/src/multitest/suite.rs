@@ -395,13 +395,13 @@ impl Suite {
             .map_err(|err| anyhow!(err))
     }
 
-    /// Sets buy/sell price (rate) between common_token and market_token
-    pub fn oracle_set_price(&mut self, rate: Decimal) -> AnyResult<AppResponse> {
+    /// Sets sell/buy price (rate) between market_token and common_token
+    pub fn oracle_set_price_market_per_common(&mut self, rate: Decimal) -> AnyResult<AppResponse> {
         use lendex_oracle::msg::ExecuteMsg::SetPrice;
 
         let owner = self.owner.clone();
-        let buy = self.market_token.clone();
-        let sell = self.common_token.clone();
+        let sell = self.market_token.clone();
+        let buy = self.common_token.clone();
 
         self.app.execute_contract(
             owner,

@@ -431,7 +431,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 mod query {
     use super::*;
 
-    use cosmwasm_std::{Decimal, Fraction, StdError, Uint128};
+    use cosmwasm_std::{Decimal, StdError, Uint128};
     use cw20::BalanceResponse;
     use lendex_token::msg::{QueryMsg, TokenInfoResponse};
 
@@ -521,6 +521,7 @@ mod query {
         })
     }
 
+    /// Ratio is for sell market_token / buy common_token
     fn price_ratio_from_oracle(deps: Deps, config: &Config) -> StdResult<Decimal> {
         // If denoms are the same, just return 1:1
         if config.common_token == config.market_token {
@@ -529,15 +530,12 @@ mod query {
             use lendex_oracle::msg::{PriceResponse, QueryMsg::Price};
             let price_response: PriceResponse = deps.querier.query_wasm_smart(
                 config.price_oracle.clone(),
-                // Ratio is market_token / common_token
                 &Price {
-                    sell: config.common_token.clone(),
-                    buy: config.market_token.clone(),
+                    sell: config.market_token.clone(),
+                    buy: config.common_token.clone(),
                 },
             )?;
-            let rate = price_response.rate;
-            // Inverse the rate
-            Ok(Decimal::from_ratio(rate.denominator(), rate.numerator()))
+            Ok(price_response.rate)
         }
     }
 
@@ -568,7 +566,7 @@ mod query {
         use cosmwasm_std::testing::mock_dependencies;
 
         #[test]
-        fn price_ratio_doesnt_need_query_if_common_token_is_not_set() {
+        fn price_ratio_doesnt_need_query_if_common_token_matches_market_token() {
             let deps = mock_dependencies();
             let market_token = "market_token".to_owned();
             let config = Config {

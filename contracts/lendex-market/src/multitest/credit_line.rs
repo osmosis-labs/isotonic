@@ -33,7 +33,9 @@ fn zero_credit_line() {
     let market_token = "atom";
     let mut suite = SuiteBuilder::new().with_market_token(market_token).build();
 
-    suite.oracle_set_price(Decimal::percent(50)).unwrap();
+    suite
+        .oracle_set_price_market_per_common(Decimal::percent(50))
+        .unwrap();
 
     // No tokens were deposited nor borrowed, so credit line is zero
     let credit_line = suite.query_credit_line(lender).unwrap();
@@ -52,12 +54,14 @@ fn borrower_borrows_tokens() {
         .with_market_token(market_token)
         .build();
 
-    // sell/buy ratio between common_token and market_token is 0.5
+    // sell/buy ratio between common_token and market_token is 2.0
     // which means borrowing (buying) 1000 market btokens will get
     // debt of 2000 common tokens
-    suite.oracle_set_price(Decimal::percent(50)).unwrap();
+    suite
+        .oracle_set_price_market_per_common(Decimal::percent(200))
+        .unwrap();
 
-    // Lender deposits coints
+    // Lender deposits coins
     suite
         .deposit(lender, &[Coin::new(1000, market_token)])
         .unwrap();
@@ -72,7 +76,7 @@ fn borrower_borrows_tokens() {
         CreditLineResponse {
             collateral: Uint128::zero(),
             credit_line: Uint128::zero(),
-            // 1000 borrowed / 0.5 oracle's price
+            // 1000 borrowed * 2.0 oracle's price
             debt: Uint128::new(2000),
         }
     );
@@ -89,9 +93,11 @@ fn lender_deposits_tokens() {
         .with_market_token(market_token)
         .build();
 
-    // sell/buy ratio between common_token and market_token is 0.5
+    // sell/buy ratio between common_token and market_token is 2.0
     // so 1000 market tokens will get you 2000 common tokens collateral
-    suite.oracle_set_price(Decimal::percent(50)).unwrap();
+    suite
+        .oracle_set_price_market_per_common(Decimal::percent(200))
+        .unwrap();
 
     // Deposit some tokens
     suite
@@ -105,9 +111,9 @@ fn lender_deposits_tokens() {
     assert_eq!(
         credit_line,
         CreditLineResponse {
-            // 1000 collateral / 0.5 oracle's price
+            // 1000 collateral * 2.0 oracle's price
             collateral: Uint128::new(2000),
-            // 1000 collateral / 0.5 oracle's price * 0.7 collateral_ratio
+            // 1000 collateral * 2.0 oracle's price * 0.7 collateral_ratio
             credit_line: Uint128::new(1400),
             // no debt because of lack of btokens
             debt: Uint128::zero(),
@@ -128,10 +134,12 @@ fn deposits_and_borrows_tokens() {
         .with_market_token(market_token)
         .build();
 
-    // sell/buy ratio between common_token and market_token is 0.5
-    suite.oracle_set_price(Decimal::percent(50)).unwrap();
+    // sell/buy ratio between common_token and market_token is 2.0
+    suite
+        .oracle_set_price_market_per_common(Decimal::percent(200))
+        .unwrap();
 
-    // Lender deposits coints
+    // Lender deposits coins
     suite
         .deposit(lender, &[Coin::new(1000, market_token)])
         .unwrap();
@@ -150,9 +158,9 @@ fn deposits_and_borrows_tokens() {
     assert_eq!(
         credit_line,
         CreditLineResponse {
-            // 1000 collateral / 0.5 oracle's price
+            // 1000 collateral * 2.0 oracle's price
             collateral: Uint128::new(2000),
-            // 1000 collateral / 0.5 oracle's price * 0.7 collateral_ratio
+            // 1000 collateral * 2.0 oracle's price * 0.7 collateral_ratio
             credit_line: Uint128::new(1400),
             // no debt because of lack of btokens
             debt: Uint128::zero(),
@@ -162,11 +170,11 @@ fn deposits_and_borrows_tokens() {
     assert_eq!(
         credit_line,
         CreditLineResponse {
-            // 1100 collateral (deposited) / 0.5 oracle's price
+            // 1100 collateral (deposited) * 2.0 oracle's price
             collateral: Uint128::new(2200),
-            // 1100 collateral / 0.5 oracle's price * 0.7 collateral_ratio
+            // 1100 collateral * 2.0 oracle's price * 0.7 collateral_ratio
             credit_line: Uint128::new(1540),
-            // 1000 borrowed / 0.5 oracle's price
+            // 1000 borrowed * 2.0 oracle's price
             debt: Uint128::new(2000),
         }
     );
