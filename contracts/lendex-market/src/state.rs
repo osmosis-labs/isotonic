@@ -21,7 +21,7 @@ pub struct Config {
     pub rates: Interest,
     pub interest_charge_period: u64,
     pub last_charged: u64,
-    pub common_token: Option<String>,
+    pub common_token: String,
     pub collateral_ratio: Decimal,
     pub price_oracle: String,
 }

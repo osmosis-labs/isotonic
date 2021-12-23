@@ -64,7 +64,7 @@ pub struct SuiteBuilder {
     /// Interest charge period (in seconds)
     interest_charge_period: u64,
     /// Common Token denom that comes from Credit Agency (same for all markets)
-    common_token: Option<String>,
+    common_token: String,
     /// Ratio of how much tokens can be borrowed for one unit, 0 <= x < 1
     collateral_ratio: Decimal,
 }
@@ -81,7 +81,7 @@ impl SuiteBuilder {
             interest_base: Decimal::percent(3),
             interest_slope: Decimal::percent(20),
             interest_charge_period: 300,
-            common_token: Some("common".to_owned()),
+            common_token: "common".to_owned(),
             collateral_ratio: Decimal::percent(50),
         }
     }
@@ -91,7 +91,7 @@ impl SuiteBuilder {
         self
     }
 
-    pub fn with_common_token(mut self, denom: impl Into<Option<String>>) -> Self {
+    pub fn with_common_token(mut self, denom: impl Into<String>) -> Self {
         self.common_token = denom.into();
         self
     }
@@ -223,7 +223,7 @@ pub struct Suite {
     /// The market's token denom deposited and lended by the contract
     market_token: String,
     /// Credit agency token's common denom (with other markets)
-    common_token: Option<String>,
+    common_token: String,
     /// Oracle contract address
     oracle_contract: Addr,
 }
@@ -399,16 +399,9 @@ impl Suite {
     pub fn oracle_set_price(&mut self, rate: Decimal) -> AnyResult<AppResponse> {
         use lendex_oracle::msg::ExecuteMsg::SetPrice;
 
-        let sell = if let Some(common_token) = self.common_token.clone() {
-            common_token
-        } else {
-            return Err(anyhow!(
-                "Common token was not set, setting price at oracle failed!"
-            ));
-        };
-
         let owner = self.owner.clone();
         let buy = self.market_token.clone();
+        let sell = self.common_token.clone();
 
         self.app.execute_contract(
             owner,

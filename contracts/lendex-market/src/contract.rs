@@ -524,23 +524,22 @@ mod query {
     fn price_ratio_from_oracle(deps: Deps, config: &Config) -> StdResult<Decimal> {
         let common_token = config.common_token.clone();
         let market_token = config.market_token.clone();
-        match common_token {
-            Some(common_token) if common_token != market_token => {
-                use lendex_oracle::msg::{PriceResponse, QueryMsg::Price};
-                let price_response: PriceResponse = deps.querier.query_wasm_smart(
-                    config.price_oracle.clone(),
-                    // Ratio is market_token / common_token
-                    &Price {
-                        sell: common_token,
-                        buy: market_token,
-                    },
-                )?;
-                let rate = price_response.rate;
-                // Inverse the rate
-                Ok(Decimal::from_ratio(rate.denominator(), rate.numerator()))
-            }
-            // If common_token is None or if denoms are the same - then ratio is 1.0
-            _ => Ok(Decimal::one()),
+        // If denoms are the same, just return 1:1
+        if common_token == market_token {
+            Ok(Decimal::one())
+        } else {
+            use lendex_oracle::msg::{PriceResponse, QueryMsg::Price};
+            let price_response: PriceResponse = deps.querier.query_wasm_smart(
+                config.price_oracle.clone(),
+                // Ratio is market_token / common_token
+                &Price {
+                    sell: common_token,
+                    buy: market_token,
+                },
+            )?;
+            let rate = price_response.rate;
+            // Inverse the rate
+            Ok(Decimal::from_ratio(rate.denominator(), rate.numerator()))
         }
     }
 
@@ -573,6 +572,7 @@ mod query {
         #[test]
         fn price_ratio_doesnt_need_query_if_common_token_is_not_set() {
             let deps = mock_dependencies();
+            let market_token = "market_token".to_owned();
             let config = Config {
                 ltoken_contract: Addr::unchecked("Contract #2"),
                 btoken_contract: Addr::unchecked("Contract #3"),
@@ -580,24 +580,16 @@ mod query {
                 symbol: "LDX".to_owned(),
                 decimals: 9,
                 token_id: 2,
-                market_token: "market_token".to_owned(),
+                market_token: market_token.clone(),
                 rates: Interest::Linear {
                     base: Decimal::percent(3),
                     slope: Decimal::percent(20),
                 },
                 interest_charge_period: 300,
                 last_charged: 300,
-                common_token: None,
+                common_token: market_token,
                 collateral_ratio: Decimal::percent(50),
                 price_oracle: "Contract #0".to_owned(),
-            };
-            // common_token is not set
-            let ratio = price_ratio_from_oracle(deps.as_ref(), &config).unwrap();
-            assert_eq!(ratio, Decimal::one());
-
-            let config = Config {
-                common_token: Some("market_token".to_owned()),
-                ..config
             };
             // common_token is same as market_token
             let ratio = price_ratio_from_oracle(deps.as_ref(), &config).unwrap();

@@ -83,7 +83,7 @@ impl SuiteBuilder {
                     lendex_market_id,
                     lendex_token_id,
                     reward_token: self.reward_token,
-                    common_token: Some("common".to_owned()),
+                    common_token: "common".to_owned(),
                 },
                 &[],
                 "credit-agency",

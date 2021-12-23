@@ -170,7 +170,7 @@ fn deposits_and_borrows_tokens() {
 }
 
 #[test]
-fn deposits_and_borrows_tokens_no_common_token() {
+fn deposits_and_borrows_tokens_market_common_matches_denoms() {
     let lender = "lender";
     let borrower = "borrower";
     let market_token = "atom";
@@ -179,7 +179,7 @@ fn deposits_and_borrows_tokens_no_common_token() {
         .with_funds(borrower, &[coin(100, market_token)])
         .with_collateral_ratio(Decimal::percent(70))
         .with_market_token(market_token)
-        .with_common_token(None)
+        .with_common_token(market_token)
         .build();
 
     suite

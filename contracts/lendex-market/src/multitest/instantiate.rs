@@ -25,7 +25,7 @@ fn market_instantiate_and_query_config() {
             interest_charge_period: 300,
             // env.block.time.seconds() - env.block.time.seconds() % epoch_length
             last_charged: time - time % 300,
-            common_token: Some("common".to_owned()),
+            common_token: "common".to_owned(),
             collateral_ratio: Decimal::percent(50),
             price_oracle: "Contract #0".to_owned(),
         },
