@@ -53,6 +53,8 @@ fn borrower_borrows_tokens() {
         .build();
 
     // sell/buy ratio between common_token and market_token is 0.5
+    // which means borrowing (buying) 1000 market btokens will get
+    // debt of 2000 common tokens
     suite.oracle_set_price(Decimal::percent(50)).unwrap();
 
     // Lender deposits coints
@@ -88,6 +90,7 @@ fn lender_deposits_tokens() {
         .build();
 
     // sell/buy ratio between common_token and market_token is 0.5
+    // so 1000 market tokens will get you 2000 common tokens collateral
     suite.oracle_set_price(Decimal::percent(50)).unwrap();
 
     // Deposit some tokens
