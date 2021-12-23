@@ -1,6 +1,6 @@
 use super::suite::SuiteBuilder;
 
-use cosmwasm_std::{coin, Coin, Decimal, StdError, Uint128};
+use cosmwasm_std::{coin, Decimal, StdError, Uint128};
 
 use crate::msg::CreditLineResponse;
 
@@ -13,9 +13,7 @@ fn oracle_price_not_set() {
         .with_market_token(market_token)
         .build();
 
-    suite
-        .deposit(lender, &[Coin::new(1000, market_token)])
-        .unwrap();
+    suite.deposit(lender, &[coin(1000, market_token)]).unwrap();
 
     let err = suite.query_credit_line(lender).unwrap_err();
     assert_eq!(
@@ -62,9 +60,7 @@ fn borrower_borrows_tokens() {
         .unwrap();
 
     // Lender deposits coins
-    suite
-        .deposit(lender, &[Coin::new(1000, market_token)])
-        .unwrap();
+    suite.deposit(lender, &[coin(1000, market_token)]).unwrap();
     // Now borrower borrows it
     suite.borrow(borrower, 1000).unwrap();
 
@@ -100,9 +96,7 @@ fn lender_deposits_tokens() {
         .unwrap();
 
     // Deposit some tokens
-    suite
-        .deposit(lender, &[Coin::new(1000, market_token)])
-        .unwrap();
+    suite.deposit(lender, &[coin(1000, market_token)]).unwrap();
 
     // After the deposit, the lender has 1000 l-token
     assert_eq!(suite.query_ltoken_balance(lender).unwrap().u128(), 1000);
@@ -140,15 +134,13 @@ fn deposits_and_borrows_tokens() {
         .unwrap();
 
     // Lender deposits coins
-    suite
-        .deposit(lender, &[Coin::new(1000, market_token)])
-        .unwrap();
+    suite.deposit(lender, &[coin(1000, market_token)]).unwrap();
     // Now borrower borrows it
     suite.borrow(borrower, 1000).unwrap();
 
     // and deposits all he currently has
     suite
-        .deposit(borrower, &[Coin::new(1100, market_token)])
+        .deposit(borrower, &[coin(1100, market_token)])
         .unwrap();
 
     assert_eq!(suite.query_btoken_balance(borrower).unwrap().u128(), 1000);
@@ -193,12 +185,10 @@ fn deposits_and_borrows_tokens_market_common_matches_denoms() {
         .with_common_token(market_token)
         .build();
 
-    suite
-        .deposit(lender, &[Coin::new(1000, market_token)])
-        .unwrap();
+    suite.deposit(lender, &[coin(1000, market_token)]).unwrap();
     suite.borrow(borrower, 1000).unwrap();
     suite
-        .deposit(borrower, &[Coin::new(1100, market_token)])
+        .deposit(borrower, &[coin(1100, market_token)])
         .unwrap();
 
     let credit_line = suite.query_credit_line(lender).unwrap();

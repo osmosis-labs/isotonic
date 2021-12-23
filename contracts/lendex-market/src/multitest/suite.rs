@@ -229,10 +229,6 @@ pub struct Suite {
 }
 
 impl Suite {
-    pub fn app(&mut self) -> &mut App {
-        &mut self.app
-    }
-
     pub fn advance_seconds(&mut self, seconds: u64) {
         self.app.update_block(|block| {
             block.time = block.time.plus_seconds(seconds);
@@ -307,15 +303,6 @@ impl Suite {
     /// Shortcut for querying base asset balance in the market contract
     pub fn query_contract_asset_balance(&self) -> StdResult<u128> {
         self.query_asset_balance(self.contract.as_str())
-    }
-
-    /// Queries market contract for configuration
-    pub fn query_config(&self) -> AnyResult<Config> {
-        let resp: Config = self
-            .app
-            .wrap()
-            .query_wasm_smart(self.contract.clone(), &QueryMsg::Configuration {})?;
-        Ok(resp)
     }
 
     pub fn query_transferable_amount(

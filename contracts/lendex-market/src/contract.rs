@@ -433,7 +433,8 @@ mod query {
 
     use cosmwasm_std::{Decimal, StdError, Uint128};
     use cw20::BalanceResponse;
-    use lendex_token::msg::{QueryMsg, TokenInfoResponse};
+    use lendex_oracle::msg::{PriceResponse, QueryMsg as OracleQueryMsg};
+    use lendex_token::msg::{QueryMsg as TokenQueryMsg, TokenInfoResponse};
 
     use crate::msg::InterestResponse;
     use crate::state::TokensInfo;
@@ -444,7 +445,7 @@ mod query {
         address: String,
     ) -> StdResult<BalanceResponse> {
         deps.querier
-            .query_wasm_smart(token_contract, &lendex_token::QueryMsg::Balance { address })
+            .query_wasm_smart(token_contract, &TokenQueryMsg::Balance { address })
     }
 
     pub fn btoken_balance(
@@ -491,11 +492,11 @@ mod query {
         let ltoken_contract = &config.ltoken_contract;
         let ltoken: TokenInfoResponse = deps
             .querier
-            .query_wasm_smart(ltoken_contract, &QueryMsg::TokenInfo {})?;
+            .query_wasm_smart(ltoken_contract, &TokenQueryMsg::TokenInfo {})?;
         let btoken_contract = &config.btoken_contract;
         let btoken: TokenInfoResponse = deps
             .querier
-            .query_wasm_smart(btoken_contract, &QueryMsg::TokenInfo {})?;
+            .query_wasm_smart(btoken_contract, &TokenQueryMsg::TokenInfo {})?;
         Ok(TokensInfo { ltoken, btoken })
     }
 
@@ -527,10 +528,9 @@ mod query {
         if config.common_token == config.market_token {
             Ok(Decimal::one())
         } else {
-            use lendex_oracle::msg::{PriceResponse, QueryMsg::Price};
             let price_response: PriceResponse = deps.querier.query_wasm_smart(
                 config.price_oracle.clone(),
-                &Price {
+                &OracleQueryMsg::Price {
                     sell: config.market_token.clone(),
                     buy: config.common_token.clone(),
                 },
