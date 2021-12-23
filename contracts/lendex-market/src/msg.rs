@@ -22,6 +22,12 @@ pub struct InstantiateMsg {
     pub distributed_token: String,
     /// Define interest's charged period (in seconds)
     pub interest_charge_period: u64,
+    /// Common Token denom that comes from Credit Agency (same for all markets)
+    pub common_token: String,
+    /// Ratio of how much tokens can be borrowed for one unit, 0 <= x < 1
+    pub collateral_ratio: Decimal,
+    /// Address of contract to query for price
+    pub price_oracle: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -54,6 +60,8 @@ pub enum QueryMsg {
     },
     /// Returns current utilisation and interest rates
     Interest {},
+    /// Returns CreditLineResponse
+    CreditLine { account: String },
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -67,4 +75,25 @@ pub struct InterestResponse {
 #[serde(rename_all = "snake_case")]
 pub struct TransferableAmountResponse {
     pub transferable: Uint128,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct CreditLineResponse {
+    /// Total value of L-Tokens in common_token
+    pub collateral: Uint128,
+    /// collateral * collateral_ratio
+    pub credit_line: Uint128,
+    /// Total value of B-Tokens in common_token
+    pub debt: Uint128,
+}
+
+impl CreditLineResponse {
+    pub fn zero() -> Self {
+        CreditLineResponse {
+            collateral: Uint128::zero(),
+            credit_line: Uint128::zero(),
+            debt: Uint128::zero(),
+        }
+    }
 }

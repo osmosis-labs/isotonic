@@ -433,6 +433,7 @@ dependencies = [
  "cw0",
  "cw2",
  "cw20",
+ "lendex-oracle",
  "lendex-token",
  "schemars",
  "serde",

@@ -3,12 +3,23 @@ use anyhow::{anyhow, Result as AnyResult};
 use cosmwasm_std::{Addr, Coin, Decimal, Empty, StdResult, Uint128};
 use cw20::BalanceResponse;
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
-use utils::interest::Interest;
+use utils::{interest::Interest, time::Duration};
 
 use crate::msg::{
-    ExecuteMsg, InstantiateMsg, InterestResponse, QueryMsg, TransferableAmountResponse,
+    CreditLineResponse, ExecuteMsg, InstantiateMsg, InterestResponse, QueryMsg,
+    TransferableAmountResponse,
 };
 use crate::state::Config;
+
+fn contract_oracle() -> Box<dyn Contract<Empty>> {
+    let contract = ContractWrapper::new(
+        lendex_oracle::contract::execute,
+        lendex_oracle::contract::instantiate,
+        lendex_oracle::contract::query,
+    );
+
+    Box::new(contract)
+}
 
 fn contract_market() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new(
@@ -52,6 +63,10 @@ pub struct SuiteBuilder {
     interest_slope: Decimal,
     /// Interest charge period (in seconds)
     interest_charge_period: u64,
+    /// Common Token denom that comes from Credit Agency (same for all markets)
+    common_token: String,
+    /// Ratio of how much tokens can be borrowed for one unit, 0 <= x < 1
+    collateral_ratio: Decimal,
 }
 
 impl SuiteBuilder {
@@ -66,11 +81,18 @@ impl SuiteBuilder {
             interest_base: Decimal::percent(3),
             interest_slope: Decimal::percent(20),
             interest_charge_period: 300,
+            common_token: "common".to_owned(),
+            collateral_ratio: Decimal::percent(50),
         }
     }
 
     pub fn with_market_token(mut self, denom: impl Into<String>) -> Self {
         self.market_token = denom.into();
+        self
+    }
+
+    pub fn with_common_token(mut self, denom: impl Into<String>) -> Self {
+        self.common_token = denom.into();
         self
     }
 
@@ -93,12 +115,34 @@ impl SuiteBuilder {
         self
     }
 
+    /// Sets initial collateral ratio
+    pub fn with_collateral_ratio(mut self, collateral_ratio: Decimal) -> Self {
+        self.collateral_ratio = collateral_ratio;
+        self
+    }
+
     #[track_caller]
     pub fn build(self) -> Suite {
         let mut app = App::default();
         let owner = Addr::unchecked("owner");
 
         let market_token = self.market_token;
+        let common_token = self.common_token;
+
+        let oracle_id = app.store_code(contract_oracle());
+        let oracle_contract = app
+            .instantiate_contract(
+                oracle_id,
+                owner.clone(),
+                &lendex_oracle::msg::InstantiateMsg {
+                    oracle: owner.to_string(),
+                    maximum_age: Duration::new(999999),
+                },
+                &[],
+                "oracle",
+                Some(owner.to_string()),
+            )
+            .unwrap();
 
         let token_id = app.store_code(contract_token());
         let contract_id = app.store_code(contract_market());
@@ -118,6 +162,9 @@ impl SuiteBuilder {
                     },
                     distributed_token: "osmo".to_owned(),
                     interest_charge_period: self.interest_charge_period,
+                    common_token: common_token.clone(),
+                    collateral_ratio: self.collateral_ratio,
+                    price_oracle: oracle_contract.to_string(),
                 },
                 &[],
                 "market",
@@ -151,10 +198,13 @@ impl SuiteBuilder {
 
         Suite {
             app,
+            owner,
             contract,
             ltoken_contract: config.ltoken_contract,
             btoken_contract: config.btoken_contract,
+            oracle_contract,
             market_token,
+            common_token,
         }
     }
 }
@@ -163,21 +213,22 @@ impl SuiteBuilder {
 pub struct Suite {
     /// The multitest app
     app: App,
+    owner: Addr,
     /// Address of Market contract
     contract: Addr,
     /// Address of LToken contract
     ltoken_contract: Addr,
     /// Address of BToken contract
     btoken_contract: Addr,
-    /// The base asset deposited and lended by the contract
+    /// The market's token denom deposited and lended by the contract
     market_token: String,
+    /// Credit agency token's common denom (with other markets)
+    common_token: String,
+    /// Oracle contract address
+    oracle_contract: Addr,
 }
 
 impl Suite {
-    pub fn app(&mut self) -> &mut App {
-        &mut self.app
-    }
-
     pub fn advance_seconds(&mut self, seconds: u64) {
         self.app.update_block(|block| {
             block.time = block.time.plus_seconds(seconds);
@@ -254,15 +305,6 @@ impl Suite {
         self.query_asset_balance(self.contract.as_str())
     }
 
-    /// Queries market contract for configuration
-    pub fn query_config(&self) -> AnyResult<Config> {
-        let resp: Config = self
-            .app
-            .wrap()
-            .query_wasm_smart(self.contract.clone(), &QueryMsg::Configuration {})?;
-        Ok(resp)
-    }
-
     pub fn query_transferable_amount(
         &self,
         token: impl ToString,
@@ -311,6 +353,17 @@ impl Suite {
         Ok(resp)
     }
 
+    /// Queries current interest and utilisation rates
+    pub fn query_credit_line(&self, account: impl ToString) -> AnyResult<CreditLineResponse> {
+        let resp: CreditLineResponse = self.app.wrap().query_wasm_smart(
+            self.contract.clone(),
+            &QueryMsg::CreditLine {
+                account: account.to_string(),
+            },
+        )?;
+        Ok(resp)
+    }
+
     /// Queries btoken contract for token info
     pub fn query_btoken_info(&self) -> AnyResult<lendex_token::msg::TokenInfoResponse> {
         let btoken = self.btoken_contract.clone();
@@ -327,5 +380,21 @@ impl Suite {
             .wrap()
             .query_wasm_smart(ltoken, &lendex_token::msg::QueryMsg::TokenInfo {})
             .map_err(|err| anyhow!(err))
+    }
+
+    /// Sets sell/buy price (rate) between market_token and common_token
+    pub fn oracle_set_price_market_per_common(&mut self, rate: Decimal) -> AnyResult<AppResponse> {
+        use lendex_oracle::msg::ExecuteMsg::SetPrice;
+
+        let owner = self.owner.clone();
+        let sell = self.market_token.clone();
+        let buy = self.common_token.clone();
+
+        self.app.execute_contract(
+            owner,
+            self.oracle_contract.clone(),
+            &SetPrice { buy, sell, rate },
+            &[],
+        )
     }
 }

@@ -20,6 +20,7 @@ cw-storage-plus = "0.10"
 cw0 = "0.10"
 cw2 = "0.10"
 cw20 = "0.10"
+lendex-oracle = { path = "../lendex-oracle", version = "0.2.0", features = ["library"] }
 lendex-token = { path = "../lendex-token", version = "0.2.0", features = ["library"] }
 schemars = "0.8.3"
 serde = { version = "1.0.127", default-features = false, features = ["derive"] }

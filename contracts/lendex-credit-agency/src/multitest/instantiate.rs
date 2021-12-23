@@ -15,7 +15,8 @@ fn market_instantiate_and_query_config() {
             gov_contract: Addr::unchecked("gov"),
             lendex_market_id: 1,
             lendex_token_id: 2,
-            reward_token: "ENG".to_string(),
+            reward_token: "ENG".to_owned(),
+            common_token: "common".to_owned(),
         },
         suite.query_config().unwrap()
     );

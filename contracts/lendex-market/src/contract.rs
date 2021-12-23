@@ -6,11 +6,12 @@ use cosmwasm_std::{
 };
 use cw0::parse_reply_instantiate_data;
 use cw2::set_contract_version;
-use cw20::BalanceResponse;
 use utils::interest::Interest;
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, TransferableAmountResponse};
+use crate::msg::{
+    CreditLineResponse, ExecuteMsg, InstantiateMsg, QueryMsg, TransferableAmountResponse,
+};
 use crate::state::{Config, CONFIG, SECONDS_IN_YEAR};
 
 // version info for migration info
@@ -71,6 +72,9 @@ pub fn instantiate(
         interest_charge_period: msg.interest_charge_period,
         last_charged: env.block.time.seconds()
             - env.block.time.seconds() % msg.interest_charge_period,
+        common_token: msg.common_token,
+        collateral_ratio: msg.collateral_ratio,
+        price_oracle: msg.price_oracle,
     };
     CONFIG.save(deps.storage, &cfg)?;
 
@@ -312,6 +316,7 @@ mod execute {
         Ok(true)
     }
 
+    /// Handler for `ExecuteMsg::Borrow`
     pub fn borrow(
         deps: DepsMut,
         env: Env,
@@ -360,25 +365,15 @@ mod execute {
         Ok(response)
     }
 
+    /// Handler for `ExecuteMsg::Repay`
     pub fn repay(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
         let funds_sent = validate_funds(&info.funds, &cfg.market_token)?;
 
-        // Check balance of btokens to repay
-        let response: BalanceResponse = deps.querier.query_wasm_smart(
-            &cfg.btoken_contract,
-            &lendex_token::QueryMsg::Balance {
-                address: info.sender.to_string(),
-            },
-        )?;
-        let balance = response.balance;
+        let debt = query::btoken_balance(deps.as_ref(), &cfg, &info.sender)?;
         // If there are more tokens sent then there are to repay, burn only desired
         // amount and return the difference
-        let repay_amount = if funds_sent <= balance {
-            funds_sent
-        } else {
-            balance
-        };
+        let repay_amount = std::cmp::min(funds_sent, debt);
 
         let mut response = Response::new();
 
@@ -426,6 +421,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             to_binary(&query::transferable_amount(deps, token, account)?)
         }
         Interest {} => to_binary(&query::calculate_interest(deps)?),
+        CreditLine { account } => {
+            let account = deps.api.addr_validate(&account)?;
+            to_binary(&query::credit_line(deps, account)?)
+        }
     }
 }
 
@@ -434,11 +433,34 @@ mod query {
 
     use cosmwasm_std::{Decimal, StdError, Uint128};
     use cw20::BalanceResponse;
-    use lendex_token::msg::{QueryMsg, TokenInfoResponse};
+    use lendex_oracle::msg::{PriceResponse, QueryMsg as OracleQueryMsg};
+    use lendex_token::msg::{QueryMsg as TokenQueryMsg, TokenInfoResponse};
 
     use crate::msg::InterestResponse;
     use crate::state::TokensInfo;
 
+    fn token_balance(
+        deps: Deps,
+        token_contract: &Addr,
+        address: String,
+    ) -> StdResult<BalanceResponse> {
+        deps.querier
+            .query_wasm_smart(token_contract, &TokenQueryMsg::Balance { address })
+    }
+
+    pub fn btoken_balance(
+        deps: Deps,
+        config: &Config,
+        account: impl ToString,
+    ) -> StdResult<Uint128> {
+        Ok(token_balance(deps, &config.btoken_contract, account.to_string())?.balance)
+    }
+
+    fn ltoken_balance(deps: Deps, config: &Config, account: impl ToString) -> StdResult<Uint128> {
+        Ok(token_balance(deps, &config.ltoken_contract, account.to_string())?.balance)
+    }
+
+    /// Handler for `QueryMsg::TransferableAmount`
     pub fn transferable_amount(
         deps: Deps,
         token: Addr,
@@ -450,12 +472,8 @@ mod query {
                 transferable: Uint128::zero(),
             })
         } else if token == config.ltoken_contract {
-            let resp: BalanceResponse = deps
-                .querier
-                .query_wasm_smart(&token, &QueryMsg::Balance { address: account })?;
-
             Ok(TransferableAmountResponse {
-                transferable: resp.balance,
+                transferable: ltoken_balance(deps, &config, account)?,
             })
         } else {
             Err(StdError::generic_err(format!(
@@ -474,14 +492,15 @@ mod query {
         let ltoken_contract = &config.ltoken_contract;
         let ltoken: TokenInfoResponse = deps
             .querier
-            .query_wasm_smart(ltoken_contract, &QueryMsg::TokenInfo {})?;
+            .query_wasm_smart(ltoken_contract, &TokenQueryMsg::TokenInfo {})?;
         let btoken_contract = &config.btoken_contract;
         let btoken: TokenInfoResponse = deps
             .querier
-            .query_wasm_smart(btoken_contract, &QueryMsg::TokenInfo {})?;
+            .query_wasm_smart(btoken_contract, &TokenQueryMsg::TokenInfo {})?;
         Ok(TokensInfo { ltoken, btoken })
     }
 
+    /// Handler for `QueryMsg::Interest`
     pub fn interest(config: &Config, tokens_info: &TokensInfo) -> StdResult<InterestResponse> {
         let utilisation = if tokens_info.ltoken.total_supply.is_zero() {
             Decimal::zero()
@@ -501,5 +520,76 @@ mod query {
             utilisation,
             charge_period: Timestamp::from_seconds(config.interest_charge_period),
         })
+    }
+
+    /// Ratio is for sell market_token / buy common_token
+    fn price_ratio_from_oracle(deps: Deps, config: &Config) -> StdResult<Decimal> {
+        // If denoms are the same, just return 1:1
+        if config.common_token == config.market_token {
+            Ok(Decimal::one())
+        } else {
+            let price_response: PriceResponse = deps.querier.query_wasm_smart(
+                config.price_oracle.clone(),
+                &OracleQueryMsg::Price {
+                    sell: config.market_token.clone(),
+                    buy: config.common_token.clone(),
+                },
+            )?;
+            Ok(price_response.rate)
+        }
+    }
+
+    /// Handler for `QueryMsg::CreditLine`
+    pub fn credit_line(deps: Deps, account: Addr) -> StdResult<CreditLineResponse> {
+        let config = CONFIG.load(deps.storage)?;
+        let collateral = ltoken_balance(deps, &config, &account)?;
+        let debt = btoken_balance(deps, &config, &account)?;
+        if collateral.is_zero() && debt.is_zero() {
+            return Ok(CreditLineResponse::zero());
+        }
+
+        let price_ratio = price_ratio_from_oracle(deps, &config)?;
+        let collateral = collateral * price_ratio;
+        let debt = debt * price_ratio;
+        let credit_line = collateral * config.collateral_ratio;
+        Ok(CreditLineResponse {
+            collateral,
+            debt,
+            credit_line,
+        })
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        use cosmwasm_std::testing::mock_dependencies;
+
+        #[test]
+        fn price_ratio_doesnt_need_query_if_common_token_matches_market_token() {
+            let deps = mock_dependencies();
+            let market_token = "market_token".to_owned();
+            let config = Config {
+                ltoken_contract: Addr::unchecked("Contract #2"),
+                btoken_contract: Addr::unchecked("Contract #3"),
+                name: "lendex".to_owned(),
+                symbol: "LDX".to_owned(),
+                decimals: 9,
+                token_id: 2,
+                market_token: market_token.clone(),
+                rates: Interest::Linear {
+                    base: Decimal::percent(3),
+                    slope: Decimal::percent(20),
+                },
+                interest_charge_period: 300,
+                last_charged: 300,
+                common_token: market_token,
+                collateral_ratio: Decimal::percent(50),
+                price_oracle: "Contract #0".to_owned(),
+            };
+            // common_token is same as market_token
+            let ratio = price_ratio_from_oracle(deps.as_ref(), &config).unwrap();
+            assert_eq!(ratio, Decimal::one());
+        }
     }
 }

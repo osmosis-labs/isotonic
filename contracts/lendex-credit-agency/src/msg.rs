@@ -1,7 +1,8 @@
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Decimal};
+use utils::interest::Interest;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use utils::interest::Interest;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -14,6 +15,8 @@ pub struct InstantiateMsg {
     /// Token denom which would be distributed as reward token to lendex token holders.
     /// This is `distributed_token` in the market contract.
     pub reward_token: String,
+    /// Common Token denom (same for all markets)
+    pub common_token: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -30,12 +33,16 @@ pub struct MarketConfig {
     pub symbol: String,
     /// Decimals for sub-tokens `L` and `B`
     pub decimals: u8,
-    /// Native denom for the base asset
+    /// Native denom for the market token
     pub market_token: String,
     /// Interest rate curve
     pub interest_rate: Interest,
     /// Define interest's charged period (in seconds)
     pub interest_charge_period: u64,
+    /// Ratio of how much tokens can be borrowed for one unit, 0 <= x < 1
+    pub collateral_ratio: Decimal,
+    /// Address of contract to query for price
+    pub price_oracle: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -43,7 +50,7 @@ pub struct MarketConfig {
 pub enum QueryMsg {
     /// Returns current configuration
     Configuration {},
-    /// Queries a market address by base asset
+    /// Queries a market address by market token
     Market { market_token: String },
     /// List all base assets and the addresses of markets handling them.
     /// Pagination by base asset

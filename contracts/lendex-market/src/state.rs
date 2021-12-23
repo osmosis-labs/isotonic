@@ -2,7 +2,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utils::interest::Interest;
 
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Decimal};
 use cw_storage_plus::Item;
 use lendex_token::msg::TokenInfoResponse;
 
@@ -21,6 +21,9 @@ pub struct Config {
     pub rates: Interest,
     pub interest_charge_period: u64,
     pub last_charged: u64,
+    pub common_token: String,
+    pub collateral_ratio: Decimal,
+    pub price_oracle: String,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");
