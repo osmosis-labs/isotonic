@@ -40,13 +40,21 @@ fn lender_on_one_market() {
 }
 
 #[test]
-fn lender_on_two_markets() {
+fn lender_on_three_markets() {
     let lender = "lender";
     let first_denom = "OSMO";
     let second_denom = "ETH";
+    let third_denom = "BTC";
     let mut suite = SuiteBuilder::new()
         .with_gov("gov")
-        .with_funds(lender, &[coin(1000, first_denom), coin(500, second_denom)])
+        .with_funds(
+            lender,
+            &[
+                coin(1000, first_denom),
+                coin(500, second_denom),
+                coin(7, third_denom),
+            ],
+        )
         .build();
 
     suite
@@ -54,6 +62,9 @@ fn lender_on_two_markets() {
         .unwrap();
     suite
         .create_market_quick("gov", "ethereum", second_denom)
+        .unwrap();
+    suite
+        .create_market_quick("gov", "bitcoin", third_denom)
         .unwrap();
 
     // Sets sell/buy rate between market denom/common denom as 2.0,
@@ -65,6 +76,10 @@ fn lender_on_two_markets() {
     suite
         .oracle_set_price_market_per_common(second_denom, Decimal::percent(50))
         .unwrap();
+    // here - selling 7 BTC denom gives 7000 common denom
+    suite
+        .oracle_set_price_market_per_common(third_denom, Decimal::percent(100_000))
+        .unwrap();
 
     suite
         .deposit_tokens_on_market(lender, coin(1000, first_denom))
@@ -72,16 +87,21 @@ fn lender_on_two_markets() {
     suite
         .deposit_tokens_on_market(lender, coin(500, second_denom))
         .unwrap();
+    suite
+        .deposit_tokens_on_market(lender, coin(7, third_denom))
+        .unwrap();
 
     let total_credit_line = suite.query_total_credit_line(lender).unwrap();
     assert_eq!(
         total_credit_line,
         CreditLineResponse {
             // 1000 deposited * 2.0 oracle's price + 500 deposited * 0.5 oracle's price
-            collateral: Uint128::new(2250),
+            //   + 7 * 1000.0 oracle's price
+            collateral: Uint128::new(9250),
             // 1000 collateral * 2.0 oracle's price * 0.5 default collateral_ratio
             //   + 500 collateral * 0.5 oracle's price * 0.5 default collateral_ratio
-            credit_line: Uint128::new(1125),
+            //   + 7 collateral * 1000.0 oracle's price * 0.5 default collateral_ratio
+            credit_line: Uint128::new(4625),
             debt: Uint128::zero()
         }
     );
