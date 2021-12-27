@@ -51,26 +51,6 @@ pub fn execute(
     }
 }
 
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
-    use QueryMsg::*;
-
-    let res = match msg {
-        Configuration {} => to_binary(&CONFIG.load(deps.storage)?)?,
-        Market { market_token } => to_binary(&query::market(deps, env, market_token)?)?,
-        ListMarkets { start_after, limit } => {
-            to_binary(&query::list_markets(deps, env, start_after, limit)?)?
-        }
-    };
-
-    Ok(res)
-}
-
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
-    reply::handle_market_instantiation_response(deps, env, msg)
-}
-
 mod exec {
     use super::*;
 
@@ -141,9 +121,29 @@ mod exec {
     }
 }
 
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
+    use QueryMsg::*;
+
+    let res = match msg {
+        Configuration {} => to_binary(&CONFIG.load(deps.storage)?)?,
+        Market { market_token } => to_binary(&query::market(deps, env, market_token)?)?,
+        ListMarkets { start_after, limit } => {
+            to_binary(&query::list_markets(deps, env, start_after, limit)?)?
+        },
+        TotalCreditLine { account } => {
+            let account = deps.api.addr_validate(&account)?;
+            to_binary(&query::total_credit_line(deps, account)?)?
+        }
+    };
+
+    Ok(res)
+}
+
 mod query {
-    use cosmwasm_std::{Order, StdResult};
+    use cosmwasm_std::{Order, Addr, StdResult};
     use cw_storage_plus::Bound;
+    use lendex_market::msg::CreditLineResponse;
 
     use crate::{
         msg::{ListMarketsResponse, MarketResponse},
@@ -202,6 +202,16 @@ mod query {
 
         Ok(ListMarketsResponse { markets: markets? })
     }
+
+    /// Handler for `QueryMsg::TotalCreditLine`
+    pub fn total_credit_line(deps: Deps, account: Addr) -> Result<CreditLineResponse, ContractError> {
+        unimplemented!();
+    }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+    reply::handle_market_instantiation_response(deps, env, msg)
 }
 
 mod reply {
