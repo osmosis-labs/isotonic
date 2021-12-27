@@ -284,6 +284,7 @@ impl Suite {
         )
     }
 
+    /// Deposit tokens on market selected by denom of Coin
     pub fn deposit_tokens_on_market(
         &mut self,
         account: &str,
@@ -296,6 +297,24 @@ impl Suite {
             market.market,
             &MarketExecuteMsg::Deposit {},
             &[tokens],
+        )
+    }
+
+    /// Borrow tokens from market selected by denom and amount of Coin
+    pub fn borrow_tokens_from_market(
+        &mut self,
+        account: &str,
+        tokens: Coin,
+    ) -> AnyResult<AppResponse> {
+        let market = self.query_market(tokens.denom.as_str())?;
+
+        self.app.execute_contract(
+            Addr::unchecked(account),
+            market.market,
+            &MarketExecuteMsg::Borrow {
+                amount: tokens.amount,
+            },
+            &[],
         )
     }
 }
