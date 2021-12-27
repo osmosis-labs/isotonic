@@ -118,3 +118,35 @@ impl<'a> Sum<&'a Self> for CreditLineResponse {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sum_credit_line_response() {
+        let responses = vec![
+            CreditLineResponse {
+                collateral: Uint128::new(500),
+                credit_line: Uint128::new(300),
+                debt: Uint128::new(200),
+            },
+            CreditLineResponse {
+                collateral: Uint128::new(1800),
+                credit_line: Uint128::new(200),
+                debt: Uint128::new(50),
+            },
+            CreditLineResponse::zero(),
+        ];
+
+        let sum: CreditLineResponse = responses.iter().sum();
+        assert_eq!(
+            sum,
+            CreditLineResponse {
+                collateral: Uint128::new(2300),
+                credit_line: Uint128::new(500),
+                debt: Uint128::new(250),
+            },
+        );
+    }
+}

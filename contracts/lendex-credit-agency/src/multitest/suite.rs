@@ -3,6 +3,7 @@ use anyhow::Result as AnyResult;
 use cosmwasm_std::{Addr, Coin, Decimal, Empty};
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
 use lendex_market::msg::{CreditLineResponse, ExecuteMsg as MarketExecuteMsg};
+use lendex_oracle::msg::ExecuteMsg as OracleExecuteMsg;
 use utils::{interest::Interest, time::Duration};
 
 use crate::msg::{
@@ -267,15 +268,13 @@ impl Suite {
         market: &str,
         rate: Decimal,
     ) -> AnyResult<AppResponse> {
-        use lendex_oracle::msg::ExecuteMsg::SetPrice;
-
         let owner = self.owner.clone();
         let sell = market.to_owned();
 
         self.app.execute_contract(
             owner,
             self.oracle_contract.clone(),
-            &SetPrice {
+            &OracleExecuteMsg::SetPrice {
                 buy: self.common_token.clone(),
                 sell,
                 rate,

@@ -57,11 +57,11 @@ fn lender_on_two_markets() {
         .unwrap();
 
     // Sets sell/buy rate between market denom/common denom as 2.0,
-    // selling 1000 market denom give in 2000 common denom
+    // selling 1000 OSMO denom gives 2000 common denom
     suite
         .oracle_set_price_market_per_common(first_denom, Decimal::percent(200))
         .unwrap();
-    // here - selling 500 ETH denom will give 250 common denom
+    // here - selling 500 ETH denom gives 250 common denom
     suite
         .oracle_set_price_market_per_common(second_denom, Decimal::percent(50))
         .unwrap();
@@ -111,11 +111,11 @@ fn lender_on_two_markets_with_two_borrowers() {
         .unwrap();
 
     // Sets sell/buy rate between market denom/common denom as 2.0,
-    // selling 1000 market denom give in 2000 common denom
+    // selling 1000 market denom gives 2000 common denom
     suite
         .oracle_set_price_market_per_common(first_denom, Decimal::percent(200))
         .unwrap();
-    // here - selling 500 ETH denom will give 250 common denom
+    // here - selling 500 ETH denom gives 250 common denom
     suite
         .oracle_set_price_market_per_common(second_denom, Decimal::percent(50))
         .unwrap();
@@ -209,11 +209,11 @@ fn two_lenders_with_borrower_on_two_markets() {
         .unwrap();
 
     // Sets sell/buy rate between market denom/common denom as 1.5,
-    // selling 500 market denom give in 750 common denom
+    // selling 500 market denom gives 750 common denom
     suite
         .oracle_set_price_market_per_common(first_denom, Decimal::percent(150))
         .unwrap();
-    // here - selling 300 ETH denom will give 150 common denom
+    // here - selling 300 ETH denom gives 150 common denom
     suite
         .oracle_set_price_market_per_common(second_denom, Decimal::percent(50))
         .unwrap();
