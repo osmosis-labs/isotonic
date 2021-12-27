@@ -5,7 +5,7 @@ use lendex_market::msg::CreditLineResponse;
 use cosmwasm_std::{coin, Decimal, Uint128};
 
 #[test]
-fn basic_query_with_one_market() {
+fn lender_on_one_market() {
     let lender = "lender";
     let market_denom = "OSMO";
     let mut suite = SuiteBuilder::new()
@@ -40,7 +40,7 @@ fn basic_query_with_one_market() {
 }
 
 #[test]
-fn query_with_two_market() {
+fn lender_on_two_markets() {
     let lender = "lender";
     let first_denom = "OSMO";
     let second_denom = "ETH";
@@ -88,7 +88,7 @@ fn query_with_two_market() {
 }
 
 #[test]
-fn query_with_two_market_two_borrowers() {
+fn lender_on_two_markets_with_two_borrowers() {
     let lender = "lender";
     let borrower_one = "borrower1";
     let borrower_two = "borrower2";
@@ -182,6 +182,90 @@ fn query_with_two_market_two_borrowers() {
             credit_line: Uint128::new(125),
             // 400 borrowed * 0.5 oracle's price
             debt: Uint128::new(200)
+        }
+    );
+}
+
+#[test]
+fn two_lenders_with_borrower_on_two_markets() {
+    let lender_one = "lender1";
+    let lender_two = "lender2";
+    let borrower = "borrower";
+
+    let first_denom = "OSMO";
+    let second_denom = "ETH";
+
+    let mut suite = SuiteBuilder::new()
+        .with_gov("gov")
+        .with_funds(lender_one, &[coin(500, first_denom)])
+        .with_funds(lender_two, &[coin(300, second_denom)])
+        .build();
+
+    suite
+        .create_market_quick("gov", "osmo", first_denom)
+        .unwrap();
+    suite
+        .create_market_quick("gov", "ethereum", second_denom)
+        .unwrap();
+
+    // Sets sell/buy rate between market denom/common denom as 1.5,
+    // selling 500 market denom give in 750 common denom
+    suite
+        .oracle_set_price_market_per_common(first_denom, Decimal::percent(150))
+        .unwrap();
+    // here - selling 300 ETH denom will give 150 common denom
+    suite
+        .oracle_set_price_market_per_common(second_denom, Decimal::percent(50))
+        .unwrap();
+
+    // Lenders deposits all his money
+    suite
+        .deposit_tokens_on_market(lender_one, coin(500, first_denom))
+        .unwrap();
+    suite
+        .deposit_tokens_on_market(lender_two, coin(300, second_denom))
+        .unwrap();
+
+    // Borrower borrows from first and second market
+    suite
+        .borrow_tokens_from_market(borrower, coin(500, first_denom))
+        .unwrap();
+    suite
+        .borrow_tokens_from_market(borrower, coin(300, second_denom))
+        .unwrap();
+
+    let total_credit_line = suite.query_total_credit_line(lender_one).unwrap();
+    assert_eq!(
+        total_credit_line,
+        CreditLineResponse {
+            // 500 deposited * 1.5 oracle's price
+            collateral: Uint128::new(750),
+            // 500 collateral * 1.5 oracle's price * 0.5 default collateral_ratio
+            credit_line: Uint128::new(375),
+            debt: Uint128::zero()
+        }
+    );
+
+    let total_credit_line = suite.query_total_credit_line(lender_two).unwrap();
+    assert_eq!(
+        total_credit_line,
+        CreditLineResponse {
+            // 300 deposited * 0.5 oracle's price
+            collateral: Uint128::new(150),
+            // 300 collateral * 0.5 oracle's price * 0.5 default collateral_ratio
+            credit_line: Uint128::new(75),
+            debt: Uint128::zero()
+        }
+    );
+
+    let total_credit_line = suite.query_total_credit_line(borrower).unwrap();
+    assert_eq!(
+        total_credit_line,
+        CreditLineResponse {
+            collateral: Uint128::zero(),
+            credit_line: Uint128::zero(),
+            // 500 borrowed * 1.5 oracle's price + 300 borrowed * 0.5 oracle's price
+            debt: Uint128::new(900)
         }
     );
 }
