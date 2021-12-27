@@ -122,28 +122,25 @@ mod exec {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
     use QueryMsg::*;
 
     let res = match msg {
         Configuration {} => to_binary(&CONFIG.load(deps.storage)?)?,
-        Market { market_token } => to_binary(&query::market(deps, env, market_token)?)?,
+        Market { market_token } => to_binary(&query::market(deps, market_token)?)?,
         ListMarkets { start_after, limit } => {
-            to_binary(&query::list_markets(deps, env, start_after, limit)?)?
-        },
-        TotalCreditLine { account } => {
-            let account = deps.api.addr_validate(&account)?;
-            to_binary(&query::total_credit_line(deps, account)?)?
+            to_binary(&query::list_markets(deps, start_after, limit)?)?
         }
+        TotalCreditLine { account } => to_binary(&query::total_credit_line(deps, account)?)?,
     };
 
     Ok(res)
 }
 
 mod query {
-    use cosmwasm_std::{Order, Addr, StdResult};
+    use cosmwasm_std::{Order, StdResult};
     use cw_storage_plus::Bound;
-    use lendex_market::msg::CreditLineResponse;
+    use lendex_market::msg::{CreditLineResponse, QueryMsg as MarketQueryMsg};
 
     use crate::{
         msg::{ListMarketsResponse, MarketResponse},
@@ -152,11 +149,7 @@ mod query {
 
     use super::*;
 
-    pub fn market(
-        deps: Deps,
-        _env: Env,
-        market_token: String,
-    ) -> Result<MarketResponse, ContractError> {
+    pub fn market(deps: Deps, market_token: String) -> Result<MarketResponse, ContractError> {
         let state = MARKETS
             .may_load(deps.storage, &market_token)?
             .ok_or_else(|| ContractError::NoMarket(market_token.clone()))?;
@@ -177,7 +170,6 @@ mod query {
 
     pub fn list_markets(
         deps: Deps,
-        _env: Env,
         start_after: Option<String>,
         limit: Option<u32>,
     ) -> Result<ListMarketsResponse, ContractError> {
@@ -204,8 +196,26 @@ mod query {
     }
 
     /// Handler for `QueryMsg::TotalCreditLine`
-    pub fn total_credit_line(deps: Deps, account: Addr) -> Result<CreditLineResponse, ContractError> {
-        unimplemented!();
+    pub fn total_credit_line(
+        deps: Deps,
+        account: String,
+    ) -> Result<CreditLineResponse, ContractError> {
+        let total_credit_line = list_markets(deps, None, None)?
+            .markets
+            .iter()
+            .map(|market| {
+                let price_response: CreditLineResponse = deps.querier.query_wasm_smart(
+                    market.market.clone(),
+                    &MarketQueryMsg::CreditLine {
+                        account: account.clone(),
+                    },
+                )?;
+                Ok(price_response)
+            })
+            .collect::<Result<Vec<CreditLineResponse>, ContractError>>()?
+            .iter()
+            .sum();
+        Ok(total_credit_line)
     }
 }
 
