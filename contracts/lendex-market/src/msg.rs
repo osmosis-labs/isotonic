@@ -66,6 +66,11 @@ pub enum QueryMsg {
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct QueryTotalCreditLine {
+    pub account: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct InterestResponse {
     pub interest: Decimal,
     pub utilisation: Decimal,
