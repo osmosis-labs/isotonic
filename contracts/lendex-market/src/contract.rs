@@ -75,6 +75,7 @@ pub fn instantiate(
         common_token: msg.common_token,
         collateral_ratio: msg.collateral_ratio,
         price_oracle: msg.price_oracle,
+        credit_agency: info.sender.clone(),
     };
     CONFIG.save(deps.storage, &cfg)?;
 
@@ -570,8 +571,8 @@ mod query {
             let deps = mock_dependencies();
             let market_token = "market_token".to_owned();
             let config = Config {
-                ltoken_contract: Addr::unchecked("Contract #2"),
-                btoken_contract: Addr::unchecked("Contract #3"),
+                ltoken_contract: Addr::unchecked("ltoken_contract"),
+                btoken_contract: Addr::unchecked("btoken_contract"),
                 name: "lendex".to_owned(),
                 symbol: "LDX".to_owned(),
                 decimals: 9,
@@ -585,7 +586,8 @@ mod query {
                 last_charged: 300,
                 common_token: market_token,
                 collateral_ratio: Decimal::percent(50),
-                price_oracle: "Contract #0".to_owned(),
+                price_oracle: "price_oracle".to_owned(),
+                credit_agency: Addr::unchecked("credit_agency"),
             };
             // common_token is same as market_token
             let ratio = price_ratio_from_oracle(deps.as_ref(), &config).unwrap();
