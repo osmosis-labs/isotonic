@@ -202,10 +202,10 @@ mod query {
     ) -> Result<CreditLineResponse, ContractError> {
         let total_credit_line = list_markets(deps, None, None)?
             .markets
-            .iter()
+            .into_iter()
             .map(|market| {
                 let price_response: CreditLineResponse = deps.querier.query_wasm_smart(
-                    market.market.clone(),
+                    market.market,
                     &MarketQueryMsg::CreditLine {
                         account: account.clone(),
                     },

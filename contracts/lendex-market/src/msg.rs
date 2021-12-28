@@ -104,18 +104,11 @@ impl<'a> Sum<&'a Self> for CreditLineResponse {
     where
         I: Iterator<Item = &'a Self>,
     {
-        iter.fold(
-            Self {
-                collateral: Uint128::zero(),
-                credit_line: Uint128::zero(),
-                debt: Uint128::zero(),
-            },
-            |a, b| Self {
-                collateral: a.collateral + b.collateral,
-                credit_line: a.credit_line + b.credit_line,
-                debt: a.debt + b.debt,
-            },
-        )
+        iter.fold(Self::zero(), |a, b| Self {
+            collateral: a.collateral + b.collateral,
+            credit_line: a.credit_line + b.credit_line,
+            debt: a.debt + b.debt,
+        })
     }
 }
 
