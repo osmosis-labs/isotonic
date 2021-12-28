@@ -118,9 +118,9 @@ fn lender_on_two_markets_with_two_borrowers() {
 
     let mut suite = SuiteBuilder::new()
         .with_gov("gov")
-        .with_funds(lender, &[coin(1000, first_denom), coin(500, second_denom)])
-        .with_funds(borrower_one, &[coin(100, first_denom)])
-        .with_funds(borrower_two, &[coin(100, second_denom)])
+        .with_funds(lender, &[coin(100, first_denom), coin(500, second_denom)])
+        .with_funds(borrower_one, &[coin(1000, first_denom)])
+        .with_funds(borrower_two, &[coin(1500, second_denom)])
         .build();
 
     suite
@@ -142,39 +142,39 @@ fn lender_on_two_markets_with_two_borrowers() {
 
     // Lender deposits all his money
     suite
-        .deposit_tokens_on_market(lender, coin(1000, first_denom))
+        .deposit_tokens_on_market(lender, coin(100, first_denom))
         .unwrap();
     suite
         .deposit_tokens_on_market(lender, coin(500, second_denom))
         .unwrap();
 
-    // First borrower borrows and deposits
+    // First borrower deposits and then borrows
     suite
-        .borrow_tokens_from_market(borrower_one, coin(900, first_denom))
-        .unwrap();
-    suite
-        // deposits 100 owned + 900 borrowed
+        // deposits 1000 owned
         .deposit_tokens_on_market(borrower_one, coin(1000, first_denom))
         .unwrap();
-
-    // Second borrower borrows and deposits
     suite
-        .borrow_tokens_from_market(borrower_two, coin(400, second_denom))
+        .borrow_tokens_from_market(borrower_one, coin(500, second_denom))
+        .unwrap();
+
+    // Second borrower deposits
+    suite
+        // deposits 1500 owned
+        .deposit_tokens_on_market(borrower_two, coin(1500, second_denom))
         .unwrap();
     suite
-        // deposits 100 owned + 400 borrowed
-        .deposit_tokens_on_market(borrower_two, coin(500, second_denom))
+        .borrow_tokens_from_market(borrower_two, coin(100, first_denom))
         .unwrap();
 
     let total_credit_line = suite.query_total_credit_line(lender).unwrap();
     assert_eq!(
         total_credit_line,
         CreditLineResponse {
-            // 1000 deposited * 2.0 oracle's price + 500 deposited * 0.5 oracle's price
-            collateral: Uint128::new(2250),
-            // 1000 collateral * 2.0 oracle's price * 0.5 default collateral_ratio
+            // 100 deposited * 2.0 oracle's price + 500 deposited * 0.5 oracle's price
+            collateral: Uint128::new(450),
+            // 100 collateral * 2.0 oracle's price * 0.5 default collateral_ratio
             //   + 500 collateral * 0.5 oracle's price * 0.5 default collateral_ratio
-            credit_line: Uint128::new(1125),
+            credit_line: Uint128::new(225),
             debt: Uint128::zero()
         }
     );
@@ -187,8 +187,8 @@ fn lender_on_two_markets_with_two_borrowers() {
             collateral: Uint128::new(2000),
             // 1000 collateral * 2.0 oracle's price * 0.5 default collateral_ratio
             credit_line: Uint128::new(1000),
-            // 900 borrowed * 2.0 oracle's price
-            debt: Uint128::new(1800)
+            // 500 borrowed * 0.5 oracle's price (second denom)
+            debt: Uint128::new(250)
         }
     );
 
@@ -196,11 +196,11 @@ fn lender_on_two_markets_with_two_borrowers() {
     assert_eq!(
         total_credit_line,
         CreditLineResponse {
-            // 500 deposited * 0.5 oracle's price
-            collateral: Uint128::new(250),
-            // 500 collateral * 0.5 oracle's price * 0.5 default collateral_ratio
-            credit_line: Uint128::new(125),
-            // 400 borrowed * 0.5 oracle's price
+            // 1500 deposited * 0.5 oracle's price
+            collateral: Uint128::new(750),
+            // 1500 collateral * 0.5 oracle's price * 0.5 default collateral_ratio
+            credit_line: Uint128::new(375),
+            // 1000 borrowed * 2.0 oracle's price (first denom)
             debt: Uint128::new(200)
         }
     );
@@ -219,6 +219,7 @@ fn two_lenders_with_borrower_on_two_markets() {
         .with_gov("gov")
         .with_funds(lender_one, &[coin(500, first_denom)])
         .with_funds(lender_two, &[coin(300, second_denom)])
+        .with_funds(borrower, &[coin(3000, first_denom)])
         .build();
 
     suite
@@ -246,7 +247,10 @@ fn two_lenders_with_borrower_on_two_markets() {
         .deposit_tokens_on_market(lender_two, coin(300, second_denom))
         .unwrap();
 
-    // Borrower borrows from first and second market
+    // Borrower deposits his tokens on first market, then borrows from first and second market
+    suite
+        .deposit_tokens_on_market(borrower, coin(3000, first_denom))
+        .unwrap();
     suite
         .borrow_tokens_from_market(borrower, coin(500, first_denom))
         .unwrap();
@@ -282,8 +286,10 @@ fn two_lenders_with_borrower_on_two_markets() {
     assert_eq!(
         total_credit_line,
         CreditLineResponse {
-            collateral: Uint128::zero(),
-            credit_line: Uint128::zero(),
+            // 3000 deposited * 1.5 oracle's price
+            collateral: Uint128::new(4500),
+            // 3000 collateral * 1.5 oracle's price * 0.5 default collateral_ratio
+            credit_line: Uint128::new(2250),
             // 500 borrowed * 1.5 oracle's price + 300 borrowed * 0.5 oracle's price
             debt: Uint128::new(900)
         }
