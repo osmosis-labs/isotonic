@@ -29,4 +29,5 @@ utils = { version = "0.2.0", path = "../../packages/utils" }
 anyhow = "1"
 cosmwasm-schema = { version = "1.0.0-beta" }
 cw-multi-test = "0.10"
+lendex-oracle = { path = "../lendex-oracle", version = "0.2.0", features = ["library"] }
 lendex-token = { path = "../lendex-token", version = "0.2.0", features = ["library"] }

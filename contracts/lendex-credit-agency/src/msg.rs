@@ -58,6 +58,10 @@ pub enum QueryMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
+    /// Queries all markets for credit lines for particular account
+    /// and returns sum of all of them.
+    /// Returns CreditLineResponse
+    TotalCreditLine { account: String },
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]

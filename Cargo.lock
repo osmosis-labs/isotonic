@@ -413,6 +413,7 @@ dependencies = [
  "cw0",
  "cw2",
  "lendex-market",
+ "lendex-oracle",
  "lendex-token",
  "schemars",
  "serde",

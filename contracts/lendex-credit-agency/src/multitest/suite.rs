@@ -1,13 +1,25 @@
 use anyhow::Result as AnyResult;
 
-use cosmwasm_std::{Addr, Decimal, Empty};
+use cosmwasm_std::{Addr, Coin, Decimal, Empty};
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
-use utils::interest::Interest;
+use lendex_market::msg::{CreditLineResponse, ExecuteMsg as MarketExecuteMsg};
+use lendex_oracle::msg::ExecuteMsg as OracleExecuteMsg;
+use utils::{interest::Interest, time::Duration};
 
 use crate::msg::{
     ExecuteMsg, InstantiateMsg, ListMarketsResponse, MarketConfig, MarketResponse, QueryMsg,
 };
 use crate::state::Config;
+
+fn contract_oracle() -> Box<dyn Contract<Empty>> {
+    let contract = ContractWrapper::new(
+        lendex_oracle::contract::execute,
+        lendex_oracle::contract::instantiate,
+        lendex_oracle::contract::query,
+    );
+
+    Box::new(contract)
+}
 
 fn contract_credit_agency() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new(
@@ -46,6 +58,8 @@ fn contract_token() -> Box<dyn Contract<Empty>> {
 pub struct SuiteBuilder {
     gov_contract: String,
     reward_token: String,
+    /// Initial funds to provide for testing
+    funds: Vec<(Addr, Vec<Coin>)>,
 }
 
 impl SuiteBuilder {
@@ -53,6 +67,7 @@ impl SuiteBuilder {
         Self {
             gov_contract: "owner".to_string(),
             reward_token: "reward".to_string(),
+            funds: vec![],
         }
     }
 
@@ -66,10 +81,32 @@ impl SuiteBuilder {
         self
     }
 
+    /// Sets initial amount of distributable tokens on address
+    pub fn with_funds(mut self, addr: &str, funds: &[Coin]) -> Self {
+        self.funds.push((Addr::unchecked(addr), funds.into()));
+        self
+    }
+
     #[track_caller]
     pub fn build(self) -> Suite {
         let mut app = App::default();
         let owner = Addr::unchecked("owner");
+        let common_token = "common".to_owned();
+
+        let oracle_id = app.store_code(contract_oracle());
+        let oracle_contract = app
+            .instantiate_contract(
+                oracle_id,
+                owner.clone(),
+                &lendex_oracle::msg::InstantiateMsg {
+                    oracle: owner.to_string(),
+                    maximum_age: Duration::new(999999),
+                },
+                &[],
+                "oracle",
+                Some(owner.to_string()),
+            )
+            .unwrap();
 
         let lendex_market_id = app.store_code(contract_market());
         let lendex_token_id = app.store_code(contract_token());
@@ -83,7 +120,7 @@ impl SuiteBuilder {
                     lendex_market_id,
                     lendex_token_id,
                     reward_token: self.reward_token,
-                    common_token: "common".to_owned(),
+                    common_token: common_token.clone(),
                 },
                 &[],
                 "credit-agency",
@@ -91,7 +128,23 @@ impl SuiteBuilder {
             )
             .unwrap();
 
-        Suite { app, contract }
+        let funds = self.funds;
+
+        app.init_modules(|router, _, storage| -> AnyResult<()> {
+            for (addr, coin) in funds {
+                router.bank.init_balance(storage, &addr, coin)?;
+            }
+            Ok(())
+        })
+        .unwrap();
+
+        Suite {
+            app,
+            owner,
+            contract,
+            common_token,
+            oracle_contract,
+        }
     }
 }
 
@@ -99,8 +152,14 @@ impl SuiteBuilder {
 pub struct Suite {
     /// The multitest app
     app: App,
+    /// Contract's owner
+    owner: Addr,
     /// Address of the Credit Agency contract
     contract: Addr,
+    /// Common token
+    common_token: String,
+    /// Address of lendex price oracle
+    oracle_contract: Addr,
 }
 
 impl Suite {
@@ -132,7 +191,7 @@ impl Suite {
                 },
                 interest_charge_period: 300, // seconds
                 collateral_ratio: Decimal::percent(50),
-                price_oracle: "oracle".to_owned(),
+                price_oracle: self.oracle_contract.to_string(),
             },
         )
     }
@@ -152,6 +211,17 @@ impl Suite {
             self.contract.clone(),
             &QueryMsg::Market {
                 market_token: asset.to_string(),
+            },
+        )?;
+        Ok(resp)
+    }
+
+    /// Queries all markets within agency and returns sum of credit lines
+    pub fn query_total_credit_line(&self, account: &str) -> AnyResult<CreditLineResponse> {
+        let resp: CreditLineResponse = self.app.wrap().query_wasm_smart(
+            self.contract.clone(),
+            &QueryMsg::TotalCreditLine {
+                account: account.to_string(),
             },
         )?;
         Ok(resp)
@@ -190,5 +260,60 @@ impl Suite {
             },
         )?;
         Ok(resp)
+    }
+
+    /// Sets sell/buy price (rate) between market_token and common_token
+    pub fn oracle_set_price_market_per_common(
+        &mut self,
+        market: &str,
+        rate: Decimal,
+    ) -> AnyResult<AppResponse> {
+        let owner = self.owner.clone();
+        let sell = market.to_owned();
+
+        self.app.execute_contract(
+            owner,
+            self.oracle_contract.clone(),
+            &OracleExecuteMsg::SetPrice {
+                buy: self.common_token.clone(),
+                sell,
+                rate,
+            },
+            &[],
+        )
+    }
+
+    /// Deposit tokens on market selected by denom of Coin
+    pub fn deposit_tokens_on_market(
+        &mut self,
+        account: &str,
+        tokens: Coin,
+    ) -> AnyResult<AppResponse> {
+        let market = self.query_market(tokens.denom.as_str())?;
+
+        self.app.execute_contract(
+            Addr::unchecked(account),
+            market.market,
+            &MarketExecuteMsg::Deposit {},
+            &[tokens],
+        )
+    }
+
+    /// Borrow tokens from market selected by denom and amount of Coin
+    pub fn borrow_tokens_from_market(
+        &mut self,
+        account: &str,
+        tokens: Coin,
+    ) -> AnyResult<AppResponse> {
+        let market = self.query_market(tokens.denom.as_str())?;
+
+        self.app.execute_contract(
+            Addr::unchecked(account),
+            market.market,
+            &MarketExecuteMsg::Borrow {
+                amount: tokens.amount,
+            },
+            &[],
+        )
     }
 }

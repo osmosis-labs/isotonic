@@ -13,8 +13,8 @@ fn market_instantiate_and_query_config() {
     assert_eq!(
         Config {
             gov_contract: Addr::unchecked("gov"),
-            lendex_market_id: 1,
-            lendex_token_id: 2,
+            lendex_market_id: 2,
+            lendex_token_id: 3,
             reward_token: "ENG".to_owned(),
             common_token: "common".to_owned(),
         },
