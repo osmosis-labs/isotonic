@@ -153,52 +153,56 @@ pub fn execute(
 mod execute {
     use super::*;
 
-    use cosmwasm_std::Fraction;
+    mod utils {
+        use super::*;
 
-    fn divide(top: Uint128, bottom: Decimal) -> Uint128 {
-        top * bottom.inv().unwrap_or_else(Decimal::zero)
-    }
+        use cosmwasm_std::Fraction;
 
-    fn query_available_tokens(
-        deps: Deps,
-        config: &Config,
-        account: String,
-    ) -> Result<Uint128, ContractError> {
-        let credit: CreditLineResponse = deps.querier.query_wasm_smart(
-            &config.credit_agency,
-            &QueryTotalCreditLine {
-                account,
-            },
-        )?;
-        // how much eg OSMO we can still use
-        let available_common = credit.credit_line.saturating_sub(credit.debt);
-        // We defined price as common/local in #21 so we need to divide by it
-        let available = divide(
-            available_common,
-            query::price_ratio_from_oracle(deps, config)?,
-        );
-        Ok(available)
-    }
+        fn divide(top: Uint128, bottom: Decimal) -> Uint128 {
+            top * bottom.inv().unwrap_or_else(Decimal::zero)
+        }
 
-    fn can_borrow(
-        deps: Deps,
-        config: &Config,
-        account: impl Into<String>,
-        amount: Uint128,
-    ) -> Result<bool, ContractError> {
-        let available = query_available_tokens(deps, config, account.into())?;
-        Ok(amount <= available)
-    }
+        fn query_available_tokens(
+            deps: Deps,
+            config: &Config,
+            account: String,
+        ) -> Result<Uint128, ContractError> {
+            let credit: CreditLineResponse = deps
+                .querier
+                .query_wasm_smart(&config.credit_agency, &QueryTotalCreditLine { account })?;
+            // how much eg OSMO we can still use
+            let available_common = credit.credit_line.saturating_sub(credit.debt);
+            // We defined price as common/local in #21 so we need to divide by it
+            let available = divide(
+                available_common,
+                query::price_ratio_from_oracle(deps, config)?,
+            );
+            Ok(available)
+        }
 
-    /// Helper that determines if an address can withdraw the specified amount.
-    fn can_withdraw(deps: Deps,
-        config: &Config,
-        account: impl Into<String>,
-        amount: Uint128) -> Result<bool, ContractError> {
-        let available = query_available_tokens(deps, config, account.into())?;
-        let can_transfer = divide(available, config.collateral_ratio);
+        /// Helper that determines if an address can borrow the specified amount.
+        pub fn can_borrow(
+            deps: Deps,
+            config: &Config,
+            account: impl Into<String>,
+            amount: Uint128,
+        ) -> Result<bool, ContractError> {
+            let available = query_available_tokens(deps, config, account.into())?;
+            Ok(amount <= available)
+        }
 
-        Ok(amount <= can_transfer)
+        /// Helper that determines if an address can withdraw the specified amount.
+        pub fn can_withdraw(
+            deps: Deps,
+            config: &Config,
+            account: impl Into<String>,
+            amount: Uint128,
+        ) -> Result<bool, ContractError> {
+            let available = query_available_tokens(deps, config, account.into())?;
+            let can_transfer = divide(available, config.collateral_ratio);
+
+            Ok(amount <= can_transfer)
+        }
     }
 
     /// Function that is supposed to be called before every mint/burn operation.
@@ -315,7 +319,7 @@ mod execute {
     ) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
 
-        if !can_withdraw(deps.as_ref(), &cfg, &info.sender, amount)? {
+        if !utils::can_withdraw(deps.as_ref(), &cfg, &info.sender, amount)? {
             return Err(ContractError::CannotWithdraw {
                 account: info.sender.to_string(),
                 amount,
@@ -355,7 +359,6 @@ mod execute {
         Ok(response)
     }
 
-
     /// Handler for `ExecuteMsg::Borrow`
     pub fn borrow(
         deps: DepsMut,
@@ -365,7 +368,7 @@ mod execute {
     ) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
 
-        if !can_borrow(deps.as_ref(), &cfg, &info.sender, amount)? {
+        if !utils::can_borrow(deps.as_ref(), &cfg, &info.sender, amount)? {
             return Err(ContractError::CannotBorrow {
                 amount,
                 account: info.sender.to_string(),
