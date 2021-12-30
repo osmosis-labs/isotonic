@@ -10,6 +10,10 @@ fn borrow_works() {
         .with_market_token("ATOM")
         .build();
 
+    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+    suite.set_high_credit_line(borrower).unwrap();
+
     // At first, the borrower has no b-token, and the contract has some base assets
     assert_eq!(suite.query_contract_asset_balance().unwrap(), 150);
     assert_eq!(suite.query_btoken_balance(borrower).unwrap().u128(), 0);
@@ -30,6 +34,10 @@ fn borrow_and_repay() {
         .with_market_token(market_token)
         .build();
 
+    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+    suite.set_high_credit_line(borrower).unwrap();
+
     // Borrow some tokens
     suite.borrow(borrower, 100).unwrap();
     assert_eq!(suite.query_contract_asset_balance().unwrap(), 50);
@@ -48,6 +56,10 @@ fn repay_small_amounts() {
         .with_contract_funds(coin(100, market_token))
         .with_market_token(market_token)
         .build();
+
+    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+    suite.set_high_credit_line(borrower).unwrap();
 
     // Borrow some tokens
     suite.borrow(borrower, 100).unwrap();
@@ -71,6 +83,10 @@ fn overpay_repay() {
         .with_contract_funds(coin(100, market_token))
         .with_market_token(market_token)
         .build();
+
+    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+    suite.set_high_credit_line(borrower).unwrap();
 
     // Borrow some tokens
     suite.borrow(borrower, 100).unwrap();

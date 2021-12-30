@@ -140,7 +140,7 @@ impl SuiteBuilder {
                 owner.clone(),
                 &lendex_oracle::msg::InstantiateMsg {
                     oracle: owner.to_string(),
-                    maximum_age: Duration::new(999999),
+                    maximum_age: Duration::new(99999999),
                 },
                 &[],
                 "oracle",
@@ -418,23 +418,34 @@ impl Suite {
         )
     }
 
+    /// Quick helper to set price ratio between market and common tokens to 1.0
+    pub fn set_token_ratio_one(&mut self) -> AnyResult<AppResponse> {
+        self.oracle_set_price_market_per_common(Decimal::percent(100))
+    }
+
     /// Sets TotalCreditLine response for CA mock
     pub fn set_credit_line(
         &mut self,
         account: impl ToString,
-        collateral: impl Into<Option<Uint128>>,
-        credit_line: impl Into<Option<Uint128>>,
-        debt: impl Into<Option<Uint128>>,
+        credit_line: CreditLineResponse,
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             Addr::unchecked(account.to_string()),
             self.ca_contract.clone(),
-            &CAExecuteMsg::SetCreditLine {
-                collateral: collateral.into(),
-                credit_line: credit_line.into(),
-                debt: debt.into(),
-            },
+            &CAExecuteMsg::SetCreditLine { credit_line },
             &[],
+        )
+    }
+
+    /// Sets TotalCreditLine with arbitrary high credit line and no debt
+    pub fn set_high_credit_line(&mut self, account: impl ToString) -> AnyResult<AppResponse> {
+        self.set_credit_line(
+            account,
+            CreditLineResponse {
+                collateral: Uint128::new(10000),
+                credit_line: Uint128::new(10000),
+                debt: Uint128::zero(),
+            },
         )
     }
 }

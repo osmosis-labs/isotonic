@@ -52,6 +52,10 @@ fn borrower_borrows_tokens() {
         .with_market_token(market_token)
         .build();
 
+    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+    suite.set_high_credit_line(borrower).unwrap();
+
     // sell/buy ratio between common_token and market_token is 2.0
     // which means borrowing (buying) 1000 market btokens will get
     // debt of 2000 common tokens
@@ -128,6 +132,11 @@ fn deposits_and_borrows_tokens() {
         .with_market_token(market_token)
         .build();
 
+    // Set arbitrary market/common exchange ratio and credit lines (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+    suite.set_high_credit_line(borrower).unwrap();
+    suite.set_high_credit_line(lender).unwrap();
+
     // sell/buy ratio between common_token and market_token is 2.0
     suite
         .oracle_set_price_market_per_common(Decimal::percent(200))
@@ -184,6 +193,10 @@ fn deposits_and_borrows_tokens_market_common_matches_denoms() {
         .with_market_token(market_token)
         .with_common_token(market_token)
         .build();
+
+    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+    suite.set_high_credit_line(borrower).unwrap();
 
     suite.deposit(lender, &[coin(1000, market_token)]).unwrap();
     suite.borrow(borrower, 1000).unwrap();

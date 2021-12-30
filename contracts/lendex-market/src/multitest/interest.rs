@@ -1,6 +1,6 @@
 use super::suite::SuiteBuilder;
 
-use cosmwasm_std::{coin, Coin, Decimal, Timestamp, Uint128};
+use cosmwasm_std::{coin, Coin, Decimal, Timestamp};
 use lendex_token::DisplayAmount;
 
 use crate::msg::InterestResponse;
@@ -15,6 +15,10 @@ fn query_interest() {
         .with_funds(lender, &[coin(150, market_token)])
         .with_market_token(market_token)
         .build();
+
+    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+    suite.set_high_credit_line(borrower).unwrap();
 
     // At first, the lender has no l-token, and the contract has no base asset.
     assert_eq!(suite.query_ltoken_balance(lender).unwrap().u128(), 0);
@@ -111,21 +115,13 @@ fn charge_interest_borrow() {
         .with_market_token(market_token)
         .build();
 
+    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+    suite.set_high_credit_line(borrower).unwrap();
+
     // Deposit some tokens
     suite
         .deposit(lender, &[Coin::new(2000, market_token)])
-        .unwrap();
-
-    suite
-        .oracle_set_price_market_per_common(Decimal::percent(100))
-        .unwrap();
-    suite
-        .set_credit_line(
-            borrower,
-            Some(Uint128::new(2000)),
-            Some(Uint128::new(2000)),
-            None,
-        )
         .unwrap();
 
     // Borrow some tokens
@@ -187,6 +183,11 @@ fn charge_interest_deposit() {
         .with_interest(4, 20)
         .with_market_token(market_token)
         .build();
+
+    // Set arbitrary market/common exchange ratio and credit lines (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+    suite.set_high_credit_line(borrower).unwrap();
+    suite.set_high_credit_line(lender).unwrap();
 
     // Deposit some tokens
     suite
