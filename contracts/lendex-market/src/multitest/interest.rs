@@ -1,6 +1,6 @@
 use super::suite::SuiteBuilder;
 
-use cosmwasm_std::{coin, Coin, Decimal, Timestamp};
+use cosmwasm_std::{coin, Coin, Decimal, Timestamp, Uint128};
 use lendex_token::DisplayAmount;
 
 use crate::msg::InterestResponse;
@@ -114,6 +114,18 @@ fn charge_interest_borrow() {
     // Deposit some tokens
     suite
         .deposit(lender, &[Coin::new(2000, market_token)])
+        .unwrap();
+
+    suite
+        .oracle_set_price_market_per_common(Decimal::percent(100))
+        .unwrap();
+    suite
+        .set_credit_line(
+            borrower,
+            Some(Uint128::new(2000)),
+            Some(Uint128::new(2000)),
+            None,
+        )
         .unwrap();
 
     // Borrow some tokens

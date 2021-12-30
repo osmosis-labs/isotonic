@@ -5,6 +5,10 @@ use cw20::BalanceResponse;
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
 use utils::{interest::Interest, time::Duration};
 
+use super::ca_mock::{
+    contract as contract_credit_agency, ExecuteMsg as CAExecuteMsg,
+    InstantiateMsg as CAInstantiateMsg,
+};
 use crate::msg::{
     CreditLineResponse, ExecuteMsg, InstantiateMsg, InterestResponse, QueryMsg,
     TransferableAmountResponse,
@@ -144,12 +148,25 @@ impl SuiteBuilder {
             )
             .unwrap();
 
+        let ca_id = app.store_code(contract_credit_agency());
+        let ca_contract = app
+            .instantiate_contract(
+                ca_id,
+                owner.clone(),
+                &CAInstantiateMsg {},
+                &[],
+                "credit-agency",
+                Some(owner.to_string()),
+            )
+            .unwrap();
+
         let token_id = app.store_code(contract_token());
         let contract_id = app.store_code(contract_market());
         let contract = app
             .instantiate_contract(
                 contract_id,
-                owner.clone(),
+                // set credit agency mock as owner of market
+                ca_contract.clone(),
                 &InstantiateMsg {
                     name: self.name,
                     symbol: self.symbol,
@@ -202,9 +219,10 @@ impl SuiteBuilder {
             contract,
             ltoken_contract: config.ltoken_contract,
             btoken_contract: config.btoken_contract,
-            oracle_contract,
             market_token,
             common_token,
+            ca_contract,
+            oracle_contract,
         }
     }
 }
@@ -224,6 +242,8 @@ pub struct Suite {
     market_token: String,
     /// Credit agency token's common denom (with other markets)
     common_token: String,
+    /// Credit Agency contract address
+    ca_contract: Addr,
     /// Oracle contract address
     oracle_contract: Addr,
 }
@@ -394,6 +414,26 @@ impl Suite {
             owner,
             self.oracle_contract.clone(),
             &SetPrice { buy, sell, rate },
+            &[],
+        )
+    }
+
+    /// Sets TotalCreditLine response for CA mock
+    pub fn set_credit_line(
+        &mut self,
+        account: impl ToString,
+        collateral: impl Into<Option<Uint128>>,
+        credit_line: impl Into<Option<Uint128>>,
+        debt: impl Into<Option<Uint128>>,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            Addr::unchecked(account.to_string()),
+            self.ca_contract.clone(),
+            &CAExecuteMsg::SetCreditLine {
+                collateral: collateral.into(),
+                credit_line: credit_line.into(),
+                debt: debt.into(),
+            },
             &[],
         )
     }

@@ -167,9 +167,10 @@ mod execute {
             config: &Config,
             account: String,
         ) -> Result<Uint128, ContractError> {
-            let credit: CreditLineResponse = deps
-                .querier
-                .query_wasm_smart(&config.credit_agency, &QueryTotalCreditLine { account })?;
+            let credit: CreditLineResponse = deps.querier.query_wasm_smart(
+                &config.credit_agency,
+                &QueryTotalCreditLine::TotalCreditLine { account },
+            )?;
             // how much eg OSMO we can still use
             let available_common = credit.credit_line.saturating_sub(credit.debt);
             // We defined price as common/local in #21 so we need to divide by it

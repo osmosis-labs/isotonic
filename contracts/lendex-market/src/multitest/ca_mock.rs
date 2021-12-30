@@ -1,18 +1,21 @@
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{to_binary, Uint128, Binary, Empty, Deps, DepsMut, Env, Response, MessageInfo, StdError};
+use cosmwasm_std::{
+    to_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdError, StdResult,
+    Uint128,
+};
 use cw_multi_test::{Contract, ContractWrapper};
 use cw_storage_plus::Map;
 
 use crate::msg::CreditLineResponse;
 
-pub const CLR: Map<&String, CreditLineResponse> = Map::new("clr");
+pub const CLR: Map<&Addr, CreditLineResponse> = Map::new("clr");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InstantiateMsg {
-}
+pub struct InstantiateMsg {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     SetCreditLine {
         collateral: Option<Uint128>,
@@ -28,7 +31,7 @@ pub enum QueryMsg {
 }
 
 fn instantiate(
-    deps: DepsMut,
+    _deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
     _msg: InstantiateMsg,
@@ -39,17 +42,33 @@ fn instantiate(
 fn execute(
     deps: DepsMut,
     _env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, StdError> {
     match msg {
-        ExecuteMsg::SetCreditLine { collateral, credit_line, debt } => {
-            let credit_line = CreditLineResponse {
-                collateral: collateral.unwrap_or(clr.collateral),
-                credit_line: credit_line.unwrap_or(clr.credit_line),
-                debt: debt.unwrap_or(clr.debt),
-            };
-            CLR.update(deps.storage, &credit_line)?;
+        ExecuteMsg::SetCreditLine {
+            collateral,
+            credit_line,
+            debt,
+        } => {
+            dbg!("Execute scl: {}", info.sender.clone());
+            CLR.update(deps.storage, &info.sender, |old| -> StdResult<_> {
+                dbg!("update!");
+                let clr = match old {
+                    Some(clr) => CreditLineResponse {
+                        collateral: collateral.unwrap_or(clr.collateral),
+                        credit_line: credit_line.unwrap_or(clr.credit_line),
+                        debt: debt.unwrap_or(clr.debt),
+                    },
+                    None => CreditLineResponse {
+                        collateral: collateral.unwrap_or_else(Uint128::zero),
+                        credit_line: credit_line.unwrap_or_else(Uint128::zero),
+                        debt: debt.unwrap_or_else(Uint128::zero),
+                    },
+                };
+                dbg!(clr.clone());
+                Ok(clr)
+            })?;
         }
     }
 
@@ -58,8 +77,9 @@ fn execute(
 
 fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, StdError> {
     match msg {
-        QueryMsg::TotalCreditLine { .. } => {
-            to_binary(&CLR.load(deps.storage)?)
+        QueryMsg::TotalCreditLine { account } => {
+            dbg!("Query scl: {}", account.clone());
+            to_binary(&CLR.load(deps.storage, &Addr::unchecked(account))?)
         }
     }
 }

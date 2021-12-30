@@ -1,7 +1,7 @@
 mod borrow_repay;
+mod ca_mock;
 mod credit_line;
 mod deposit;
-mod ca_mock;
 mod interest;
 pub mod suite;
 mod withdraw;
