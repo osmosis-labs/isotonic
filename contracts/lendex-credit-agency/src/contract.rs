@@ -1,6 +1,6 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Addr, Env, MessageInfo, Reply, Response};
+use cosmwasm_std::{to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response};
 use cw0::parse_reply_instantiate_data;
 use cw2::set_contract_version;
 
@@ -49,10 +49,13 @@ pub fn execute(
 
     match msg {
         CreateMarket(market_cfg) => exec::create_market(deps, env, info, market_cfg),
-        Liquidate { account, collateral_denom } => {
+        Liquidate {
+            account,
+            collateral_denom,
+        } => {
             let account = deps.api.addr_validate(&account)?;
-            exec::liquidate(deps, account, collateral_denom)
-        },
+            exec::liquidate(deps, info, account, collateral_denom)
+        }
     }
 }
 
@@ -125,7 +128,22 @@ mod exec {
             .add_submessage(SubMsg::reply_on_success(market_instantiate, reply_id)))
     }
 
-    pub fn liquidate(deps: DepsMut, account: Addr, collateral_denom: String) -> Result<Response, ContractError> {
+    pub fn liquidate(
+        deps: DepsMut,
+        info: MessageInfo,
+        account: Addr,
+        collateral_denom: String,
+    ) -> Result<Response, ContractError> {
+        // assert that given account actually has more debt then credit
+        let total_credit_line = query::total_credit_line(deps.as_ref(), account.to_string())?;
+        if total_credit_line.debt <= total_credit_line.credit_line {
+            return Err(ContractError::LiquidationNotAllowed {});
+        }
+
+        // repay the debt
+        let cfg = CONFIG.load(deps.storage)?;
+
+        // reward with collateral
         unimplemented!();
         Ok(Response::new())
     }
