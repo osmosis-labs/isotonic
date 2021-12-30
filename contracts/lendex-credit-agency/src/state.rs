@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Decimal, Addr};
 use cw_storage_plus::{Item, Map};
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -17,6 +17,8 @@ pub struct Config {
     pub reward_token: String,
     /// Common Token denom (same for all markets)
     pub common_token: String,
+    /// Price for collateral in exchange for paying debt during liquidation
+    pub liquidation_price: Decimal,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]

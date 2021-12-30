@@ -17,12 +17,19 @@ pub struct InstantiateMsg {
     pub reward_token: String,
     /// Common Token denom (same for all markets)
     pub common_token: String,
+    /// Price for collateral in exchange for paying debt during liquidation
+    pub liquidation_price: Decimal,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     CreateMarket(MarketConfig),
+    /// Tries to perform liquidation on passed account using collateral's denom
+    Liquidate {
+        account: String,
+        collateral_denom: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

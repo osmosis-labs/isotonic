@@ -1,6 +1,6 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response};
+use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Addr, Env, MessageInfo, Reply, Response};
 use cw0::parse_reply_instantiate_data;
 use cw2::set_contract_version;
 
@@ -27,6 +27,7 @@ pub fn instantiate(
         lendex_token_id: msg.lendex_token_id,
         reward_token: msg.reward_token,
         common_token: msg.common_token,
+        liquidation_price: msg.liquidation_price,
     };
     CONFIG.save(deps.storage, &cfg)?;
     NEXT_REPLY_ID.save(deps.storage, &0)?;
@@ -48,6 +49,10 @@ pub fn execute(
 
     match msg {
         CreateMarket(market_cfg) => exec::create_market(deps, env, info, market_cfg),
+        Liquidate { account, collateral_denom } => {
+            let account = deps.api.addr_validate(&account)?;
+            exec::liquidate(deps, account, collateral_denom)
+        },
     }
 }
 
@@ -118,6 +123,11 @@ mod exec {
             .add_attribute("action", "create_market")
             .add_attribute("sender", info.sender)
             .add_submessage(SubMsg::reply_on_success(market_instantiate, reply_id)))
+    }
+
+    pub fn liquidate(deps: DepsMut, account: Addr, collateral_denom: String) -> Result<Response, ContractError> {
+        unimplemented!();
+        Ok(Response::new())
     }
 }
 
