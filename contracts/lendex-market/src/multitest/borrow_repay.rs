@@ -1,6 +1,7 @@
-use super::suite::SuiteBuilder;
+use cosmwasm_std::{coin, Uint128};
 
-use cosmwasm_std::coin;
+use super::suite::SuiteBuilder;
+use crate::{error::ContractError, msg::CreditLineResponse};
 
 #[test]
 fn borrow_works() {
@@ -46,6 +47,41 @@ fn borrow_and_repay() {
     suite.repay(borrower, coin(100, market_token)).unwrap();
     assert_eq!(suite.query_contract_asset_balance().unwrap(), 150);
     assert_eq!(suite.query_btoken_balance(borrower).unwrap().u128(), 0);
+}
+
+#[test]
+fn cant_borrow_with_debt_higher_then_credit_line() {
+    let borrower = "borrower";
+    let mut suite = SuiteBuilder::new()
+        .with_funds(borrower, &[coin(100, "ATOM")])
+        .with_market_token("ATOM")
+        .build();
+
+    // Set arbitrary market/common exchange ratio (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+
+    suite.deposit(borrower, &[coin(100, "ATOM")]).unwrap();
+
+    // Set debt higher then credit line
+    suite
+        .set_credit_line(
+            borrower,
+            CreditLineResponse {
+                collateral: Uint128::new(100),
+                credit_line: Uint128::new(100),
+                debt: Uint128::new(200),
+            },
+        )
+        .unwrap();
+
+    let err = suite.borrow(borrower, 100).unwrap_err();
+    assert_eq!(
+        ContractError::CannotBorrow {
+            amount: Uint128::new(100),
+            account: borrower.to_owned()
+        },
+        err.downcast().unwrap()
+    );
 }
 
 #[test]

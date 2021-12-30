@@ -171,9 +171,10 @@ mod execute {
                 &config.credit_agency,
                 &QueryTotalCreditLine::TotalCreditLine { account },
             )?;
-            // how much eg OSMO we can still use
+            // Available credit for that account amongst all markets
             let available_common = credit.credit_line.saturating_sub(credit.debt);
-            // We defined price as common/local in #21 so we need to divide by it
+            // Price is defined as common/local
+            // (see price_ratio_from_oracle function from this file)
             let available = divide(
                 available_common,
                 query::price_ratio_from_oracle(deps, config)?,
@@ -201,7 +202,6 @@ mod execute {
         ) -> Result<bool, ContractError> {
             let available = query_available_tokens(deps, config, account.into())?;
             let can_transfer = divide(available, config.collateral_ratio);
-
             Ok(amount <= can_transfer)
         }
     }

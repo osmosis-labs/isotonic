@@ -1,4 +1,4 @@
-use cosmwasm_std::{coin, Coin};
+use cosmwasm_std::coin;
 
 use super::suite::SuiteBuilder;
 
@@ -15,7 +15,7 @@ fn withdraw_works() {
     suite.set_high_credit_line(lender).unwrap();
 
     // Deposit some tokens so we have something to withdraw.
-    suite.deposit(lender, &[Coin::new(100, "ATOM")]).unwrap();
+    suite.deposit(lender, &[coin(100, "ATOM")]).unwrap();
 
     // After the deposit, the lender has 100 l-token and the contract has 100 base asset.
     // The lender should be able to withdraw 40 tokens.
@@ -39,7 +39,7 @@ fn withdraw_overflow_is_handled() {
     suite.set_high_credit_line(lender).unwrap();
 
     // Deposit some tokens so we have something to withdraw.
-    suite.deposit(lender, &[Coin::new(100, "ATOM")]).unwrap();
+    suite.deposit(lender, &[coin(100, "ATOM")]).unwrap();
 
     // Try to withdraw more base asset than we have deposited - should fail and not
     // affect any balances.

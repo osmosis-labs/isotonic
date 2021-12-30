@@ -1,3 +1,8 @@
+// Credit Agency's contract mock
+// Created to avoid circular dependency between market and CA contracts.
+// Contains additional ExecuteMsg::SetCreditLine functionality, which sets
+// response to TotalCreditLine query.
+
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{
@@ -16,6 +21,7 @@ pub struct InstantiateMsg {}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
+    /// Sets CreditLineResponse for address taken from info.sender
     SetCreditLine { credit_line: CreditLineResponse },
 }
 
