@@ -1,4 +1,4 @@
-use cosmwasm_std::{coin, Uint128};
+use cosmwasm_std::{coin, Decimal, Uint128};
 
 use super::suite::SuiteBuilder;
 use crate::{error::ContractError, msg::CreditLineResponse};
@@ -54,6 +54,7 @@ fn cant_borrow_with_debt_higher_then_credit_line() {
     let borrower = "borrower";
     let mut suite = SuiteBuilder::new()
         .with_funds(borrower, &[coin(100, "ATOM")])
+        .with_collateral_ratio(Decimal::percent(70))
         .with_market_token("ATOM")
         .build();
 
@@ -68,7 +69,8 @@ fn cant_borrow_with_debt_higher_then_credit_line() {
             borrower,
             CreditLineResponse {
                 collateral: Uint128::new(100),
-                credit_line: Uint128::new(100),
+                // 100 * 0.7 collateral ratio
+                credit_line: Uint128::new(70),
                 debt: Uint128::new(200),
             },
         )
@@ -78,6 +80,43 @@ fn cant_borrow_with_debt_higher_then_credit_line() {
     assert_eq!(
         ContractError::CannotBorrow {
             amount: Uint128::new(100),
+            account: borrower.to_owned()
+        },
+        err.downcast().unwrap()
+    );
+}
+
+#[test]
+fn cant_borrow_more_then_credit_line() {
+    let borrower = "borrower";
+    let mut suite = SuiteBuilder::new()
+        .with_funds(borrower, &[coin(100, "ATOM")])
+        .with_collateral_ratio(Decimal::percent(70))
+        .with_market_token("ATOM")
+        .build();
+
+    // Set arbitrary market/common exchange ratio (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+
+    suite.deposit(borrower, &[coin(100, "ATOM")]).unwrap();
+
+    // Set debt higher then credit line
+    suite
+        .set_credit_line(
+            borrower,
+            CreditLineResponse {
+                collateral: Uint128::new(100),
+                // 100 * 0.7 collateral ratio
+                credit_line: Uint128::new(70),
+                debt: Uint128::zero(),
+            },
+        )
+        .unwrap();
+
+    let err = suite.borrow(borrower, 80).unwrap_err();
+    assert_eq!(
+        ContractError::CannotBorrow {
+            amount: Uint128::new(80),
             account: borrower.to_owned()
         },
         err.downcast().unwrap()
