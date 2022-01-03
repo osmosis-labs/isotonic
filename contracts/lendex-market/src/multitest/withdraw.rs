@@ -104,7 +104,7 @@ fn can_withdraw_up_to_credit_line() {
 
     suite.deposit(lender, &[coin(100, "ATOM")]).unwrap();
 
-    // Set debt higher then credit line
+    // Set appropriate credit line and collateral
     suite
         .set_credit_line(
             lender,
@@ -120,4 +120,26 @@ fn can_withdraw_up_to_credit_line() {
     // Withdraw more then credit line is
     suite.withdraw(lender, 90).unwrap();
     assert_eq!(suite.query_asset_balance(lender).unwrap(), 90);
+
+    // withdrawing another 20 dollars (10 over limit) will fail
+    // adjust mock's response
+    suite
+        .set_credit_line(
+            lender,
+            CreditLineResponse {
+                collateral: Uint128::new(10),
+                // 100 * 0.7 collateral ratio
+                credit_line: Uint128::new(7),
+                debt: Uint128::zero(),
+            },
+        )
+        .unwrap();
+    let err = suite.withdraw(lender, 20).unwrap_err();
+    assert_eq!(
+        ContractError::CannotWithdraw {
+            amount: Uint128::new(20),
+            account: lender.to_owned()
+        },
+        err.downcast().unwrap()
+    );
 }

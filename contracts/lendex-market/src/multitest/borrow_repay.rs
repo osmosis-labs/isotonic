@@ -100,7 +100,7 @@ fn cant_borrow_more_then_credit_line() {
 
     suite.deposit(borrower, &[coin(100, "ATOM")]).unwrap();
 
-    // Set debt higher then credit line
+    // Set appropriate collateral and credit line without debt
     suite
         .set_credit_line(
             borrower,
@@ -121,6 +121,10 @@ fn cant_borrow_more_then_credit_line() {
         },
         err.downcast().unwrap()
     );
+
+    // Borrowing smaller amount then credit line is fine
+    suite.borrow(borrower, 60).unwrap();
+    assert_eq!(suite.query_btoken_balance(borrower).unwrap().u128(), 60);
 }
 
 #[test]

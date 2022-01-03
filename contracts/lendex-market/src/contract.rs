@@ -158,6 +158,7 @@ mod execute {
 
         use cosmwasm_std::Fraction;
 
+        // TODO: Check for rounding error https://github.com/confio/lendex/issues/40
         fn divide(top: Uint128, bottom: Decimal) -> Uint128 {
             top * bottom.inv().unwrap_or_else(Decimal::zero)
         }
