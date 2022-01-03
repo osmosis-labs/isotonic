@@ -150,62 +150,62 @@ pub fn execute(
     }
 }
 
-mod execute {
+// Available credit line helpers
+mod cr_utils {
     use super::*;
 
-    mod utils {
-        use super::*;
+    use cosmwasm_std::Fraction;
 
-        use cosmwasm_std::Fraction;
-
-        // TODO: Check for rounding error https://github.com/confio/lendex/issues/40
-        fn divide(top: Uint128, bottom: Decimal) -> Uint128 {
-            top * bottom.inv().unwrap_or_else(Decimal::zero)
-        }
-
-        fn query_available_tokens(
-            deps: Deps,
-            config: &Config,
-            account: String,
-        ) -> Result<Uint128, ContractError> {
-            let credit: CreditLineResponse = deps.querier.query_wasm_smart(
-                &config.credit_agency,
-                &QueryTotalCreditLine::TotalCreditLine { account },
-            )?;
-            // Available credit for that account amongst all markets
-            let available_common = credit.credit_line.saturating_sub(credit.debt);
-            // Price is defined as common/local
-            // (see price_ratio_from_oracle function from this file)
-            let available = divide(
-                available_common,
-                query::price_ratio_from_oracle(deps, config)?,
-            );
-            Ok(available)
-        }
-
-        /// Helper that determines if an address can borrow the specified amount.
-        pub fn can_borrow(
-            deps: Deps,
-            config: &Config,
-            account: impl Into<String>,
-            amount: Uint128,
-        ) -> Result<bool, ContractError> {
-            let available = query_available_tokens(deps, config, account.into())?;
-            Ok(amount <= available)
-        }
-
-        /// Helper that determines if an address can withdraw the specified amount.
-        pub fn can_withdraw(
-            deps: Deps,
-            config: &Config,
-            account: impl Into<String>,
-            amount: Uint128,
-        ) -> Result<bool, ContractError> {
-            let available = query_available_tokens(deps, config, account.into())?;
-            let can_transfer = divide(available, config.collateral_ratio);
-            Ok(amount <= can_transfer)
-        }
+    // TODO: Check for rounding error https://github.com/confio/lendex/issues/40
+    fn divide(top: Uint128, bottom: Decimal) -> Uint128 {
+        top * bottom.inv().unwrap_or_else(Decimal::zero)
     }
+
+    fn query_available_tokens(
+        deps: Deps,
+        config: &Config,
+        account: String,
+    ) -> Result<Uint128, ContractError> {
+        let credit: CreditLineResponse = deps.querier.query_wasm_smart(
+            &config.credit_agency,
+            &QueryTotalCreditLine::TotalCreditLine { account },
+        )?;
+        // Available credit for that account amongst all markets
+        let available_common = credit.credit_line.saturating_sub(credit.debt);
+        // Price is defined as common/local
+        // (see price_ratio_from_oracle function from this file)
+        let available = divide(
+            available_common,
+            query::price_ratio_from_oracle(deps, config)?,
+        );
+        Ok(available)
+    }
+
+    /// Helper that determines if an address can borrow the specified amount.
+    pub fn can_borrow(
+        deps: Deps,
+        config: &Config,
+        account: impl Into<String>,
+        amount: Uint128,
+    ) -> Result<bool, ContractError> {
+        let available = query_available_tokens(deps, config, account.into())?;
+        Ok(amount <= available)
+    }
+
+    /// Helper returning amount of tokens available to transfer/withdraw
+    pub fn transferable_amount(
+        deps: Deps,
+        config: &Config,
+        account: impl Into<String>,
+    ) -> Result<Uint128, ContractError> {
+        let available = query_available_tokens(deps, config, account.into())?;
+        let can_transfer = divide(available, config.collateral_ratio);
+        Ok(can_transfer)
+    }
+}
+
+mod execute {
+    use super::*;
 
     /// Function that is supposed to be called before every mint/burn operation.
     /// It calculates ratio for increasing both btokens and ltokens.a
@@ -213,7 +213,7 @@ mod execute {
     /// b_ratio = calculate_interest() * epochs_passed * epoch_length / 31.556.736
     /// ltokens formula:
     /// l_ratio = b_supply() * b_ratio / l_supply()
-    fn charge_interest(deps: DepsMut, env: Env) -> StdResult<Vec<SubMsg>> {
+    fn charge_interest(deps: DepsMut, env: Env) -> Result<Vec<SubMsg>, ContractError> {
         use lendex_token::msg::ExecuteMsg;
 
         let mut cfg = CONFIG.load(deps.storage)?;
@@ -321,7 +321,7 @@ mod execute {
     ) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
 
-        if !utils::can_withdraw(deps.as_ref(), &cfg, &info.sender, amount)? {
+        if cr_utils::transferable_amount(deps.as_ref(), &cfg, &info.sender)? < amount {
             return Err(ContractError::CannotWithdraw {
                 account: info.sender.to_string(),
                 amount,
@@ -370,7 +370,7 @@ mod execute {
     ) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
 
-        if !utils::can_borrow(deps.as_ref(), &cfg, &info.sender, amount)? {
+        if !cr_utils::can_borrow(deps.as_ref(), &cfg, &info.sender, amount)? {
             return Err(ContractError::CannotBorrow {
                 amount,
                 account: info.sender.to_string(),
@@ -457,26 +457,27 @@ mod execute {
     }
 }
 
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
     use QueryMsg::*;
-    match msg {
-        Configuration {} => to_binary(&CONFIG.load(deps.storage)?),
+    let res = match msg {
+        Configuration {} => to_binary(&CONFIG.load(deps.storage)?)?,
         TransferableAmount { token, account } => {
             let token = deps.api.addr_validate(&token)?;
-            to_binary(&query::transferable_amount(deps, token, account)?)
+            to_binary(&query::transferable_amount(deps, token, account)?)?
         }
-        Interest {} => to_binary(&query::calculate_interest(deps)?),
+        Interest {} => to_binary(&query::calculate_interest(deps)?)?,
         CreditLine { account } => {
             let account = deps.api.addr_validate(&account)?;
-            to_binary(&query::credit_line(deps, account)?)
+            to_binary(&query::credit_line(deps, account)?)?
         }
-    }
+    };
+    Ok(res)
 }
 
 mod query {
     use super::*;
 
-    use cosmwasm_std::{Decimal, StdError, Uint128};
+    use cosmwasm_std::{Decimal, Uint128};
     use cw20::BalanceResponse;
     use lendex_oracle::msg::{PriceResponse, QueryMsg as OracleQueryMsg};
     use lendex_token::msg::{QueryMsg as TokenQueryMsg, TokenInfoResponse};
@@ -497,11 +498,15 @@ mod query {
         deps: Deps,
         config: &Config,
         account: impl ToString,
-    ) -> StdResult<Uint128> {
+    ) -> Result<Uint128, ContractError> {
         Ok(token_balance(deps, &config.btoken_contract, account.to_string())?.balance)
     }
 
-    fn ltoken_balance(deps: Deps, config: &Config, account: impl ToString) -> StdResult<Uint128> {
+    fn ltoken_balance(
+        deps: Deps,
+        config: &Config,
+        account: impl ToString,
+    ) -> Result<Uint128, ContractError> {
         Ok(token_balance(deps, &config.ltoken_contract, account.to_string())?.balance)
     }
 
@@ -510,30 +515,26 @@ mod query {
         deps: Deps,
         token: Addr,
         account: String,
-    ) -> StdResult<TransferableAmountResponse> {
+    ) -> Result<TransferableAmountResponse, ContractError> {
         let config = CONFIG.load(deps.storage)?;
         if token == config.btoken_contract {
             Ok(TransferableAmountResponse {
                 transferable: Uint128::zero(),
             })
         } else if token == config.ltoken_contract {
-            Ok(TransferableAmountResponse {
-                transferable: ltoken_balance(deps, &config, account)?,
-            })
+            let transferable = cr_utils::transferable_amount(deps, &config, &account)?;
+            Ok(TransferableAmountResponse { transferable })
         } else {
-            Err(StdError::generic_err(format!(
-                "Unrecognized token: {}",
-                token.to_string()
-            )))
+            Err(ContractError::UnrecognisedToken(token.to_string()))
         }
     }
 
-    pub fn calculate_interest(deps: Deps) -> StdResult<InterestResponse> {
+    pub fn calculate_interest(deps: Deps) -> Result<InterestResponse, ContractError> {
         let config = CONFIG.load(deps.storage)?;
         interest(&config, &token_info(deps, &config)?)
     }
 
-    pub fn token_info(deps: Deps, config: &Config) -> StdResult<TokensInfo> {
+    pub fn token_info(deps: Deps, config: &Config) -> Result<TokensInfo, ContractError> {
         let ltoken_contract = &config.ltoken_contract;
         let ltoken: TokenInfoResponse = deps
             .querier
@@ -546,7 +547,10 @@ mod query {
     }
 
     /// Handler for `QueryMsg::Interest`
-    pub fn interest(config: &Config, tokens_info: &TokensInfo) -> StdResult<InterestResponse> {
+    pub fn interest(
+        config: &Config,
+        tokens_info: &TokensInfo,
+    ) -> Result<InterestResponse, ContractError> {
         let utilisation = if tokens_info.ltoken.total_supply.is_zero() {
             Decimal::zero()
         } else {
@@ -568,7 +572,7 @@ mod query {
     }
 
     /// Ratio is for sell market_token / buy common_token
-    pub fn price_ratio_from_oracle(deps: Deps, config: &Config) -> StdResult<Decimal> {
+    pub fn price_ratio_from_oracle(deps: Deps, config: &Config) -> Result<Decimal, ContractError> {
         // If denoms are the same, just return 1:1
         if config.common_token == config.market_token {
             Ok(Decimal::one())
@@ -585,7 +589,7 @@ mod query {
     }
 
     /// Handler for `QueryMsg::CreditLine`
-    pub fn credit_line(deps: Deps, account: Addr) -> StdResult<CreditLineResponse> {
+    pub fn credit_line(deps: Deps, account: Addr) -> Result<CreditLineResponse, ContractError> {
         let config = CONFIG.load(deps.storage)?;
         let collateral = ltoken_balance(deps, &config, &account)?;
         let debt = btoken_balance(deps, &config, &account)?;
