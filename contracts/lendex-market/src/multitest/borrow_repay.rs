@@ -76,10 +76,10 @@ fn cant_borrow_with_debt_higher_then_credit_line() {
         )
         .unwrap();
 
-    let err = suite.borrow(borrower, 100).unwrap_err();
+    let err = suite.borrow(borrower, 1).unwrap_err();
     assert_eq!(
         ContractError::CannotBorrow {
-            amount: Uint128::new(100),
+            amount: Uint128::new(1),
             account: borrower.to_owned()
         },
         err.downcast().unwrap()
