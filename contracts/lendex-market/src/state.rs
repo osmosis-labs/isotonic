@@ -24,6 +24,7 @@ pub struct Config {
     pub common_token: String,
     pub collateral_ratio: Decimal,
     pub price_oracle: String,
+    pub credit_agency: Addr,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");

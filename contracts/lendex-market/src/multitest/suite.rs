@@ -5,6 +5,10 @@ use cw20::BalanceResponse;
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
 use utils::{interest::Interest, time::Duration};
 
+use super::ca_mock::{
+    contract as contract_credit_agency, ExecuteMsg as CAExecuteMsg,
+    InstantiateMsg as CAInstantiateMsg,
+};
 use crate::msg::{
     CreditLineResponse, ExecuteMsg, InstantiateMsg, InterestResponse, QueryMsg,
     TransferableAmountResponse,
@@ -136,10 +140,22 @@ impl SuiteBuilder {
                 owner.clone(),
                 &lendex_oracle::msg::InstantiateMsg {
                     oracle: owner.to_string(),
-                    maximum_age: Duration::new(999999),
+                    maximum_age: Duration::new(99999999),
                 },
                 &[],
                 "oracle",
+                Some(owner.to_string()),
+            )
+            .unwrap();
+
+        let ca_id = app.store_code(contract_credit_agency());
+        let ca_contract = app
+            .instantiate_contract(
+                ca_id,
+                owner.clone(),
+                &CAInstantiateMsg {},
+                &[],
+                "credit-agency",
                 Some(owner.to_string()),
             )
             .unwrap();
@@ -149,7 +165,8 @@ impl SuiteBuilder {
         let contract = app
             .instantiate_contract(
                 contract_id,
-                owner.clone(),
+                // set credit agency mock as owner of market
+                ca_contract.clone(),
                 &InstantiateMsg {
                     name: self.name,
                     symbol: self.symbol,
@@ -202,9 +219,10 @@ impl SuiteBuilder {
             contract,
             ltoken_contract: config.ltoken_contract,
             btoken_contract: config.btoken_contract,
-            oracle_contract,
             market_token,
             common_token,
+            ca_contract,
+            oracle_contract,
         }
     }
 }
@@ -224,6 +242,8 @@ pub struct Suite {
     market_token: String,
     /// Credit agency token's common denom (with other markets)
     common_token: String,
+    /// Credit Agency contract address
+    ca_contract: Addr,
     /// Oracle contract address
     oracle_contract: Addr,
 }
@@ -395,6 +415,37 @@ impl Suite {
             self.oracle_contract.clone(),
             &SetPrice { buy, sell, rate },
             &[],
+        )
+    }
+
+    /// Quick helper to set price ratio between market and common tokens to 1.0
+    pub fn set_token_ratio_one(&mut self) -> AnyResult<AppResponse> {
+        self.oracle_set_price_market_per_common(Decimal::percent(100))
+    }
+
+    /// Sets TotalCreditLine response for CA mock
+    pub fn set_credit_line(
+        &mut self,
+        account: impl ToString,
+        credit_line: CreditLineResponse,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            Addr::unchecked(account.to_string()),
+            self.ca_contract.clone(),
+            &CAExecuteMsg::SetCreditLine { credit_line },
+            &[],
+        )
+    }
+
+    /// Sets TotalCreditLine with arbitrary high credit line and no debt
+    pub fn set_high_credit_line(&mut self, account: impl ToString) -> AnyResult<AppResponse> {
+        self.set_credit_line(
+            account,
+            CreditLineResponse {
+                collateral: Uint128::new(10000),
+                credit_line: Uint128::new(10000),
+                debt: Uint128::zero(),
+            },
         )
     }
 }

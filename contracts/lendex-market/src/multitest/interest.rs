@@ -16,6 +16,10 @@ fn query_interest() {
         .with_market_token(market_token)
         .build();
 
+    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+    suite.set_high_credit_line(borrower).unwrap();
+
     // At first, the lender has no l-token, and the contract has no base asset.
     assert_eq!(suite.query_ltoken_balance(lender).unwrap().u128(), 0);
     assert_eq!(suite.query_contract_asset_balance().unwrap(), 0);
@@ -111,6 +115,10 @@ fn charge_interest_borrow() {
         .with_market_token(market_token)
         .build();
 
+    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+    suite.set_high_credit_line(borrower).unwrap();
+
     // Deposit some tokens
     suite
         .deposit(lender, &[Coin::new(2000, market_token)])
@@ -175,6 +183,11 @@ fn charge_interest_deposit() {
         .with_interest(4, 20)
         .with_market_token(market_token)
         .build();
+
+    // Set arbitrary market/common exchange ratio and credit lines (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+    suite.set_high_credit_line(borrower).unwrap();
+    suite.set_high_credit_line(lender).unwrap();
 
     // Deposit some tokens
     suite

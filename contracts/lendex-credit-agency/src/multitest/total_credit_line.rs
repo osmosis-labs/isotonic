@@ -148,18 +148,16 @@ fn lender_on_two_markets_with_two_borrowers() {
         .deposit_tokens_on_market(lender, coin(500, second_denom))
         .unwrap();
 
-    // First borrower deposits and then borrows
+    // First borrower deposits 1000 owned tokens and then borrows
     suite
-        // deposits 1000 owned
         .deposit_tokens_on_market(borrower_one, coin(1000, first_denom))
         .unwrap();
     suite
         .borrow_tokens_from_market(borrower_one, coin(500, second_denom))
         .unwrap();
 
-    // Second borrower deposits
+    // Second borrower deposits 1500 owned tokens and then borrows
     suite
-        // deposits 1500 owned
         .deposit_tokens_on_market(borrower_two, coin(1500, second_denom))
         .unwrap();
     suite
@@ -200,7 +198,7 @@ fn lender_on_two_markets_with_two_borrowers() {
             collateral: Uint128::new(750),
             // 1500 collateral * 0.5 oracle's price * 0.5 default collateral_ratio
             credit_line: Uint128::new(375),
-            // 1000 borrowed * 2.0 oracle's price (first denom)
+            // 100 borrowed * 2.0 oracle's price (first denom)
             debt: Uint128::new(200)
         }
     );

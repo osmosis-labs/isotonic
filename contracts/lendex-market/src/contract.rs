@@ -10,7 +10,8 @@ use utils::interest::Interest;
 
 use crate::error::ContractError;
 use crate::msg::{
-    CreditLineResponse, ExecuteMsg, InstantiateMsg, QueryMsg, TransferableAmountResponse,
+    CreditLineResponse, ExecuteMsg, InstantiateMsg, QueryMsg, QueryTotalCreditLine,
+    TransferableAmountResponse,
 };
 use crate::state::{Config, CONFIG, SECONDS_IN_YEAR};
 
@@ -75,6 +76,7 @@ pub fn instantiate(
         common_token: msg.common_token,
         collateral_ratio: msg.collateral_ratio,
         price_oracle: msg.price_oracle,
+        credit_agency: info.sender.clone(),
     };
     CONFIG.save(deps.storage, &cfg)?;
 
@@ -151,10 +153,58 @@ pub fn execute(
 mod execute {
     use super::*;
 
-    /// Helper that determines if an address can withdraw the specified amount.
-    fn can_withdraw(_deps: Deps, _sender: &Addr, _amount: Uint128) -> Result<bool, ContractError> {
-        // TODO: actual checks here
-        Ok(true)
+    mod utils {
+        use super::*;
+
+        use cosmwasm_std::Fraction;
+
+        // TODO: Check for rounding error https://github.com/confio/lendex/issues/40
+        fn divide(top: Uint128, bottom: Decimal) -> Uint128 {
+            top * bottom.inv().unwrap_or_else(Decimal::zero)
+        }
+
+        fn query_available_tokens(
+            deps: Deps,
+            config: &Config,
+            account: String,
+        ) -> Result<Uint128, ContractError> {
+            let credit: CreditLineResponse = deps.querier.query_wasm_smart(
+                &config.credit_agency,
+                &QueryTotalCreditLine::TotalCreditLine { account },
+            )?;
+            // Available credit for that account amongst all markets
+            let available_common = credit.credit_line.saturating_sub(credit.debt);
+            // Price is defined as common/local
+            // (see price_ratio_from_oracle function from this file)
+            let available = divide(
+                available_common,
+                query::price_ratio_from_oracle(deps, config)?,
+            );
+            Ok(available)
+        }
+
+        /// Helper that determines if an address can borrow the specified amount.
+        pub fn can_borrow(
+            deps: Deps,
+            config: &Config,
+            account: impl Into<String>,
+            amount: Uint128,
+        ) -> Result<bool, ContractError> {
+            let available = query_available_tokens(deps, config, account.into())?;
+            Ok(amount <= available)
+        }
+
+        /// Helper that determines if an address can withdraw the specified amount.
+        pub fn can_withdraw(
+            deps: Deps,
+            config: &Config,
+            account: impl Into<String>,
+            amount: Uint128,
+        ) -> Result<bool, ContractError> {
+            let available = query_available_tokens(deps, config, account.into())?;
+            let can_transfer = divide(available, config.collateral_ratio);
+            Ok(amount <= can_transfer)
+        }
     }
 
     /// Function that is supposed to be called before every mint/burn operation.
@@ -271,7 +321,7 @@ mod execute {
     ) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
 
-        if !can_withdraw(deps.as_ref(), &info.sender, amount)? {
+        if !utils::can_withdraw(deps.as_ref(), &cfg, &info.sender, amount)? {
             return Err(ContractError::CannotWithdraw {
                 account: info.sender.to_string(),
                 amount,
@@ -311,11 +361,6 @@ mod execute {
         Ok(response)
     }
 
-    fn can_borrow(_deps: Deps, _sender: &Addr, _amount: Uint128) -> Result<bool, ContractError> {
-        // TODO: fill implementation
-        Ok(true)
-    }
-
     /// Handler for `ExecuteMsg::Borrow`
     pub fn borrow(
         deps: DepsMut,
@@ -325,7 +370,7 @@ mod execute {
     ) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
 
-        if !can_borrow(deps.as_ref(), &info.sender, amount)? {
+        if !utils::can_borrow(deps.as_ref(), &cfg, &info.sender, amount)? {
             return Err(ContractError::CannotBorrow {
                 amount,
                 account: info.sender.to_string(),
@@ -523,7 +568,7 @@ mod query {
     }
 
     /// Ratio is for sell market_token / buy common_token
-    fn price_ratio_from_oracle(deps: Deps, config: &Config) -> StdResult<Decimal> {
+    pub fn price_ratio_from_oracle(deps: Deps, config: &Config) -> StdResult<Decimal> {
         // If denoms are the same, just return 1:1
         if config.common_token == config.market_token {
             Ok(Decimal::one())
@@ -570,8 +615,8 @@ mod query {
             let deps = mock_dependencies();
             let market_token = "market_token".to_owned();
             let config = Config {
-                ltoken_contract: Addr::unchecked("Contract #2"),
-                btoken_contract: Addr::unchecked("Contract #3"),
+                ltoken_contract: Addr::unchecked("ltoken_contract"),
+                btoken_contract: Addr::unchecked("btoken_contract"),
                 name: "lendex".to_owned(),
                 symbol: "LDX".to_owned(),
                 decimals: 9,
@@ -585,7 +630,8 @@ mod query {
                 last_charged: 300,
                 common_token: market_token,
                 collateral_ratio: Decimal::percent(50),
-                price_oracle: "Contract #0".to_owned(),
+                price_oracle: "price_oracle".to_owned(),
+                credit_agency: Addr::unchecked("credit_agency"),
             };
             // common_token is same as market_token
             let ratio = price_ratio_from_oracle(deps.as_ref(), &config).unwrap();
