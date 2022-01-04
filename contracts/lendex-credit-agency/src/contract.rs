@@ -64,6 +64,7 @@ mod exec {
 
     use cosmwasm_std::{ensure_eq, StdError, SubMsg, WasmMsg};
 
+    use lendex_market::{msg::QueryMsg as MarketQueryMsg, state::Configuration as MarketConfiguration};
     use crate::{
         msg::MarketConfig,
         state::{MarketState, MARKETS, REPLY_IDS},
@@ -139,6 +140,19 @@ mod exec {
         if total_credit_line.debt <= total_credit_line.credit_line {
             return Err(ContractError::LiquidationNotAllowed {});
         }
+        // assert that only one denom was sent and it matches the existing market
+        if info.funds.is_empty() || info.funds.len() != 1 {
+            return Err(ContractError::LiquidationOnlyOneDenomRequired {});
+        }
+
+        // assert that account has enough btokens
+        let market = query::market(deps.as_ref(), info.funds[0].denom.clone())?.market;
+        let market_config: MarketConfig  = deps.querier.query_wasm_smart(
+            market,
+            &MarketQueryMsg::Configuration {},
+        )?;
+        let btokens_balance:  deps.querier
+            .query_wasm_smart(market_config.btoken_contract, &TokenQueryMsg::Balance { address: account.to_string() })?;
 
         // repay the debt
         let cfg = CONFIG.load(deps.storage)?;

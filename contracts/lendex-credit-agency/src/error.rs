@@ -28,6 +28,9 @@ pub enum ContractError {
     #[error("Account cannot be liquidated as it does not have more debt then credit line")]
     LiquidationNotAllowed {},
 
+    #[error("Only one denom can be sent for liquidation")]
+    LiquidationOnlyOneDenomRequired {},
+
     #[error("Incorrect denom sent to liquidation: {incorrect} instead of {common}")]
     LiquidationIncorrectDenom { incorrect: String, common: String },
 
