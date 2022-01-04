@@ -198,8 +198,8 @@ mod cr_utils {
         config: &Config,
         account: impl Into<String>,
     ) -> Result<Uint128, ContractError> {
-        let available = query_available_tokens(deps, config, account.into())?;
-        let can_transfer = divide(available, config.collateral_ratio);
+        let available = dbg!(query_available_tokens(deps, config, account.into())?);
+        let can_transfer = dbg!(divide(available, config.collateral_ratio));
         Ok(can_transfer)
     }
 }

@@ -112,8 +112,27 @@ fn query_transferable_amount() {
         .unwrap();
 
     // Transferable amount is equal to collateral
-    let resp = suite.query_transferable_amount(ltoken, lender).unwrap();
+    let resp = suite
+        .query_transferable_amount(ltoken.clone(), lender)
+        .unwrap();
     assert_eq!(Uint128::new(100), resp.transferable);
+
+    // Set credit line with debt
+    suite
+        .set_credit_line(
+            lender,
+            CreditLineResponse {
+                collateral: Uint128::new(100),
+                // 100 * 0.8 collateral ratio
+                credit_line: Uint128::new(80),
+                debt: Uint128::new(50),
+            },
+        )
+        .unwrap();
+
+    // Transferable amount is equal to collateral / (credit_line - debt)
+    let resp = suite.query_transferable_amount(ltoken, lender).unwrap();
+    assert_eq!(Uint128::new(37), resp.transferable);
 
     let err = suite
         .query_transferable_amount("xtoken", lender)
