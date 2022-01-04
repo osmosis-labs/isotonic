@@ -329,7 +329,7 @@ impl Suite {
         &self,
         token: impl ToString,
         account: impl ToString,
-    ) -> AnyResult<Uint128> {
+    ) -> AnyResult<TransferableAmountResponse> {
         let resp: TransferableAmountResponse = self.app.wrap().query_wasm_smart(
             self.contract.clone(),
             &QueryMsg::TransferableAmount {
@@ -337,7 +337,7 @@ impl Suite {
                 account: account.to_string(),
             },
         )?;
-        Ok(resp.transferable)
+        Ok(resp)
     }
 
     fn query_token_balance(
