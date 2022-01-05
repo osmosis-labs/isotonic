@@ -148,40 +148,42 @@ mod exec {
         }
         let funds = info.funds[0];
 
-        // assert that account has enough btokens
-        let market = query::market(deps.as_ref(), funds.denom.clone())?.market;
-        let market_config: MarketConfiguration = deps
-            .querier
-            .query_wasm_smart(market, &MarketQueryMsg::Configuration {})?;
-        let btokens_balance: BalanceResponse = deps.querier.query_wasm_smart(
-            market_config.btoken_contract,
-            &TokenQueryMsg::Balance {
-                address: account.to_string(),
-            },
-        )?;
-        let btokens_balance = btokens_balance.balance.display_amount();
-        // if account has less btokens then caller wants to pay off, liquidation fails
-        if funds.amount > btokens_balance {
-            return Err(ContractError::LiquidationInsufficientBTokens {
-                account: account.to_string(),
-                btokens: btokens_balance,
-                debt: total_credit_line.debt,
-            });
-        }
+        // THIS GOES TO MARKET NOW
+        // // assert that account has enough btokens
+        // let market = query::market(deps.as_ref(), funds.denom.clone())?.market;
+        // let market_config: MarketConfiguration = deps
+        //     .querier
+        //     .query_wasm_smart(market, &MarketQueryMsg::Configuration {})?;
+        // let btokens_balance: BalanceResponse = deps.querier.query_wasm_smart(
+        //     market_config.btoken_contract,
+        //     &TokenQueryMsg::Balance {
+        //         address: account.to_string(),
+        //     },
+        // )?;
+        // let btokens_balance = btokens_balance.balance.display_amount();
+        // // if account has less btokens then caller wants to pay off, liquidation fails
+        // if funds.amount > btokens_balance {
+        //     return Err(ContractError::LiquidationInsufficientBTokens {
+        //         account: account.to_string(),
+        //         btokens: btokens_balance,
+        //         debt: total_credit_line.debt,
+        //     });
+        // }
 
-        // calculate repaid value
-        let price_oracle = deps.api.addr_validate(&market_config.price_oracle)?;
-        let cfg = CONFIG.load(deps.storage)?;
-        let price_response: PriceResponse = deps.querier.query_wasm_smart(
-            price_oracle,
-            &OracleQueryMsg::Price {
-                sell: market_config.market_token.clone(),
-                buy: cfg.common_token.clone(),
-            },
-        )?;
-        let price_rate = price_response.rate;
-        let repaid_value_common = funds.amount * price_rate;
+        // // calculate repaid value
+        // let price_oracle = deps.api.addr_validate(&market_config.price_oracle)?;
+        // let cfg = CONFIG.load(deps.storage)?;
+        // let price_response: PriceResponse = deps.querier.query_wasm_smart(
+        //     price_oracle,
+        //     &OracleQueryMsg::Price {
+        //         sell: market_config.market_token.clone(),
+        //         buy: cfg.common_token.clone(),
+        //     },
+        // )?;
+        // let price_rate = price_response.rate;
+        // let repaid_value_common = funds.amount * price_rate;
 
+        unimplemented!();
         // repay the debt
         let bank_msg = BankMsg::Send {
             to_address: account.to_string(),
@@ -189,7 +191,6 @@ mod exec {
         };
 
         // reward with collateral
-        unimplemented!();
         Ok(Response::new())
     }
 }

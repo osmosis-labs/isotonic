@@ -45,6 +45,16 @@ pub enum ExecuteMsg {
     /// Dispatches two messages, one to mint amount of BToken for this sender,
     /// and the other to send amount base asset to the sender
     Borrow { amount: Uint128 },
+    /// Helper to allow repay of debt on given account. Transfers and burns btokens.
+    /// Sender must be a Credit Agency
+    RepayFrom { account: String, amount: Uint128 },
+    /// Helper to allow transfering Ltokens from account source to account destination.
+    /// Sender must be a Credit Agency
+    TransferFrom {
+        source: String,
+        destination: String,
+        amount: Uint128,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

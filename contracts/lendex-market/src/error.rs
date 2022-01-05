@@ -32,4 +32,10 @@ pub enum ContractError {
 
     #[error("Address {account} cannot withdraw {amount}")]
     CannotWithdraw { account: String, amount: Uint128 },
+
+    #[error("Insufficient amount of btokens on account {account}: {btokens} to liquidate debt")]
+    LiquidationInsufficientBTokens { account: String, btokens: Uint128 },
+
+    #[error("Liquidation helpers call requires sender to be a Market's Credit Agency")]
+    LiquidationRequiresCreditAgency {},
 }

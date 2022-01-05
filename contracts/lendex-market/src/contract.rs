@@ -147,6 +147,15 @@ pub fn execute(
         Withdraw { amount } => execute::withdraw(deps, env, info, amount),
         Borrow { amount } => execute::borrow(deps, env, info, amount),
         Repay {} => execute::repay(deps, env, info),
+        RepayFrom { account, amount } => {
+            let account = deps.api.addr_validate(&account)?;
+            execute::repay_from(deps, info, account, amount)
+        }
+        TransferFrom { source, destination, amount } => {
+            let source = deps.api.addr_validate(&source)?;
+            let destination = deps.api.addr_validate(&destination)?;
+            execute::transfer_from(deps, source, destination, amount)
+        }
     }
 }
 
@@ -454,6 +463,77 @@ mod execute {
         }
 
         Ok(response)
+    }
+
+    /// Handler for `ExecuteMsg::RepayFrom`
+    /// Requires sender to be a Credit Agency, otherwise fails
+    pub fn repay_from(
+        deps: DepsMut,
+        info: MessageInfo,
+        account: Addr,
+        amount: Uint128,
+    ) -> Result<Response, ContractError> {
+        let cfg = CONFIG.load(deps.storage)?;
+        if cfg.credit_agency != info.sender {
+            return Err(ContractError::LiquidationRequiresCreditAgency {})
+        }
+
+        let funds = validate_funds(&info.funds, &cfg.market_token)?;
+
+        let btokens_balance = query::btoken_balance(deps.as_ref(), &cfg, &account)?;
+        // if account has less btokens then caller wants to pay off, liquidation fails
+        if funds > btokens_balance {
+            return Err(ContractError::LiquidationInsufficientBTokens {
+                account: account.to_string(),
+                btokens: btokens_balance,
+            });
+        }
+
+        // TODO: Charge interests?
+        // TODO: Return overpay?
+        let msg = to_binary(&lendex_token::msg::ExecuteMsg::BurnFrom {
+            owner: account.to_string(),
+            amount: lendex_token::DisplayAmount::raw(amount),
+        })?;
+        let burn_msg = SubMsg::new(WasmMsg::Execute {
+            contract_addr: cfg.btoken_contract.to_string(),
+            msg,
+            funds: vec![],
+        });
+
+        Ok(Response::new()
+            .add_attribute("action", "repay_from")
+            .add_attribute("sender", info.sender.clone())
+            .add_attribute("debtor", account)
+            .add_submessage(burn_msg))
+    }
+
+    /// Handler for `ExecuteMsg::TransferFrom`
+    /// Requires sender to be a Credit Agency, otherwise fails
+    pub fn transfer_from(
+        deps: DepsMut,
+        info: MessageInfo,
+        source: Addr,
+        destination: Addr,
+        amount: Uint128,
+    ) -> Result<Response, ContractError> {
+        let cfg = CONFIG.load(deps.storage)?;
+        if cfg.credit_agency != info.sender {
+            return Err(ContractError::LiquidationRequiresCreditAgency {})
+        }
+
+        // transfer claimed amount of ltokens from account source to destination
+let msg = to_binary(&lendex_token::msg::ExecuteMsg::Transfer {
+    owner: source.to_string(),
+    amount: lendex_token::DisplayAmount::raw(amount),
+})?;
+let transfer_msg = SubMsg::new(WasmMsg::Execute {
+    contract_addr: cfg.btoken_contract.to_string(),
+    msg,
+    funds: vec![],
+});
+
+        Ok(Response::new())
     }
 }
 
