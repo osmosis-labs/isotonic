@@ -36,4 +36,13 @@ pub enum ContractError {
 
     #[error("Insufficient amount of tokens sent to liquidation: {sent} instead of {required}")]
     LiquidationInsufficientTokens { sent: Uint128, required: Uint128 },
+
+    #[error(
+        "Insufficient amount of btokens on account {account}: {btokens} with debt of high {debt}"
+    )]
+    LiquidationInsufficientBTokens {
+        account: String,
+        btokens: Uint128,
+        debt: Uint128,
+    },
 }
