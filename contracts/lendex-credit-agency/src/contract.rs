@@ -148,6 +148,18 @@ mod exec {
         }
         let funds = info.funds[0];
 
+        let market = query::market(deps.as_ref(), funds.denom.clone())?.market;
+
+        let msg = to_binary(&lendex_market::msg::ExecuteMsg::RepayFrom {
+            account: account.to_string(),
+            amount: funds.amount,
+        })?;
+        let repay_from_msg = SubMsg::new(WasmMsg::Execute {
+            contract_addr: market.to_string(),
+            msg,
+            funds: vec![],
+        });
+
         // THIS GOES TO MARKET NOW
         // // assert that account has enough btokens
         // let market = query::market(deps.as_ref(), funds.denom.clone())?.market;

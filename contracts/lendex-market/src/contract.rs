@@ -523,15 +523,15 @@ mod execute {
         }
 
         // transfer claimed amount of ltokens from account source to destination
-let msg = to_binary(&lendex_token::msg::ExecuteMsg::Transfer {
-    owner: source.to_string(),
-    amount: lendex_token::DisplayAmount::raw(amount),
-})?;
-let transfer_msg = SubMsg::new(WasmMsg::Execute {
-    contract_addr: cfg.btoken_contract.to_string(),
-    msg,
-    funds: vec![],
-});
+        let msg = to_binary(&lendex_token::msg::ExecuteMsg::Transfer {
+            owner: source.to_string(),
+            amount: lendex_token::DisplayAmount::raw(amount),
+        })?;
+        let transfer_msg = SubMsg::new(WasmMsg::Execute {
+            contract_addr: cfg.btoken_contract.to_string(),
+            msg,
+            funds: vec![],
+        });
 
         Ok(Response::new())
     }
