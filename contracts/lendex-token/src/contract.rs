@@ -168,6 +168,7 @@ fn transfer_from(
 
     Ok(res)
 }
+
 /// Handler for `ExecuteMsg::Send`
 fn send(
     deps: DepsMut,

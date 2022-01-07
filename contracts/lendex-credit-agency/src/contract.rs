@@ -62,15 +62,13 @@ pub fn execute(
 mod exec {
     use super::*;
 
-    use cosmwasm_std::{ensure_eq, BankMsg, StdError, SubMsg, WasmMsg};
+    use cosmwasm_std::{ensure_eq, StdError, SubMsg, WasmMsg};
 
     use crate::{
         msg::MarketConfig,
         state::{MarketState, MARKETS, REPLY_IDS},
     };
     use lendex_market::{msg::QueryMsg as MarketQueryMsg, state::Config as MarketConfiguration};
-    use lendex_oracle::msg::{QueryMsg as OracleQueryMsg, PriceResponse};
-    use lendex_token::msg::{BalanceResponse, QueryMsg as TokenQueryMsg};
 
     pub fn create_market(
         deps: DepsMut,
@@ -137,19 +135,28 @@ mod exec {
         account: Addr,
         collateral_denom: String,
     ) -> Result<Response, ContractError> {
+        // assert that only one denom was sent and it matches the existing market
+        if info.funds.is_empty() || info.funds.len() != 1 {
+            return Err(ContractError::LiquidationOnlyOneDenomRequired {});
+        }
+        let funds = &info.funds[0];
+
+        // assert that collateral ratio is lower then liquidation price,
+        // so this can only decreases debt more than it decreases available credit
+        let cfg = CONFIG.load(deps.storage)?;
+        let market = query::market(deps.as_ref(), funds.denom.clone())?.market;
+        let market_config: MarketConfiguration = deps
+            .querier
+            .query_wasm_smart(market.to_string(), &MarketQueryMsg::Configuration {})?;
+        if market_config.collateral_ratio >= cfg.liquidation_price {
+            return Err(ContractError::LiquidationCollateralRatioHigherThenLiquidationPrice {});
+        }
+
         // assert that given account actually has more debt then credit
         let total_credit_line = query::total_credit_line(deps.as_ref(), account.to_string())?;
         if total_credit_line.debt <= total_credit_line.credit_line {
             return Err(ContractError::LiquidationNotAllowed {});
         }
-        // assert that only one denom was sent and it matches the existing market
-        if info.funds.is_empty() || info.funds.len() != 1 {
-            return Err(ContractError::LiquidationOnlyOneDenomRequired {});
-        }
-        let funds = info.funds[0];
-
-        let market = query::market(deps.as_ref(), funds.denom.clone())?.market;
-
         // Count btokens and burn then on account
         let msg = to_binary(&lendex_market::msg::ExecuteMsg::RepayFrom {
             account: account.to_string(),
@@ -161,33 +168,26 @@ mod exec {
             funds: vec![],
         });
 
-        // // calculate repaid value
-        // let price_oracle = deps.api.addr_validate(&market_config.price_oracle)?;
-        // let cfg = CONFIG.load(deps.storage)?;
-        // let price_response: PriceResponse = deps.querier.query_wasm_smart(
-        //     price_oracle,
-        //     &OracleQueryMsg::Price {
-        //         sell: market_config.market_token.clone(),
-        //         buy: cfg.common_token.clone(),
-        //     },
-        // )?;
-        // let price_rate = price_response.rate;
-        // let repaid_value_common = funds.amount * price_rate;
-
         // transfer claimed amount of ltokens as reward
         let msg = to_binary(&lendex_market::msg::ExecuteMsg::TransferFrom {
             source: account.to_string(),
             destination: info.sender.to_string(),
             amount: funds.amount,
+            liquidation_price: cfg.liquidation_price,
         })?;
-        let repay_from_msg = SubMsg::new(WasmMsg::Execute {
+        let transfer_from_msg = SubMsg::new(WasmMsg::Execute {
             contract_addr: market.to_string(),
             msg,
             funds: vec![],
         });
 
-        // reward with collateral
-        Ok(Response::new())
+        Ok(Response::new()
+            .add_attribute("action", "liquidate")
+            .add_attribute("liquidator", info.sender)
+            .add_attribute("account", account)
+            .add_attribute("collateral_denom", collateral_denom)
+            .add_submessage(repay_from_msg)
+            .add_submessage(transfer_from_msg))
     }
 }
 
