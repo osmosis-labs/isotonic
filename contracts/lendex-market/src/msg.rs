@@ -47,7 +47,7 @@ pub enum ExecuteMsg {
     Borrow { amount: Uint128 },
     /// Helper to allow repay of debt on given account. Transfers and burns btokens.
     /// Sender must be a Credit Agency
-    RepayFrom { account: String, amount: Uint128 },
+    RepayTo { account: String, amount: Uint128 },
     /// Helper to allow transfering Ltokens from account source to account destination.
     /// Sender must be a Credit Agency
     TransferFrom {

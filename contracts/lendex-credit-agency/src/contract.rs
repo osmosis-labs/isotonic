@@ -139,7 +139,7 @@ mod exec {
         if info.funds.is_empty() || info.funds.len() != 1 {
             return Err(ContractError::LiquidationOnlyOneDenomRequired {});
         }
-        let funds = &info.funds[0];
+        let funds = info.funds[0].clone();
 
         // assert that collateral ratio is lower then liquidation price,
         // so this can only decreases debt more than it decreases available credit
@@ -158,14 +158,14 @@ mod exec {
             return Err(ContractError::LiquidationNotAllowed {});
         }
         // Count btokens and burn then on account
-        let msg = to_binary(&lendex_market::msg::ExecuteMsg::RepayFrom {
+        let msg = to_binary(&lendex_market::msg::ExecuteMsg::RepayTo {
             account: account.to_string(),
             amount: funds.amount,
         })?;
         let repay_from_msg = SubMsg::new(WasmMsg::Execute {
             contract_addr: market.to_string(),
             msg,
-            funds: vec![],
+            funds: vec![funds.clone()],
         });
 
         // transfer claimed amount of ltokens as reward

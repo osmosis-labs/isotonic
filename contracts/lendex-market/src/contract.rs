@@ -147,9 +147,9 @@ pub fn execute(
         Withdraw { amount } => execute::withdraw(deps, env, info, amount),
         Borrow { amount } => execute::borrow(deps, env, info, amount),
         Repay {} => execute::repay(deps, env, info),
-        RepayFrom { account, amount } => {
+        RepayTo { account, amount } => {
             let account = deps.api.addr_validate(&account)?;
-            execute::repay_from(deps, info, account, amount)
+            execute::repay_to(deps, info, account, amount)
         }
         TransferFrom {
             source,
@@ -470,9 +470,9 @@ mod execute {
         Ok(response)
     }
 
-    /// Handler for `ExecuteMsg::RepayFrom`
+    /// Handler for `ExecuteMsg::RepayTo`
     /// Requires sender to be a Credit Agency, otherwise fails
-    pub fn repay_from(
+    pub fn repay_to(
         deps: DepsMut,
         info: MessageInfo,
         account: Addr,
@@ -507,7 +507,7 @@ mod execute {
         });
 
         Ok(Response::new()
-            .add_attribute("action", "repay_from")
+            .add_attribute("action", "repay_to")
             .add_attribute("sender", info.sender)
             .add_attribute("debtor", account)
             .add_submessage(burn_msg))
