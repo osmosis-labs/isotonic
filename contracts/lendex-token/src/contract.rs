@@ -84,25 +84,22 @@ fn can_transfer(
 fn transfer_tokens(
     mut deps: DepsMut,
     env: Env,
-    sender: String,
-    recipient: Addr,
+    sender: &Addr,
+    recipient: &Addr,
     amount: Uint128,
 ) -> Result<(), ContractError> {
     if amount == Uint128::zero() {
         return Err(ContractError::InvalidZeroAmount {});
     }
 
-    // This can be unchecked, as if it is invalid, the controller would refuse transfer.
-    // Converting before `can_transfer` check to avoid obsolete string clone.
-    let sender_addr = Addr::unchecked(&sender);
-    can_transfer(deps.as_ref(), &env, sender, amount)?;
+    can_transfer(deps.as_ref(), &env, sender.to_string(), amount)?;
 
     let distribution = DISTRIBUTION.load(deps.storage)?;
     let ppt = distribution.points_per_token.u128();
 
     BALANCES.update(
         deps.storage,
-        &sender_addr,
+        sender,
         |balance: Option<Uint128>| -> Result<_, ContractError> {
             let balance = balance.unwrap_or_default();
             balance
@@ -110,14 +107,14 @@ fn transfer_tokens(
                 .map_err(|_| ContractError::insufficient_tokens(balance, amount))
         },
     )?;
-    apply_points_correction(deps.branch(), &sender_addr, ppt, -(amount.u128() as i128))?;
+    apply_points_correction(deps.branch(), sender, ppt, -(amount.u128() as i128))?;
 
     BALANCES.update(
         deps.storage,
-        &recipient,
+        recipient,
         |balance: Option<Uint128>| -> StdResult<_> { Ok(balance.unwrap_or_default() + amount) },
     )?;
-    apply_points_correction(deps.branch(), &recipient, ppt, amount.u128() as _)?;
+    apply_points_correction(deps.branch(), recipient, ppt, amount.u128() as _)?;
 
     Ok(())
 }
@@ -127,14 +124,13 @@ fn transfer(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    recipient: String,
+    recipient: Addr,
     amount: DisplayAmount,
 ) -> Result<Response, ContractError> {
     let multiplier = MULTIPLIER.load(deps.storage)?;
     let amount = amount.to_stored_amount(multiplier);
 
-    let recipient_addr = deps.api.addr_validate(&recipient)?;
-    transfer_tokens(deps, env, info.sender.to_string(), recipient_addr, amount)?;
+    transfer_tokens(deps, env, &info.sender, &recipient, amount)?;
 
     let res = Response::new()
         .add_attribute("action", "transfer")
@@ -145,20 +141,41 @@ fn transfer(
     Ok(res)
 }
 
+/// Handler for `ExecuteMsg::TransferFrom`
+fn transfer_from(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    sender: Addr,
+    recipient: Addr,
+    amount: DisplayAmount,
+) -> Result<Response, ContractError> {
+    let multiplier = MULTIPLIER.load(deps.storage)?;
+    let amount = amount.to_stored_amount(multiplier);
+
+    transfer_tokens(deps, env, &sender, &recipient, amount)?;
+
+    let res = Response::new()
+        .add_attribute("action", "transfer")
+        .add_attribute("from", info.sender)
+        .add_attribute("to", recipient)
+        .add_attribute("amount", amount);
+
+    Ok(res)
+}
 /// Handler for `ExecuteMsg::Send`
 fn send(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    recipient: String,
+    recipient: Addr,
     amount: DisplayAmount,
     msg: Binary,
 ) -> Result<Response, ContractError> {
     let multiplier = MULTIPLIER.load(deps.storage)?;
     let amount = amount.to_stored_amount(multiplier);
 
-    let recipient_addr = deps.api.addr_validate(&recipient)?;
-    transfer_tokens(deps, env, info.sender.to_string(), recipient_addr, amount)?;
+    transfer_tokens(deps, env, &info.sender, &recipient, amount)?;
 
     let res = Response::new()
         .add_attribute("action", "send")
@@ -387,12 +404,27 @@ pub fn execute(
     use ExecuteMsg::*;
 
     match msg {
-        Transfer { recipient, amount } => transfer(deps, env, info, recipient, amount),
+        Transfer { recipient, amount } => {
+            let recipient = deps.api.addr_validate(&recipient)?;
+            transfer(deps, env, info, recipient, amount)
+        }
+        TransferFrom {
+            sender,
+            recipient,
+            amount,
+        } => {
+            let recipient = deps.api.addr_validate(&recipient)?;
+            let sender = deps.api.addr_validate(&sender)?;
+            transfer_from(deps, env, info, sender, recipient, amount)
+        }
         Send {
             contract,
             amount,
             msg,
-        } => send(deps, env, info, contract, amount, msg),
+        } => {
+            let recipient = deps.api.addr_validate(&contract)?;
+            send(deps, env, info, recipient, amount, msg)
+        }
         Mint { recipient, amount } => mint(deps, info, recipient, amount),
         BurnFrom { owner, amount } => burn_from(deps, info, owner, amount),
         Rebase { ratio } => rebase(deps, info, ratio),
