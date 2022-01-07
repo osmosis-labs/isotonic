@@ -4,7 +4,9 @@ use super::suite::SuiteBuilder;
 fn query_market() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
 
-    suite.create_market_quick("gov", "osmo", "OSMO").unwrap();
+    suite
+        .create_market_quick("gov", "osmo", "OSMO", None)
+        .unwrap();
     let res = suite.query_market("OSMO").unwrap();
     assert_eq!(res.market_token, "OSMO");
 }
@@ -23,9 +25,15 @@ fn query_market_does_not_exist() {
 fn list_markets() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
 
-    suite.create_market_quick("gov", "osmo", "OSMO").unwrap();
-    suite.create_market_quick("gov", "atom", "ATOM").unwrap();
-    suite.create_market_quick("gov", "btc", "BTC").unwrap();
+    suite
+        .create_market_quick("gov", "osmo", "OSMO", None)
+        .unwrap();
+    suite
+        .create_market_quick("gov", "atom", "ATOM", None)
+        .unwrap();
+    suite
+        .create_market_quick("gov", "btc", "BTC", None)
+        .unwrap();
     let mut list: Vec<_> = suite
         .list_markets()
         .unwrap()
@@ -61,7 +69,12 @@ fn list_markets_default_pagination() {
     // the default pagination limit is 10 entries per page
     for i in 0..15 {
         suite
-            .create_market_quick("gov", &format!("token{:02}", i), &format!("TOKEN{:02}", i))
+            .create_market_quick(
+                "gov",
+                &format!("token{:02}", i),
+                &format!("TOKEN{:02}", i),
+                None,
+            )
             .unwrap();
     }
 
@@ -94,7 +107,12 @@ fn list_markets_custom_pagination() {
     // we set the pagination limit to 3 entries per page
     for i in 0..5 {
         suite
-            .create_market_quick("gov", &format!("token{:02}", i), &format!("TOKEN{:02}", i))
+            .create_market_quick(
+                "gov",
+                &format!("token{:02}", i),
+                &format!("TOKEN{:02}", i),
+                None,
+            )
             .unwrap();
     }
 

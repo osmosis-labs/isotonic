@@ -1,4 +1,5 @@
 mod instantiate;
+mod liquidate;
 mod market_create;
 mod queries;
 pub mod suite;

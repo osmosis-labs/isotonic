@@ -14,7 +14,7 @@ fn lender_on_one_market() {
         .build();
 
     suite
-        .create_market_quick("gov", "osmo", market_denom)
+        .create_market_quick("gov", "osmo", market_denom, None)
         .unwrap();
 
     // Sets sell/buy rate between market denom/common denom as 2.0,
@@ -58,13 +58,13 @@ fn lender_on_three_markets() {
         .build();
 
     suite
-        .create_market_quick("gov", "osmo", first_denom)
+        .create_market_quick("gov", "osmo", first_denom, None)
         .unwrap();
     suite
-        .create_market_quick("gov", "ethereum", second_denom)
+        .create_market_quick("gov", "ethereum", second_denom, None)
         .unwrap();
     suite
-        .create_market_quick("gov", "bitcoin", third_denom)
+        .create_market_quick("gov", "bitcoin", third_denom, None)
         .unwrap();
 
     // Sets sell/buy rate between market denom/common denom as 2.0,
@@ -124,10 +124,10 @@ fn lender_on_two_markets_with_two_borrowers() {
         .build();
 
     suite
-        .create_market_quick("gov", "osmo", first_denom)
+        .create_market_quick("gov", "osmo", first_denom, None)
         .unwrap();
     suite
-        .create_market_quick("gov", "ethereum", second_denom)
+        .create_market_quick("gov", "ethereum", second_denom, None)
         .unwrap();
 
     // Sets sell/buy rate between market denom/common denom as 2.0,
@@ -221,10 +221,10 @@ fn two_lenders_with_borrower_on_two_markets() {
         .build();
 
     suite
-        .create_market_quick("gov", "osmo", first_denom)
+        .create_market_quick("gov", "osmo", first_denom, None)
         .unwrap();
     suite
-        .create_market_quick("gov", "ethereum", second_denom)
+        .create_market_quick("gov", "ethereum", second_denom, None)
         .unwrap();
 
     // Sets sell/buy rate between market denom/common denom as 1.5,

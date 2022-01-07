@@ -4,7 +4,9 @@ use super::suite::SuiteBuilder;
 fn market_create() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
 
-    suite.create_market_quick("gov", "osmo", "OSMO").unwrap();
+    suite
+        .create_market_quick("gov", "osmo", "OSMO", None)
+        .unwrap();
     suite.assert_market("OSMO");
 }
 
@@ -12,9 +14,15 @@ fn market_create() {
 fn market_create_multiple() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
 
-    suite.create_market_quick("gov", "osmo", "OSMO").unwrap();
-    suite.create_market_quick("gov", "btc", "BTC").unwrap();
-    suite.create_market_quick("gov", "atom", "ATOM").unwrap();
+    suite
+        .create_market_quick("gov", "osmo", "OSMO", None)
+        .unwrap();
+    suite
+        .create_market_quick("gov", "btc", "BTC", None)
+        .unwrap();
+    suite
+        .create_market_quick("gov", "atom", "ATOM", None)
+        .unwrap();
 
     suite.assert_market("OSMO");
     suite.assert_market("BTC");
@@ -27,7 +35,7 @@ fn market_create_unauthorized() {
 
     assert_eq!(
         suite
-            .create_market_quick("random_dude", "osmo", "OSMO")
+            .create_market_quick("random_dude", "osmo", "OSMO", None)
             .unwrap_err()
             .to_string(),
         "Unauthorized"
@@ -38,9 +46,11 @@ fn market_create_unauthorized() {
 fn market_create_already_exists() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
 
-    suite.create_market_quick("gov", "osmo", "OSMO").unwrap();
+    suite
+        .create_market_quick("gov", "osmo", "OSMO", None)
+        .unwrap();
     let err = suite
-        .create_market_quick("gov", "osmo", "OSMO")
+        .create_market_quick("gov", "osmo", "OSMO", None)
         .unwrap_err();
     assert_eq!(
         err.to_string(),

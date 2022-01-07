@@ -60,6 +60,7 @@ pub struct SuiteBuilder {
     reward_token: String,
     /// Initial funds to provide for testing
     funds: Vec<(Addr, Vec<Coin>)>,
+    liquidation_price: Decimal,
 }
 
 impl SuiteBuilder {
@@ -68,6 +69,7 @@ impl SuiteBuilder {
             gov_contract: "owner".to_string(),
             reward_token: "reward".to_string(),
             funds: vec![],
+            liquidation_price: Decimal::percent(92),
         }
     }
 
@@ -84,6 +86,11 @@ impl SuiteBuilder {
     /// Sets initial amount of distributable tokens on address
     pub fn with_funds(mut self, addr: &str, funds: &[Coin]) -> Self {
         self.funds.push((Addr::unchecked(addr), funds.into()));
+        self
+    }
+
+    pub fn with_liquidation_price(mut self, liquidation_price: Decimal) -> Self {
+        self.liquidation_price = liquidation_price;
         self
     }
 
@@ -121,6 +128,7 @@ impl SuiteBuilder {
                     lendex_token_id,
                     reward_token: self.reward_token,
                     common_token: common_token.clone(),
+                    liquidation_price: self.liquidation_price,
                 },
                 &[],
                 "credit-agency",
@@ -177,6 +185,7 @@ impl Suite {
         caller: &str,
         lendex_token: &str,
         market_token: &str,
+        collateral_ratio: impl Into<Option<Decimal>>,
     ) -> AnyResult<AppResponse> {
         self.create_market(
             caller,
@@ -190,7 +199,9 @@ impl Suite {
                     slope: Decimal::percent(20),
                 },
                 interest_charge_period: 300, // seconds
-                collateral_ratio: Decimal::percent(50),
+                collateral_ratio: collateral_ratio
+                    .into()
+                    .unwrap_or_else(|| Decimal::percent(50)),
                 price_oracle: self.oracle_contract.to_string(),
             },
         )
@@ -314,6 +325,25 @@ impl Suite {
                 amount: tokens.amount,
             },
             &[],
+        )
+    }
+
+    pub fn liquidate(
+        &mut self,
+        sender: &str,
+        account: &str,
+        tokens: &[Coin],
+    ) -> AnyResult<AppResponse> {
+        let ca = self.contract.clone();
+
+        self.app.execute_contract(
+            Addr::unchecked(sender),
+            ca,
+            &ExecuteMsg::Liquidate {
+                account: account.to_owned(),
+                collateral_denom: tokens[0].denom.clone(),
+            },
+            tokens,
         )
     }
 }
