@@ -54,6 +54,7 @@ pub enum ExecuteMsg {
         source: String,
         destination: String,
         amount: Uint128,
+        liquidation_price: Decimal,
     },
 }
 

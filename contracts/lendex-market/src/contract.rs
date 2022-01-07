@@ -151,10 +151,15 @@ pub fn execute(
             let account = deps.api.addr_validate(&account)?;
             execute::repay_from(deps, info, account, amount)
         }
-        TransferFrom { source, destination, amount } => {
+        TransferFrom {
+            source,
+            destination,
+            amount,
+            liquidation_price,
+        } => {
             let source = deps.api.addr_validate(&source)?;
             let destination = deps.api.addr_validate(&destination)?;
-            execute::transfer_from(deps, source, destination, amount)
+            execute::transfer_from(deps, info, source, destination, amount, liquidation_price)
         }
     }
 }
@@ -166,7 +171,7 @@ mod cr_utils {
     use cosmwasm_std::Fraction;
 
     // TODO: Check for rounding error https://github.com/confio/lendex/issues/40
-    fn divide(top: Uint128, bottom: Decimal) -> Uint128 {
+    pub fn divide(top: Uint128, bottom: Decimal) -> Uint128 {
         top * bottom.inv().unwrap_or_else(Decimal::zero)
     }
 
@@ -475,7 +480,7 @@ mod execute {
     ) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
         if cfg.credit_agency != info.sender {
-            return Err(ContractError::LiquidationRequiresCreditAgency {})
+            return Err(ContractError::LiquidationRequiresCreditAgency {});
         }
 
         let funds = validate_funds(&info.funds, &cfg.market_token)?;
@@ -503,7 +508,7 @@ mod execute {
 
         Ok(Response::new()
             .add_attribute("action", "repay_from")
-            .add_attribute("sender", info.sender.clone())
+            .add_attribute("sender", info.sender)
             .add_attribute("debtor", account)
             .add_submessage(burn_msg))
     }
@@ -516,24 +521,34 @@ mod execute {
         source: Addr,
         destination: Addr,
         amount: Uint128,
+        liquidation_price: Decimal,
     ) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
         if cfg.credit_agency != info.sender {
-            return Err(ContractError::LiquidationRequiresCreditAgency {})
+            return Err(ContractError::LiquidationRequiresCreditAgency {});
         }
 
+        // calculate repaid value
+        let price_rate = query::price_ratio_from_oracle(deps.as_ref(), &cfg)?;
+        let repaid_value = cr_utils::divide(amount * price_rate, liquidation_price);
+
         // transfer claimed amount of ltokens from account source to destination
-        let msg = to_binary(&lendex_token::msg::ExecuteMsg::Transfer {
-            owner: source.to_string(),
-            amount: lendex_token::DisplayAmount::raw(amount),
+        let msg = to_binary(&lendex_token::msg::ExecuteMsg::TransferFrom {
+            sender: source.to_string(),
+            recipient: destination.to_string(),
+            amount: lendex_token::DisplayAmount::raw(repaid_value),
         })?;
         let transfer_msg = SubMsg::new(WasmMsg::Execute {
-            contract_addr: cfg.btoken_contract.to_string(),
+            contract_addr: cfg.ltoken_contract.to_string(),
             msg,
             funds: vec![],
         });
 
-        Ok(Response::new())
+        Ok(Response::new()
+            .add_attribute("action", "transfer_from")
+            .add_attribute("from", source)
+            .add_attribute("to", destination)
+            .add_submessage(transfer_msg))
     }
 }
 

@@ -150,6 +150,7 @@ mod exec {
 
         let market = query::market(deps.as_ref(), funds.denom.clone())?.market;
 
+        // Count btokens and burn then on account
         let msg = to_binary(&lendex_market::msg::ExecuteMsg::RepayFrom {
             account: account.to_string(),
             amount: funds.amount,
@@ -159,28 +160,6 @@ mod exec {
             msg,
             funds: vec![],
         });
-
-        // THIS GOES TO MARKET NOW
-        // // assert that account has enough btokens
-        // let market = query::market(deps.as_ref(), funds.denom.clone())?.market;
-        // let market_config: MarketConfiguration = deps
-        //     .querier
-        //     .query_wasm_smart(market, &MarketQueryMsg::Configuration {})?;
-        // let btokens_balance: BalanceResponse = deps.querier.query_wasm_smart(
-        //     market_config.btoken_contract,
-        //     &TokenQueryMsg::Balance {
-        //         address: account.to_string(),
-        //     },
-        // )?;
-        // let btokens_balance = btokens_balance.balance.display_amount();
-        // // if account has less btokens then caller wants to pay off, liquidation fails
-        // if funds.amount > btokens_balance {
-        //     return Err(ContractError::LiquidationInsufficientBTokens {
-        //         account: account.to_string(),
-        //         btokens: btokens_balance,
-        //         debt: total_credit_line.debt,
-        //     });
-        // }
 
         // // calculate repaid value
         // let price_oracle = deps.api.addr_validate(&market_config.price_oracle)?;
@@ -195,12 +174,17 @@ mod exec {
         // let price_rate = price_response.rate;
         // let repaid_value_common = funds.amount * price_rate;
 
-        unimplemented!();
-        // repay the debt
-        let bank_msg = BankMsg::Send {
-            to_address: account.to_string(),
-            amount: vec![funds],
-        };
+        // transfer claimed amount of ltokens as reward
+        let msg = to_binary(&lendex_market::msg::ExecuteMsg::TransferFrom {
+            source: account.to_string(),
+            destination: info.sender.to_string(),
+            amount: funds.amount,
+        })?;
+        let repay_from_msg = SubMsg::new(WasmMsg::Execute {
+            contract_addr: market.to_string(),
+            msg,
+            funds: vec![],
+        });
 
         // reward with collateral
         Ok(Response::new())

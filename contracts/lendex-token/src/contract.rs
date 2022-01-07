@@ -150,6 +150,11 @@ fn transfer_from(
     recipient: Addr,
     amount: DisplayAmount,
 ) -> Result<Response, ContractError> {
+    let controller = CONTROLLER.load(deps.storage)?;
+    if info.sender != controller {
+        return Err(ContractError::Unauthorized {});
+    }
+
     let multiplier = MULTIPLIER.load(deps.storage)?;
     let amount = amount.to_stored_amount(multiplier);
 
@@ -157,7 +162,7 @@ fn transfer_from(
 
     let res = Response::new()
         .add_attribute("action", "transfer")
-        .add_attribute("from", info.sender)
+        .add_attribute("from", sender)
         .add_attribute("to", recipient)
         .add_attribute("amount", amount);
 
