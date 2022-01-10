@@ -149,7 +149,7 @@ pub fn execute(
         Repay {} => execute::repay(deps, env, info),
         RepayTo { account, amount } => {
             let account = deps.api.addr_validate(&account)?;
-            execute::repay_to(deps, info, account, amount)
+            execute::repay_to(deps, env, info, account, amount)
         }
         TransferFrom {
             source,
@@ -474,6 +474,7 @@ mod execute {
     /// Requires sender to be a Credit Agency, otherwise fails
     pub fn repay_to(
         deps: DepsMut,
+        env: Env,
         info: MessageInfo,
         account: Addr,
         amount: Uint128,
@@ -494,7 +495,14 @@ mod execute {
             });
         }
 
-        // TODO: Charge interests?
+        let mut response = Response::new();
+
+        // Create rebase messagess for tokens based on interest and supply
+        let charge_msgs = charge_interest(deps, env)?;
+        if !charge_msgs.is_empty() {
+            response = response.add_submessages(charge_msgs);
+        }
+
         // TODO: Return overpay?
         let msg = to_binary(&lendex_token::msg::ExecuteMsg::BurnFrom {
             owner: account.to_string(),
@@ -506,11 +514,12 @@ mod execute {
             funds: vec![],
         });
 
-        Ok(Response::new()
+        response = response
             .add_attribute("action", "repay_to")
             .add_attribute("sender", info.sender)
             .add_attribute("debtor", account)
-            .add_submessage(burn_msg))
+            .add_submessage(burn_msg);
+        Ok(response)
     }
 
     /// Handler for `ExecuteMsg::TransferFrom`
