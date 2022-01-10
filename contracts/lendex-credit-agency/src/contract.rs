@@ -141,16 +141,11 @@ mod exec {
         }
         let funds = info.funds[0].clone();
 
-        // assert that collateral ratio is lower then liquidation price,
-        // so this can only decreases debt more than it decreases available credit
-        let cfg = CONFIG.load(deps.storage)?;
-        let market = query::market(deps.as_ref(), funds.denom.clone())?.market;
-        let market_config: MarketConfiguration = deps
-            .querier
-            .query_wasm_smart(market.to_string(), &MarketQueryMsg::Configuration {})?;
-        if market_config.collateral_ratio >= cfg.liquidation_price {
-            return Err(ContractError::LiquidationCollateralRatioHigherThenLiquidationPrice {});
-        }
+        // let cfg = CONFIG.load(deps.storage)?;
+        // let market = query::market(deps.as_ref(), collateral_denom)?.market;
+        // let market_config: MarketConfiguration = deps
+        //     .querier
+        //     .query_wasm_smart(market.to_string(), &MarketQueryMsg::Configuration {})?;
 
         // assert that given account actually has more debt then credit
         let total_credit_line = query::total_credit_line(deps.as_ref(), account.to_string())?;
@@ -158,6 +153,7 @@ mod exec {
             return Err(ContractError::LiquidationNotAllowed {});
         }
         // Count btokens and burn then on account
+        // this requires that market returns error if repaying more then balance
         let msg = to_binary(&lendex_market::msg::ExecuteMsg::RepayTo {
             account: account.to_string(),
             amount: funds.amount,
@@ -169,6 +165,8 @@ mod exec {
         });
 
         // transfer claimed amount of ltokens as reward
+        // todo: get collateral denom's market and transfer tokens there
+        // convert amount to common currency
         let msg = to_binary(&lendex_market::msg::ExecuteMsg::TransferFrom {
             source: account.to_string(),
             destination: info.sender.to_string(),

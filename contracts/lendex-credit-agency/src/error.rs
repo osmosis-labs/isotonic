@@ -25,9 +25,6 @@ pub enum ContractError {
     #[error("A market for base asset {0} already exists")]
     MarketAlreadyExists(String),
 
-    #[error("Cannot liquidate debt if collateral ratio is higher then liquidation price")]
-    LiquidationCollateralRatioHigherThenLiquidationPrice {},
-
     #[error("Account cannot be liquidated as it does not have more debt then credit line")]
     LiquidationNotAllowed {},
 

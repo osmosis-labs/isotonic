@@ -515,6 +515,7 @@ mod execute {
 
     /// Handler for `ExecuteMsg::TransferFrom`
     /// Requires sender to be a Credit Agency, otherwise fails
+    /// it assumes that amount is in common denom (from CA)
     pub fn transfer_from(
         deps: DepsMut,
         info: MessageInfo,
