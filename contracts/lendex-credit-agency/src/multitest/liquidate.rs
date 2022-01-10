@@ -36,32 +36,6 @@ fn send_more_then_one_denom() {
 }
 
 #[test]
-fn liquidation_price_lower_then_collateral_ratio() {
-    let debtor = "debtor";
-    let liquidator = "liquidator";
-
-    let denom = "OSMO";
-
-    let mut suite = SuiteBuilder::new()
-        .with_gov("gov")
-        .with_funds(liquidator, &coins(5000, denom))
-        .with_liquidation_price(Decimal::percent(90))
-        .build();
-
-    suite
-        .create_market_quick("gov", "osmo", denom, Decimal::percent(95))
-        .unwrap();
-
-    let err = suite
-        .liquidate(liquidator, debtor, &coins(100, denom))
-        .unwrap_err();
-    assert_eq!(
-        err.to_string(),
-        "Cannot liquidate debt if collateral ratio is higher then liquidation price"
-    );
-}
-
-#[test]
 fn account_doesnt_have_debt_bigger_then_credit_line() {
     let debtor = "debtor";
     let liquidator = "liquidator";
