@@ -171,6 +171,13 @@ pub struct Suite {
 }
 
 impl Suite {
+    pub fn advance_seconds(&mut self, seconds: u64) {
+        self.app.update_block(|block| {
+            block.time = block.time.plus_seconds(seconds);
+            block.height += std::cmp::max(1, seconds / 5); // block time
+        });
+    }
+
     pub fn create_market(&mut self, caller: &str, cfg: MarketConfig) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             Addr::unchecked(caller),
@@ -344,6 +351,21 @@ impl Suite {
                 collateral_denom: tokens[0].denom.clone(),
             },
             tokens,
+        )
+    }
+
+    pub fn repay_tokens_on_market(
+        &mut self,
+        account: &str,
+        tokens: Coin,
+    ) -> AnyResult<AppResponse> {
+        let market = self.query_market(tokens.denom.as_str())?;
+
+        self.app.execute_contract(
+            Addr::unchecked(account),
+            market.market,
+            &MarketExecuteMsg::Repay {},
+            &[tokens],
         )
     }
 }

@@ -156,8 +156,9 @@ fn transfer_from(
     }
 
     let multiplier = MULTIPLIER.load(deps.storage)?;
+    dbg!(multiplier);
     let amount = amount.to_stored_amount(multiplier);
-
+    dbg!(amount);
     transfer_tokens(deps, env, &sender, &recipient, amount)?;
 
     let res = Response::new()
