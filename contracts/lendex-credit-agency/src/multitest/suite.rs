@@ -193,6 +193,7 @@ impl Suite {
         lendex_token: &str,
         market_token: &str,
         collateral_ratio: impl Into<Option<Decimal>>,
+        interest_rates: impl Into<Option<(Decimal, Decimal)>>,
     ) -> AnyResult<AppResponse> {
         self.create_market(
             caller,
@@ -201,9 +202,12 @@ impl Suite {
                 symbol: lendex_token.to_string(),
                 decimals: 9,
                 market_token: market_token.to_string(),
-                interest_rate: Interest::Linear {
-                    base: Decimal::percent(3),
-                    slope: Decimal::percent(20),
+                interest_rate: match interest_rates.into() {
+                    Some((base, slope)) => Interest::Linear { base, slope },
+                    None => Interest::Linear {
+                        base: Decimal::percent(3),
+                        slope: Decimal::percent(20),
+                    },
                 },
                 interest_charge_period: 300, // seconds
                 collateral_ratio: collateral_ratio
@@ -340,6 +344,7 @@ impl Suite {
         sender: &str,
         account: &str,
         tokens: &[Coin],
+        collateral_denom: String,
     ) -> AnyResult<AppResponse> {
         let ca = self.contract.clone();
 
@@ -348,7 +353,7 @@ impl Suite {
             ca,
             &ExecuteMsg::Liquidate {
                 account: account.to_owned(),
-                collateral_denom: tokens[0].denom.clone(),
+                collateral_denom,
             },
             tokens,
         )
