@@ -345,111 +345,112 @@ fn receive_rewarddifferent_denom_fails_if_debtor_has_not_enough_reward_tokens() 
     );
 }
 
-// #[test]
-// fn receive_reward_in_different_denom() {
-//     let debtor = "debtor";
-//     let liquidator = "liquidator";
-//
-//     let denom = "OSMO";
-//     let reward_denom = "ETH";
-//
-//     let mut suite = SuiteBuilder::new()
-//         .with_gov("gov")
-//         .with_funds(liquidator, &coins(5000, denom))
-//         .with_funds(debtor, &[coin(600, denom), coin(500, reward_denom)])
-//         .with_liquidation_price(Decimal::percent(92))
-//         .build();
-//
-//     // create market with very high interest rates
-//     suite
-//         .create_market_quick(
-//             "gov",
-//             "osmo",
-//             denom,
-//             Decimal::percent(80),
-//             (Decimal::percent(200), Decimal::percent(45)),
-//         )
-//         .unwrap();
-//     // create reward_denom market
-//     suite
-//         .create_market_quick("gov", "eth", reward_denom, Decimal::percent(80), None)
-//         .unwrap();
-//
-//     suite
-//         .oracle_set_price_market_per_common(denom, Decimal::percent(100))
-//         .unwrap();
-//     suite
-//         .oracle_set_price_market_per_common(reward_denom, Decimal::percent(3))
-//         .unwrap();
-//
-//     suite
-//         .deposit_tokens_on_market(debtor, coin(500, denom))
-//         .unwrap();
-//     // debtor deposits some tokens in reward_denom market
-//     suite
-//         .deposit_tokens_on_market(debtor, coin(100, reward_denom))
-//         .unwrap();
-//
-//     suite
-//         .borrow_tokens_from_market(debtor, coin(400, denom))
-//         .unwrap();
-//
-//     suite.advance_seconds(YEAR_IN_SECONDS);
-//
-//     suite
-//         .oracle_set_price_market_per_common(denom, Decimal::percent(100))
-//         .unwrap();
-//     suite
-//         .oracle_set_price_market_per_common(reward_denom, Decimal::percent(3))
-//         .unwrap();
-//
-//     // Repay some tokens to trigger interest rate charges
-//     suite
-//         .repay_tokens_on_market(debtor, coin(10, denom))
-//         .unwrap();
-//
-//     let total_credit_line = suite.query_total_credit_line(debtor).unwrap();
-//     // just for status
-//     assert_eq!(
-//         total_credit_line,
-//         CreditLineResponse {
-//             collateral: Uint128::new(1446),
-//             credit_line: Uint128::new(1156),
-//             debt: Uint128::new(1337)
-//         }
-//     );
-//
-//     // successful liquidation of 50 tokens
-//     suite
-//         .liquidate(
-//             liquidator,
-//             debtor,
-//             &coins(185, denom),
-//             reward_denom.to_owned(),
-//         )
-//         .unwrap();
-//
-//     // Liquidation price is 0.92
-//     // Repaid value is 185 * 0.03 (oracle's price for reward denom) * 0.92 = 5
-//     let total_credit_line = suite.query_total_credit_line(debtor).unwrap();
-//     assert_eq!(
-//         total_credit_line,
-//         CreditLineResponse {
-//             collateral: Uint128::new(1445),
-//             credit_line: Uint128::new(1155),
-//             // 1137 - 185 = 1152
-//             debt: Uint128::new(1152),
-//         }
-//     );
-//
-//     let total_credit_line = suite.query_total_credit_line(liquidator).unwrap();
-//     assert_eq!(
-//         total_credit_line,
-//         CreditLineResponse {
-//             // 515 tokens transferred as reward from debtor
-//             collateral: Uint128::new(0), // FIXME: Rounding issue? Message debug shows 515 transferred
-//             credit_line: Uint128::new(0),
-//             debt: Uint128::zero()
-//         }
-//     );
-// }
+#[test]
+fn receive_reward_in_different_denom() {
+    let debtor = "debtor";
+    let liquidator = "liquidator";
+
+    let denom = "OSMO";
+    let reward_denom = "ETH";
+
+    let mut suite = SuiteBuilder::new()
+        .with_gov("gov")
+        .with_funds(liquidator, &coins(5000, denom))
+        .with_funds(debtor, &[coin(600, denom), coin(500, reward_denom)])
+        .with_liquidation_price(Decimal::percent(92))
+        .build();
+
+    // create market with very high interest rates
+    suite
+        .create_market_quick(
+            "gov",
+            "osmo",
+            denom,
+            Decimal::percent(80),
+            (Decimal::percent(200), Decimal::percent(45)),
+        )
+        .unwrap();
+    // create reward_denom market
+    suite
+        .create_market_quick("gov", "eth", reward_denom, Decimal::percent(80), None)
+        .unwrap();
+
+    suite
+        .oracle_set_price_market_per_common(denom, Decimal::percent(100))
+        .unwrap();
+    suite
+        .oracle_set_price_market_per_common(reward_denom, Decimal::percent(3))
+        .unwrap();
+
+    suite
+        .deposit_tokens_on_market(debtor, coin(500, denom))
+        .unwrap();
+    // debtor deposits some tokens in reward_denom market
+    suite
+        .deposit_tokens_on_market(debtor, coin(100, reward_denom))
+        .unwrap();
+
+    suite
+        .borrow_tokens_from_market(debtor, coin(400, denom))
+        .unwrap();
+
+    suite.advance_seconds(YEAR_IN_SECONDS);
+
+    suite
+        .oracle_set_price_market_per_common(denom, Decimal::percent(100))
+        .unwrap();
+    suite
+        .oracle_set_price_market_per_common(reward_denom, Decimal::percent(3))
+        .unwrap();
+
+    // Repay some tokens to trigger interest rate charges
+    suite
+        .repay_tokens_on_market(debtor, coin(10, denom))
+        .unwrap();
+
+    let total_credit_line = suite.query_total_credit_line(debtor).unwrap();
+    // just for status
+    assert_eq!(
+        total_credit_line,
+        CreditLineResponse {
+            collateral: Uint128::new(1446),
+            credit_line: Uint128::new(1156),
+            debt: Uint128::new(1337)
+        }
+    );
+
+    // successful liquidation of 185 tokens
+    suite
+        .liquidate(
+            liquidator,
+            debtor,
+            &coins(185, denom),
+            reward_denom.to_owned(),
+        )
+        .unwrap();
+
+    // Liquidation price is 0.92
+    // Repaid value is 185 * 0.03 (oracle's price for reward denom) * 0.92 = 5
+    let total_credit_line = suite.query_total_credit_line(debtor).unwrap();
+    assert_eq!(
+        total_credit_line,
+        CreditLineResponse {
+            collateral: Uint128::new(1445),
+            credit_line: Uint128::new(1155),
+            // 1337 - 185 = 1152
+            debt: Uint128::new(1152),
+        }
+    );
+
+    // FIXME: Why does this output show all zeroes??
+    // let total_credit_line = suite.query_total_credit_line(liquidator).unwrap();
+    // assert_eq!(
+    //     total_credit_line,
+    //     CreditLineResponse {
+    //         // 5 tokens transferred as reward from debtor
+    //         collateral: Uint128::new(5),
+    //         credit_line: Uint128::new(0),
+    //         debt: Uint128::zero()
+    //     }
+    // );
+}

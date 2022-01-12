@@ -96,7 +96,6 @@ fn transfer_tokens(
 
     let distribution = DISTRIBUTION.load(deps.storage)?;
     let ppt = distribution.points_per_token.u128();
-
     BALANCES.update(
         deps.storage,
         sender,
