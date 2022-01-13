@@ -180,17 +180,18 @@ mod cr_utils {
         config: &Config,
         account: String,
     ) -> Result<Uint128, ContractError> {
-        let credit: CreditLineResponse = deps.querier.query_wasm_smart(
+        dbg!(account.clone());
+        let credit: CreditLineResponse = dbg!(deps.querier.query_wasm_smart(
             &config.credit_agency,
             &QueryTotalCreditLine::TotalCreditLine { account },
-        )?;
+        )?);
         // Available credit for that account amongst all markets
         let available_common = credit.credit_line.saturating_sub(credit.debt);
         // Price is defined as common/local
         // (see price_ratio_from_oracle function from this file)
         let available = divide(
             available_common,
-            query::price_ratio_from_oracle(deps, config)?,
+            query::price_local_per_common(deps, config)?,
         );
         Ok(available)
     }
@@ -212,8 +213,8 @@ mod cr_utils {
         config: &Config,
         account: impl Into<String>,
     ) -> Result<Uint128, ContractError> {
-        let available = query_available_tokens(deps, config, account.into())?;
-        let can_transfer = divide(available, config.collateral_ratio);
+        let available = dbg!(query_available_tokens(deps, config, account.into())?);
+        let can_transfer = dbg!(divide(available, config.collateral_ratio));
         Ok(can_transfer)
     }
 }
@@ -425,7 +426,7 @@ mod execute {
     }
 
     /// Handler for `ExecuteMsg::Repay`
-    pub fn repay(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+    pub fn repay(mut deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
         let funds_sent = validate_funds(&info.funds, &cfg.market_token)?;
 
@@ -437,7 +438,7 @@ mod execute {
         let mut response = Response::new();
 
         // Create rebase messagess for tokens based on interest and supply
-        let charge_msgs = charge_interest(deps, env)?;
+        let charge_msgs = charge_interest(deps.branch(), env)?;
         if !charge_msgs.is_empty() {
             response = response.add_submessages(charge_msgs);
         }
@@ -539,7 +540,7 @@ mod execute {
         }
 
         // calculate repaid value
-        let price_rate = query::price_ratio_from_oracle(deps.as_ref(), &cfg)?;
+        let price_rate = query::price_local_per_common(deps.as_ref(), &cfg)?;
         let repaid_value = cr_utils::divide(amount * price_rate, liquidation_price);
 
         // transfer claimed amount of ltokens from account source to destination
@@ -677,7 +678,7 @@ mod query {
     }
 
     /// Ratio is for sell market_token / buy common_token
-    pub fn price_ratio_from_oracle(deps: Deps, config: &Config) -> Result<Decimal, ContractError> {
+    pub fn price_local_per_common(deps: Deps, config: &Config) -> Result<Decimal, ContractError> {
         // If denoms are the same, just return 1:1
         if config.common_token == config.market_token {
             Ok(Decimal::one())
@@ -702,7 +703,7 @@ mod query {
             return Ok(CreditLineResponse::zero());
         }
 
-        let price_ratio = price_ratio_from_oracle(deps, &config)?;
+        let price_ratio = price_local_per_common(deps, &config)?;
         let collateral = collateral * price_ratio;
         let debt = debt * price_ratio;
         let credit_line = collateral * config.collateral_ratio;

@@ -141,30 +141,29 @@ mod exec {
             return Err(ContractError::LiquidationOnlyOneDenomRequired {});
         }
         let funds = info.funds[0].clone();
-
         // assert that given account actually has more debt then credit
         let total_credit_line = query::total_credit_line(deps.as_ref(), account.to_string())?;
         if total_credit_line.debt <= total_credit_line.credit_line {
             return Err(ContractError::LiquidationNotAllowed {});
         }
+
         // Count btokens and burn then on account
         // this requires that market returns error if repaying more then balance
         let cfg = CONFIG.load(deps.storage)?;
-        let market = query::market(deps.as_ref(), funds.denom.clone())?.market;
+        let debt_market = query::market(deps.as_ref(), funds.denom.clone())?.market;
         let msg = to_binary(&lendex_market::msg::ExecuteMsg::RepayTo {
             account: account.to_string(),
             amount: funds.amount,
         })?;
         let repay_from_msg = SubMsg::new(WasmMsg::Execute {
-            contract_addr: market.to_string(),
+            contract_addr: debt_market.to_string(),
             msg,
             funds: vec![funds.clone()],
         });
-        // find market with wanted collateral_denom
-        let market = query::market(deps.as_ref(), collateral_denom.clone())?.market;
+
         let market_config: MarketConfiguration = deps
             .querier
-            .query_wasm_smart(market.to_string(), &MarketQueryMsg::Configuration {})?;
+            .query_wasm_smart(debt_market.to_string(), &MarketQueryMsg::Configuration {})?;
         // find price rate of collateral denom
         let price_oracle = Addr::unchecked(&market_config.price_oracle);
         let price_response: PriceResponse = deps.querier.query_wasm_smart(
@@ -174,17 +173,21 @@ mod exec {
                 buy: cfg.common_token.clone(),
             },
         )?;
+
+        // find market with wanted collateral_denom
+        let collateral_market = query::market(deps.as_ref(), collateral_denom.clone())?.market;
+
         // transfer claimed amount as reward
         let msg = to_binary(&lendex_market::msg::ExecuteMsg::TransferFrom {
             source: account.to_string(),
             destination: info.sender.to_string(),
             // transfer repaid amount represented as amount of common tokens, which is
             // calculated into collateral_denom's amount later in the market
-            amount: funds.amount * price_response.rate,
+            amount: dbg!(funds.amount * price_response.rate),
             liquidation_price: cfg.liquidation_price,
         })?;
         let transfer_from_msg = SubMsg::new(WasmMsg::Execute {
-            contract_addr: market.to_string(),
+            contract_addr: collateral_market.to_string(),
             msg,
             funds: vec![],
         });
