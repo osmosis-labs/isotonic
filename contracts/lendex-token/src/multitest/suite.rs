@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::display_amount::DisplayAmount;
 use crate::msg::{
     BalanceResponse, ExecuteMsg, FundsResponse, InstantiateMsg, MultiplierResponse, QueryMsg,
-    TokenInfoResponse, TokensBalanceResponse
+    TokenInfoResponse,
 };
 use crate::multitest::controller::Controller;
 use crate::multitest::receiver::{QueryResp as ReceiverQueryResp, Receiver};

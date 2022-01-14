@@ -159,7 +159,15 @@ pub fn execute(
         } => {
             let source = deps.api.addr_validate(&source)?;
             let destination = deps.api.addr_validate(&destination)?;
-            execute::transfer_from(deps, info, source, destination, amount, liquidation_price)
+            execute::transfer_from(
+                deps,
+                env,
+                info,
+                source,
+                destination,
+                amount,
+                liquidation_price,
+            )
         }
     }
 }
@@ -425,7 +433,11 @@ mod execute {
     }
 
     /// Handler for `ExecuteMsg::Repay`
-    pub fn repay(mut deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+    pub fn repay(
+        mut deps: DepsMut,
+        env: Env,
+        info: MessageInfo,
+    ) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
         let funds_sent = validate_funds(&info.funds, &cfg.market_token)?;
 
@@ -503,7 +515,6 @@ mod execute {
             response = response.add_submessages(charge_msgs);
         }
 
-        // TODO: Return overpay?
         let msg = to_binary(&lendex_token::msg::ExecuteMsg::BurnFrom {
             owner: account.to_string(),
             amount: lendex_token::DisplayAmount::raw(amount),
@@ -526,7 +537,8 @@ mod execute {
     /// Requires sender to be a Credit Agency, otherwise fails
     /// it assumes that amount is in common denom (from CA)
     pub fn transfer_from(
-        deps: DepsMut,
+        mut deps: DepsMut,
+        env: Env,
         info: MessageInfo,
         source: Addr,
         destination: Addr,
@@ -538,9 +550,18 @@ mod execute {
             return Err(ContractError::LiquidationRequiresCreditAgency {});
         }
 
+        let mut response = Response::new();
+
+        // charge interests before transferring tokens
+        let charge_msgs = charge_interest(deps.branch(), env)?;
+        if !charge_msgs.is_empty() {
+            response = response.add_submessages(charge_msgs);
+        }
+
         // calculate repaid value
         let price_rate = query::price_local_per_common(deps.as_ref(), &cfg)?;
-        let repaid_value = cr_utils::divide(cr_utils::divide(amount, price_rate), liquidation_price);
+        let repaid_value =
+            cr_utils::divide(cr_utils::divide(amount, price_rate), liquidation_price);
 
         // transfer claimed amount of ltokens from account source to destination
         let msg = to_binary(&lendex_token::msg::ExecuteMsg::TransferFrom {
@@ -554,11 +575,12 @@ mod execute {
             funds: vec![],
         });
 
-        Ok(Response::new()
+        response = response
             .add_attribute("action", "transfer_from")
             .add_attribute("from", source)
             .add_attribute("to", destination)
-            .add_submessage(transfer_msg))
+            .add_submessage(transfer_msg);
+        Ok(response)
     }
 }
 
@@ -566,9 +588,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractErr
     use QueryMsg::*;
     let res = match msg {
         Configuration {} => to_binary(&CONFIG.load(deps.storage)?)?,
-        TokensBalance { account } => {
-            to_binary(&query::tokens_balance(deps, account)?)?
-        },
+        TokensBalance { account } => to_binary(&query::tokens_balance(deps, account)?)?,
         TransferableAmount { token, account } => {
             let token = deps.api.addr_validate(&token)?;
             to_binary(&query::transferable_amount(deps, token, account)?)?

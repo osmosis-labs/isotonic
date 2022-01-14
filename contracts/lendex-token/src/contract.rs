@@ -155,7 +155,6 @@ fn transfer_from(
 
     let multiplier = MULTIPLIER.load(deps.storage)?;
     let amount = amount.to_stored_amount(multiplier);
-
     let distribution = DISTRIBUTION.load(deps.storage)?;
     let ppt = distribution.points_per_token.u128();
     BALANCES.update(

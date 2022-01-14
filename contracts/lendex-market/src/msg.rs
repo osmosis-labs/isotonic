@@ -64,9 +64,7 @@ pub enum QueryMsg {
     /// Returns current configuration
     Configuration {},
     /// Returns TokensBalanceResponse
-    TokensBalance {
-        account: String,
-    },
+    TokensBalance { account: String },
     /// Returns TransferableAmountResponse
     TransferableAmount {
         /// Lendex contract address that calls "CanTransfer"
