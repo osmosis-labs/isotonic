@@ -566,6 +566,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractErr
     use QueryMsg::*;
     let res = match msg {
         Configuration {} => to_binary(&CONFIG.load(deps.storage)?)?,
+        TokensBalance { account } => {
+            to_binary(&query::tokens_balance(deps, account)?)?
+        },
         TransferableAmount { token, account } => {
             let token = deps.api.addr_validate(&token)?;
             to_binary(&query::transferable_amount(deps, token, account)?)?
@@ -587,7 +590,7 @@ mod query {
     use lendex_oracle::msg::{PriceResponse, QueryMsg as OracleQueryMsg};
     use lendex_token::msg::{QueryMsg as TokenQueryMsg, TokenInfoResponse};
 
-    use crate::msg::InterestResponse;
+    use crate::msg::{InterestResponse, TokensBalanceResponse};
     use crate::state::TokensInfo;
 
     fn token_balance(
@@ -613,6 +616,18 @@ mod query {
         account: impl ToString,
     ) -> Result<Uint128, ContractError> {
         Ok(token_balance(deps, &config.ltoken_contract, account.to_string())?.balance)
+    }
+
+    /// Handler for `QueryMsg::TokensBalance`
+    pub fn tokens_balance(
+        deps: Deps,
+        account: String,
+    ) -> Result<TokensBalanceResponse, ContractError> {
+        let config = CONFIG.load(deps.storage)?;
+        Ok(TokensBalanceResponse {
+            ltokens: ltoken_balance(deps, &config, account.clone())?,
+            btokens: btoken_balance(deps, &config, account)?,
+        })
     }
 
     /// Handler for `QueryMsg::TransferableAmount`

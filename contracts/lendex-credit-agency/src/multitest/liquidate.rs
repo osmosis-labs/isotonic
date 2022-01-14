@@ -346,7 +346,7 @@ fn receive_rewarddifferent_denom_fails_if_debtor_has_not_enough_reward_tokens() 
 }
 
 #[test]
-fn receive_reward_in_different_denoms() {
+fn receive_reward_in_different_denoms_no_interest_rates() {
     let debtor = "debtor";
     let liquidator = "liquidator";
 
@@ -444,14 +444,20 @@ fn receive_reward_in_different_denoms() {
             debt: Uint128::new(1500),
         }
     );
+    let balance = suite.query_tokens_balance(ust, debtor).unwrap();
+    assert_eq!(balance.btokens, Uint128::new(15000)); // 1500 / 0.1 price
+    let balance = suite.query_tokens_balance(atom, debtor).unwrap();
+    assert_eq!(balance.ltokens, Uint128::new(1828)); // (4000 deposited - 2173 repaid) FIXME: Rounding error
 
     let total_credit_line = suite.query_total_credit_line(liquidator).unwrap();
     assert!(matches!(
         total_credit_line,
         CreditLineResponse {
-            // deposited 100_000 * 0.1 + repaid 2173 * 3.0
             collateral,
             ..
+        // deposited 100_000 * 0.1 + repaid 2173 * 3.0 (actually 2172 - FIXME rounding error)
         } if collateral == Uint128::new(16_516)
     ));
+    let balance = suite.query_tokens_balance(atom, liquidator).unwrap();
+    assert_eq!(balance.ltokens, Uint128::new(2172)); // 2173 repaid FIXME: Rounding error
 }

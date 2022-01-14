@@ -2,7 +2,10 @@ use anyhow::Result as AnyResult;
 
 use cosmwasm_std::{Addr, Coin, Decimal, Empty};
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
-use lendex_market::msg::{CreditLineResponse, ExecuteMsg as MarketExecuteMsg};
+use lendex_market::msg::{
+    CreditLineResponse, ExecuteMsg as MarketExecuteMsg, QueryMsg as MarketQueryMsg,
+    TokensBalanceResponse,
+};
 use lendex_oracle::msg::ExecuteMsg as OracleExecuteMsg;
 use utils::{interest::Interest, time::Duration};
 
@@ -372,5 +375,21 @@ impl Suite {
             &MarketExecuteMsg::Repay {},
             &[tokens],
         )
+    }
+
+    /// Queries l/btokens balance on market pointed by denom for given account
+    pub fn query_tokens_balance(
+        &self,
+        market_denom: &str,
+        account: &str,
+    ) -> AnyResult<TokensBalanceResponse> {
+        let market = self.query_market(market_denom)?;
+        let resp: TokensBalanceResponse = self.app.wrap().query_wasm_smart(
+            market.market,
+            &MarketQueryMsg::TokensBalance {
+                account: account.to_owned(),
+            },
+        )?;
+        Ok(resp)
     }
 }

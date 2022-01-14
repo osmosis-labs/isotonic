@@ -63,6 +63,10 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     /// Returns current configuration
     Configuration {},
+    /// Returns TokensBalanceResponse
+    TokensBalance {
+        account: String,
+    },
     /// Returns TransferableAmountResponse
     TransferableAmount {
         /// Lendex contract address that calls "CanTransfer"
@@ -87,6 +91,13 @@ pub struct InterestResponse {
     pub interest: Decimal,
     pub utilisation: Decimal,
     pub charge_period: Timestamp,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct TokensBalanceResponse {
+    pub ltokens: Uint128,
+    pub btokens: Uint128,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
