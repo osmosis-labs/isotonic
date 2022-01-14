@@ -180,11 +180,10 @@ mod cr_utils {
         config: &Config,
         account: String,
     ) -> Result<Uint128, ContractError> {
-        dbg!(account.clone());
-        let credit: CreditLineResponse = dbg!(deps.querier.query_wasm_smart(
+        let credit: CreditLineResponse = deps.querier.query_wasm_smart(
             &config.credit_agency,
             &QueryTotalCreditLine::TotalCreditLine { account },
-        )?);
+        )?;
         // Available credit for that account amongst all markets
         let available_common = credit.credit_line.saturating_sub(credit.debt);
         // Price is defined as common/local
@@ -213,8 +212,8 @@ mod cr_utils {
         config: &Config,
         account: impl Into<String>,
     ) -> Result<Uint128, ContractError> {
-        let available = dbg!(query_available_tokens(deps, config, account.into())?);
-        let can_transfer = dbg!(divide(available, config.collateral_ratio));
+        let available = query_available_tokens(deps, config, account.into())?;
+        let can_transfer = divide(available, config.collateral_ratio);
         Ok(can_transfer)
     }
 }
@@ -541,7 +540,7 @@ mod execute {
 
         // calculate repaid value
         let price_rate = query::price_local_per_common(deps.as_ref(), &cfg)?;
-        let repaid_value = cr_utils::divide(amount * price_rate, liquidation_price);
+        let repaid_value = cr_utils::divide(cr_utils::divide(amount, price_rate), liquidation_price);
 
         // transfer claimed amount of ltokens from account source to destination
         let msg = to_binary(&lendex_token::msg::ExecuteMsg::TransferFrom {

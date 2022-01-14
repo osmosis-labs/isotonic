@@ -142,8 +142,7 @@ fn transfer(
 
 /// Handler for `ExecuteMsg::TransferFrom`
 fn transfer_from(
-    deps: DepsMut,
-    env: Env,
+    mut deps: DepsMut,
     info: MessageInfo,
     sender: Addr,
     recipient: Addr,
@@ -156,7 +155,27 @@ fn transfer_from(
 
     let multiplier = MULTIPLIER.load(deps.storage)?;
     let amount = amount.to_stored_amount(multiplier);
-    transfer_tokens(deps, env, &sender, &recipient, amount)?;
+
+    let distribution = DISTRIBUTION.load(deps.storage)?;
+    let ppt = distribution.points_per_token.u128();
+    BALANCES.update(
+        deps.storage,
+        &sender,
+        |balance: Option<Uint128>| -> Result<_, ContractError> {
+            let balance = balance.unwrap_or_default();
+            balance
+                .checked_sub(amount)
+                .map_err(|_| ContractError::insufficient_tokens(balance, amount))
+        },
+    )?;
+    apply_points_correction(deps.branch(), &sender, ppt, -(amount.u128() as i128))?;
+
+    BALANCES.update(
+        deps.storage,
+        &recipient,
+        |balance: Option<Uint128>| -> StdResult<_> { Ok(balance.unwrap_or_default() + amount) },
+    )?;
+    apply_points_correction(deps.branch(), &recipient, ppt, amount.u128() as _)?;
 
     let res = Response::new()
         .add_attribute("action", "transfer")
@@ -419,7 +438,7 @@ pub fn execute(
         } => {
             let recipient = deps.api.addr_validate(&recipient)?;
             let sender = deps.api.addr_validate(&sender)?;
-            transfer_from(deps, env, info, sender, recipient, amount)
+            transfer_from(deps, info, sender, recipient, amount)
         }
         Send {
             contract,
