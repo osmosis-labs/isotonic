@@ -34,3 +34,10 @@ pub struct TokensInfo {
     pub ltoken: TokenInfoResponse,
     pub btoken: TokenInfoResponse,
 }
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct Price {
+    pub buy_denom: String,
+    pub sell_denom: String,
+    pub rate: Decimal,
+}
