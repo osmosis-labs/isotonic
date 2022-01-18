@@ -195,7 +195,7 @@ mod cr_utils {
         // Available credit for that account amongst all markets
         let available_common = credit.credit_line.saturating_sub(credit.debt);
         // Price is defined as common/local
-        // (see price_ratio_from_oracle function from this file)
+        // (see price_local_per_common function from this file)
         let available = divide(
             available_common,
             query::price_local_per_common(deps, config)?,
@@ -560,8 +560,7 @@ mod execute {
 
         // calculate repaid value
         let price_rate = query::price_local_per_common(deps.as_ref(), &cfg)?;
-        let repaid_value =
-            cr_utils::divide(cr_utils::divide(amount, price_rate), liquidation_price);
+        let repaid_value = cr_utils::divide(amount, price_rate * liquidation_price);
 
         // transfer claimed amount of ltokens from account source to destination
         let msg = to_binary(&lendex_token::msg::ExecuteMsg::TransferFrom {
@@ -778,7 +777,7 @@ mod query {
                 credit_agency: Addr::unchecked("credit_agency"),
             };
             // common_token is same as market_token
-            let ratio = price_ratio_from_oracle(deps.as_ref(), &config).unwrap();
+            let ratio = price_local_per_common(deps.as_ref(), &config).unwrap();
             assert_eq!(ratio, Decimal::one());
         }
     }

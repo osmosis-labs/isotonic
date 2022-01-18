@@ -340,7 +340,7 @@ fn receive_reward_different_denom_fails_if_debtor_has_not_enough_reward_tokens()
     // balance = credit line - debt / price ratio = 830 - 755 (855 - 100 liquidated) / 1.5 = 50
     assert_eq!(
         err.to_string(),
-        "Performing operation while there is not enough tokens, 50 tokens available, 71 needed"
+        "Performing operation while there is not enough tokens, 50 tokens available, 72 needed"
     );
 }
 
@@ -434,11 +434,10 @@ fn receive_reward_in_different_denoms_no_interest_rates() {
     assert_eq!(
         total_credit_line,
         CreditLineResponse {
-            // (4000 deposited - 2173 repaid) * 3.0 tokens price = 1827 * 3.0 ~= 1828 * 3.0
-            // FIXME: Rounding issue
-            collateral: Uint128::new(5484),
-            // 5484 * 0.5 collateral price
-            credit_line: Uint128::new(2742),
+            // (4000 deposited - 2173 repaid) * 3.0 tokens price = 1827 * 3.0
+            collateral: Uint128::new(5481),
+            // 5481 * 0.5 collateral price
+            credit_line: Uint128::new(2740),
             // 7500 - (60_000 * 0.1)
             debt: Uint128::new(1500),
         }
@@ -446,7 +445,7 @@ fn receive_reward_in_different_denoms_no_interest_rates() {
     let balance = suite.query_tokens_balance(ust, debtor).unwrap();
     assert_eq!(balance.btokens, Uint128::new(15000)); // 1500 / 0.1 price
     let balance = suite.query_tokens_balance(atom, debtor).unwrap();
-    assert_eq!(balance.ltokens, Uint128::new(1828)); // (4000 deposited - 2173 repaid) FIXME: Rounding error
+    assert_eq!(balance.ltokens, Uint128::new(1827)); // (4000 deposited - 2173 repaid)
 
     let total_credit_line = suite.query_total_credit_line(liquidator).unwrap();
     assert!(matches!(
@@ -455,10 +454,10 @@ fn receive_reward_in_different_denoms_no_interest_rates() {
             collateral,
             ..
         // deposited 100_000 * 0.1 + repaid 2173 * 3.0 (actually 2172 - FIXME rounding error)
-        } if collateral == Uint128::new(16_516)
+        } if collateral == Uint128::new(16_519)
     ));
     let balance = suite.query_tokens_balance(atom, liquidator).unwrap();
-    assert_eq!(balance.ltokens, Uint128::new(2172)); // 2173 repaid FIXME: Rounding error
+    assert_eq!(balance.ltokens, Uint128::new(2173)); // 2173 repaid
 }
 
 #[test]
@@ -572,19 +571,19 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
     let balance = suite.query_tokens_balance(atom, debtor).unwrap();
     // amount left after paying liquidation reward
     // 4017 - 2172 repaid = 1845 FIXME: rounding issue
-    assert_eq!(balance.ltokens, Uint128::new(1844));
+    assert_eq!(balance.ltokens, Uint128::new(1843));
 
     let balance = suite.query_tokens_balance(atom, liquidator).unwrap();
-    assert_eq!(balance.ltokens, Uint128::new(2171)); // repaid amount as reward; FIXME: Rounding issue
+    assert_eq!(balance.ltokens, Uint128::new(2172)); // repaid amount as reward
 
     let total_credit_line = suite.query_total_credit_line(debtor).unwrap();
     assert_eq!(
         total_credit_line,
         CreditLineResponse {
             // 12_360 - 6_000
-            collateral: Uint128::new(5532),
-            // 5532 * 0.5 collateral price
-            credit_line: Uint128::new(2766),
+            collateral: Uint128::new(5529),
+            // 5529 * 0.5 collateral price
+            credit_line: Uint128::new(2764),
             // 8375 - (60_000 * 0.1)
             debt: Uint128::new(2325),
         }

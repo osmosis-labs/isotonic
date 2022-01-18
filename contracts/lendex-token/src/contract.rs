@@ -87,12 +87,15 @@ fn transfer_tokens(
     sender: &Addr,
     recipient: &Addr,
     amount: Uint128,
+    check_can_transfer: bool,
 ) -> Result<(), ContractError> {
     if amount == Uint128::zero() {
         return Err(ContractError::InvalidZeroAmount {});
     }
 
-    can_transfer(deps.as_ref(), &env, sender.to_string(), amount)?;
+    if check_can_transfer {
+        can_transfer(deps.as_ref(), &env, sender.to_string(), amount)?;
+    }
 
     let distribution = DISTRIBUTION.load(deps.storage)?;
     let ppt = distribution.points_per_token.u128();
@@ -129,7 +132,7 @@ fn transfer(
     let multiplier = MULTIPLIER.load(deps.storage)?;
     let amount = amount.to_stored_amount(multiplier);
 
-    transfer_tokens(deps, env, &info.sender, &recipient, amount)?;
+    transfer_tokens(deps, env, &info.sender, &recipient, amount, true)?;
 
     let res = Response::new()
         .add_attribute("action", "transfer")
@@ -143,6 +146,7 @@ fn transfer(
 /// Handler for `ExecuteMsg::TransferFrom`
 fn transfer_from(
     mut deps: DepsMut,
+    _env: Env,
     info: MessageInfo,
     sender: Addr,
     recipient: Addr,
@@ -155,6 +159,8 @@ fn transfer_from(
 
     let multiplier = MULTIPLIER.load(deps.storage)?;
     let amount = amount.to_stored_amount(multiplier);
+
+    //transfer_tokens(deps, env, &info.sender, &recipient, amount, false)?;
     let distribution = DISTRIBUTION.load(deps.storage)?;
     let ppt = distribution.points_per_token.u128();
     BALANCES.update(
@@ -197,7 +203,7 @@ fn send(
     let multiplier = MULTIPLIER.load(deps.storage)?;
     let amount = amount.to_stored_amount(multiplier);
 
-    transfer_tokens(deps, env, &info.sender, &recipient, amount)?;
+    transfer_tokens(deps, env, &info.sender, &recipient, amount, true)?;
 
     let res = Response::new()
         .add_attribute("action", "send")
@@ -437,7 +443,7 @@ pub fn execute(
         } => {
             let recipient = deps.api.addr_validate(&recipient)?;
             let sender = deps.api.addr_validate(&sender)?;
-            transfer_from(deps, info, sender, recipient, amount)
+            transfer_from(deps, env, info, sender, recipient, amount)
         }
         Send {
             contract,
