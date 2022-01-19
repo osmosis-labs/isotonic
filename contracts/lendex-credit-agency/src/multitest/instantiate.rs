@@ -1,4 +1,4 @@
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Decimal};
 
 use super::suite::SuiteBuilder;
 use crate::state::Config;
@@ -17,6 +17,7 @@ fn market_instantiate_and_query_config() {
             lendex_token_id: 3,
             reward_token: "ENG".to_owned(),
             common_token: "common".to_owned(),
+            liquidation_price: Decimal::percent(92),
         },
         suite.query_config().unwrap()
     );

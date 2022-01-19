@@ -2,7 +2,10 @@ use anyhow::Result as AnyResult;
 
 use cosmwasm_std::{Addr, Coin, Decimal, Empty};
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
-use lendex_market::msg::{CreditLineResponse, ExecuteMsg as MarketExecuteMsg};
+use lendex_market::msg::{
+    CreditLineResponse, ExecuteMsg as MarketExecuteMsg, QueryMsg as MarketQueryMsg,
+    TokensBalanceResponse,
+};
 use lendex_oracle::msg::ExecuteMsg as OracleExecuteMsg;
 use utils::{interest::Interest, time::Duration};
 
@@ -60,6 +63,7 @@ pub struct SuiteBuilder {
     reward_token: String,
     /// Initial funds to provide for testing
     funds: Vec<(Addr, Vec<Coin>)>,
+    liquidation_price: Decimal,
 }
 
 impl SuiteBuilder {
@@ -68,6 +72,7 @@ impl SuiteBuilder {
             gov_contract: "owner".to_string(),
             reward_token: "reward".to_string(),
             funds: vec![],
+            liquidation_price: Decimal::percent(92),
         }
     }
 
@@ -87,6 +92,11 @@ impl SuiteBuilder {
         self
     }
 
+    pub fn with_liquidation_price(mut self, liquidation_price: Decimal) -> Self {
+        self.liquidation_price = liquidation_price;
+        self
+    }
+
     #[track_caller]
     pub fn build(self) -> Suite {
         let mut app = App::default();
@@ -100,7 +110,7 @@ impl SuiteBuilder {
                 owner.clone(),
                 &lendex_oracle::msg::InstantiateMsg {
                     oracle: owner.to_string(),
-                    maximum_age: Duration::new(999999),
+                    maximum_age: Duration::new(999999999),
                 },
                 &[],
                 "oracle",
@@ -121,6 +131,7 @@ impl SuiteBuilder {
                     lendex_token_id,
                     reward_token: self.reward_token,
                     common_token: common_token.clone(),
+                    liquidation_price: self.liquidation_price,
                 },
                 &[],
                 "credit-agency",
@@ -163,6 +174,13 @@ pub struct Suite {
 }
 
 impl Suite {
+    pub fn advance_seconds(&mut self, seconds: u64) {
+        self.app.update_block(|block| {
+            block.time = block.time.plus_seconds(seconds);
+            block.height += std::cmp::max(1, seconds / 5); // block time
+        });
+    }
+
     pub fn create_market(&mut self, caller: &str, cfg: MarketConfig) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             Addr::unchecked(caller),
@@ -177,6 +195,8 @@ impl Suite {
         caller: &str,
         lendex_token: &str,
         market_token: &str,
+        collateral_ratio: impl Into<Option<Decimal>>,
+        interest_rates: impl Into<Option<(Decimal, Decimal)>>,
     ) -> AnyResult<AppResponse> {
         self.create_market(
             caller,
@@ -185,12 +205,17 @@ impl Suite {
                 symbol: lendex_token.to_string(),
                 decimals: 9,
                 market_token: market_token.to_string(),
-                interest_rate: Interest::Linear {
-                    base: Decimal::percent(3),
-                    slope: Decimal::percent(20),
+                interest_rate: match interest_rates.into() {
+                    Some((base, slope)) => Interest::Linear { base, slope },
+                    None => Interest::Linear {
+                        base: Decimal::percent(3),
+                        slope: Decimal::percent(20),
+                    },
                 },
                 interest_charge_period: 300, // seconds
-                collateral_ratio: Decimal::percent(50),
+                collateral_ratio: collateral_ratio
+                    .into()
+                    .unwrap_or_else(|| Decimal::percent(50)),
                 price_oracle: self.oracle_contract.to_string(),
             },
         )
@@ -315,5 +340,56 @@ impl Suite {
             },
             &[],
         )
+    }
+
+    pub fn liquidate(
+        &mut self,
+        sender: &str,
+        account: &str,
+        tokens: &[Coin],
+        collateral_denom: String,
+    ) -> AnyResult<AppResponse> {
+        let ca = self.contract.clone();
+
+        self.app.execute_contract(
+            Addr::unchecked(sender),
+            ca,
+            &ExecuteMsg::Liquidate {
+                account: account.to_owned(),
+                collateral_denom,
+            },
+            tokens,
+        )
+    }
+
+    pub fn repay_tokens_on_market(
+        &mut self,
+        account: &str,
+        tokens: Coin,
+    ) -> AnyResult<AppResponse> {
+        let market = self.query_market(tokens.denom.as_str())?;
+
+        self.app.execute_contract(
+            Addr::unchecked(account),
+            market.market,
+            &MarketExecuteMsg::Repay {},
+            &[tokens],
+        )
+    }
+
+    /// Queries l/btokens balance on market pointed by denom for given account
+    pub fn query_tokens_balance(
+        &self,
+        market_denom: &str,
+        account: &str,
+    ) -> AnyResult<TokensBalanceResponse> {
+        let market = self.query_market(market_denom)?;
+        let resp: TokensBalanceResponse = self.app.wrap().query_wasm_smart(
+            market.market,
+            &MarketQueryMsg::TokensBalance {
+                account: account.to_owned(),
+            },
+        )?;
+        Ok(resp)
     }
 }

@@ -31,6 +31,15 @@ pub enum ExecuteMsg {
         recipient: String,
         amount: DisplayAmount,
     },
+    /// TransferFrom allows to order transfer of tokens from source to destination.
+    /// Proper authentication is in place - can be called only be controller.
+    /// Requires check for transfer possibility by `ControllerQuery::CanTransfer` call to
+    /// controller.
+    TransferFrom {
+        sender: String,
+        recipient: String,
+        amount: DisplayAmount,
+    },
     /// Send is a base message to transfer tokens to a contract and trigger an action
     /// on the receiving contract.
     /// Requires check for transfer possibility by `ControllerQuery::CanTransfer` call to

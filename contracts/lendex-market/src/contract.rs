@@ -147,6 +147,28 @@ pub fn execute(
         Withdraw { amount } => execute::withdraw(deps, env, info, amount),
         Borrow { amount } => execute::borrow(deps, env, info, amount),
         Repay {} => execute::repay(deps, env, info),
+        RepayTo { account, amount } => {
+            let account = deps.api.addr_validate(&account)?;
+            execute::repay_to(deps, env, info, account, amount)
+        }
+        TransferFrom {
+            source,
+            destination,
+            amount,
+            liquidation_price,
+        } => {
+            let source = deps.api.addr_validate(&source)?;
+            let destination = deps.api.addr_validate(&destination)?;
+            execute::transfer_from(
+                deps,
+                env,
+                info,
+                source,
+                destination,
+                amount,
+                liquidation_price,
+            )
+        }
     }
 }
 
@@ -157,7 +179,7 @@ mod cr_utils {
     use cosmwasm_std::Fraction;
 
     // TODO: Check for rounding error https://github.com/confio/lendex/issues/40
-    fn divide(top: Uint128, bottom: Decimal) -> Uint128 {
+    pub fn divide(top: Uint128, bottom: Decimal) -> Uint128 {
         top * bottom.inv().unwrap_or_else(Decimal::zero)
     }
 
@@ -173,10 +195,10 @@ mod cr_utils {
         // Available credit for that account amongst all markets
         let available_common = credit.credit_line.saturating_sub(credit.debt);
         // Price is defined as common/local
-        // (see price_ratio_from_oracle function from this file)
+        // (see price_local_per_common function from this file)
         let available = divide(
             available_common,
-            query::price_ratio_from_oracle(deps, config)?,
+            query::price_local_per_common(deps, config)?,
         );
         Ok(available)
     }
@@ -198,8 +220,8 @@ mod cr_utils {
         config: &Config,
         account: impl Into<String>,
     ) -> Result<Uint128, ContractError> {
-        let available = dbg!(query_available_tokens(deps, config, account.into())?);
-        let can_transfer = dbg!(divide(available, config.collateral_ratio));
+        let available = query_available_tokens(deps, config, account.into())?;
+        let can_transfer = divide(available, config.collateral_ratio);
         Ok(can_transfer)
     }
 }
@@ -411,7 +433,11 @@ mod execute {
     }
 
     /// Handler for `ExecuteMsg::Repay`
-    pub fn repay(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+    pub fn repay(
+        mut deps: DepsMut,
+        env: Env,
+        info: MessageInfo,
+    ) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
         let funds_sent = validate_funds(&info.funds, &cfg.market_token)?;
 
@@ -423,7 +449,7 @@ mod execute {
         let mut response = Response::new();
 
         // Create rebase messagess for tokens based on interest and supply
-        let charge_msgs = charge_interest(deps, env)?;
+        let charge_msgs = charge_interest(deps.branch(), env)?;
         if !charge_msgs.is_empty() {
             response = response.add_submessages(charge_msgs);
         }
@@ -455,12 +481,113 @@ mod execute {
 
         Ok(response)
     }
+
+    /// Handler for `ExecuteMsg::RepayTo`
+    /// Requires sender to be a Credit Agency, otherwise fails
+    pub fn repay_to(
+        deps: DepsMut,
+        env: Env,
+        info: MessageInfo,
+        account: Addr,
+        amount: Uint128,
+    ) -> Result<Response, ContractError> {
+        let cfg = CONFIG.load(deps.storage)?;
+        if cfg.credit_agency != info.sender {
+            return Err(ContractError::LiquidationRequiresCreditAgency {});
+        }
+
+        let funds = validate_funds(&info.funds, &cfg.market_token)?;
+
+        let btokens_balance = query::btoken_balance(deps.as_ref(), &cfg, &account)?;
+        // if account has less btokens then caller wants to pay off, liquidation fails
+        if funds > btokens_balance {
+            return Err(ContractError::LiquidationInsufficientBTokens {
+                account: account.to_string(),
+                btokens: btokens_balance,
+            });
+        }
+
+        let mut response = Response::new();
+
+        // Create rebase messagess for tokens based on interest and supply
+        let charge_msgs = charge_interest(deps, env)?;
+        if !charge_msgs.is_empty() {
+            response = response.add_submessages(charge_msgs);
+        }
+
+        let msg = to_binary(&lendex_token::msg::ExecuteMsg::BurnFrom {
+            owner: account.to_string(),
+            amount: lendex_token::DisplayAmount::raw(amount),
+        })?;
+        let burn_msg = SubMsg::new(WasmMsg::Execute {
+            contract_addr: cfg.btoken_contract.to_string(),
+            msg,
+            funds: vec![],
+        });
+
+        response = response
+            .add_attribute("action", "repay_to")
+            .add_attribute("sender", info.sender)
+            .add_attribute("debtor", account)
+            .add_submessage(burn_msg);
+        Ok(response)
+    }
+
+    /// Handler for `ExecuteMsg::TransferFrom`
+    /// Requires sender to be a Credit Agency, otherwise fails
+    /// it assumes that amount is in common denom (from CA)
+    pub fn transfer_from(
+        mut deps: DepsMut,
+        env: Env,
+        info: MessageInfo,
+        source: Addr,
+        destination: Addr,
+        amount: Uint128,
+        liquidation_price: Decimal,
+    ) -> Result<Response, ContractError> {
+        let cfg = CONFIG.load(deps.storage)?;
+        if cfg.credit_agency != info.sender {
+            return Err(ContractError::LiquidationRequiresCreditAgency {});
+        }
+
+        let mut response = Response::new();
+
+        // charge interests before transferring tokens
+        let charge_msgs = charge_interest(deps.branch(), env)?;
+        if !charge_msgs.is_empty() {
+            response = response.add_submessages(charge_msgs);
+        }
+
+        // calculate repaid value
+        let price_rate = query::price_local_per_common(deps.as_ref(), &cfg)?;
+        let repaid_value = cr_utils::divide(amount, price_rate * liquidation_price);
+
+        // transfer claimed amount of ltokens from account source to destination
+        let msg = to_binary(&lendex_token::msg::ExecuteMsg::TransferFrom {
+            sender: source.to_string(),
+            recipient: destination.to_string(),
+            amount: lendex_token::DisplayAmount::raw(repaid_value),
+        })?;
+        let transfer_msg = SubMsg::new(WasmMsg::Execute {
+            contract_addr: cfg.ltoken_contract.to_string(),
+            msg,
+            funds: vec![],
+        });
+
+        response = response
+            .add_attribute("action", "transfer_from")
+            .add_attribute("from", source)
+            .add_attribute("to", destination)
+            .add_submessage(transfer_msg);
+        Ok(response)
+    }
 }
 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
     use QueryMsg::*;
     let res = match msg {
         Configuration {} => to_binary(&CONFIG.load(deps.storage)?)?,
+        TokensBalance { account } => to_binary(&query::tokens_balance(deps, account)?)?,
         TransferableAmount { token, account } => {
             let token = deps.api.addr_validate(&token)?;
             to_binary(&query::transferable_amount(deps, token, account)?)?
@@ -482,7 +609,7 @@ mod query {
     use lendex_oracle::msg::{PriceResponse, QueryMsg as OracleQueryMsg};
     use lendex_token::msg::{QueryMsg as TokenQueryMsg, TokenInfoResponse};
 
-    use crate::msg::InterestResponse;
+    use crate::msg::{InterestResponse, TokensBalanceResponse};
     use crate::state::TokensInfo;
 
     fn token_balance(
@@ -508,6 +635,18 @@ mod query {
         account: impl ToString,
     ) -> Result<Uint128, ContractError> {
         Ok(token_balance(deps, &config.ltoken_contract, account.to_string())?.balance)
+    }
+
+    /// Handler for `QueryMsg::TokensBalance`
+    pub fn tokens_balance(
+        deps: Deps,
+        account: String,
+    ) -> Result<TokensBalanceResponse, ContractError> {
+        let config = CONFIG.load(deps.storage)?;
+        Ok(TokensBalanceResponse {
+            ltokens: ltoken_balance(deps, &config, account.clone())?,
+            btokens: btoken_balance(deps, &config, account)?,
+        })
     }
 
     /// Handler for `QueryMsg::TransferableAmount`
@@ -572,7 +711,7 @@ mod query {
     }
 
     /// Ratio is for sell market_token / buy common_token
-    pub fn price_ratio_from_oracle(deps: Deps, config: &Config) -> Result<Decimal, ContractError> {
+    pub fn price_local_per_common(deps: Deps, config: &Config) -> Result<Decimal, ContractError> {
         // If denoms are the same, just return 1:1
         if config.common_token == config.market_token {
             Ok(Decimal::one())
@@ -597,7 +736,7 @@ mod query {
             return Ok(CreditLineResponse::zero());
         }
 
-        let price_ratio = price_ratio_from_oracle(deps, &config)?;
+        let price_ratio = price_local_per_common(deps, &config)?;
         let collateral = collateral * price_ratio;
         let debt = debt * price_ratio;
         let credit_line = collateral * config.collateral_ratio;
@@ -638,7 +777,7 @@ mod query {
                 credit_agency: Addr::unchecked("credit_agency"),
             };
             // common_token is same as market_token
-            let ratio = price_ratio_from_oracle(deps.as_ref(), &config).unwrap();
+            let ratio = price_local_per_common(deps.as_ref(), &config).unwrap();
             assert_eq!(ratio, Decimal::one());
         }
     }

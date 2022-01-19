@@ -20,6 +20,8 @@ cw-storage-plus = "0.10"
 cw0 = "0.10"
 cw2 = "0.10"
 lendex-market = { path = "../lendex-market", version = "0.2.0", features = ["library"] }
+lendex-oracle = { path = "../lendex-oracle", version = "0.2.0", features = ["library"] }
+lendex-token = { path = "../lendex-token", version = "0.2.0", features = ["library"] }
 schemars = "0.8.3"
 serde = { version = "1.0.127", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.26" }
@@ -29,5 +31,3 @@ utils = { version = "0.2.0", path = "../../packages/utils" }
 anyhow = "1"
 cosmwasm-schema = { version = "1.0.0-beta" }
 cw-multi-test = "0.10"
-lendex-oracle = { path = "../lendex-oracle", version = "0.2.0", features = ["library"] }
-lendex-token = { path = "../lendex-token", version = "0.2.0", features = ["library"] }

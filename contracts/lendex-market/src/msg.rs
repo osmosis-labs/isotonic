@@ -45,6 +45,17 @@ pub enum ExecuteMsg {
     /// Dispatches two messages, one to mint amount of BToken for this sender,
     /// and the other to send amount base asset to the sender
     Borrow { amount: Uint128 },
+    /// Helper to allow repay of debt on given account. Transfers and burns btokens.
+    /// Sender must be a Credit Agency
+    RepayTo { account: String, amount: Uint128 },
+    /// Helper to allow transfering Ltokens from account source to account destination.
+    /// Sender must be a Credit Agency
+    TransferFrom {
+        source: String,
+        destination: String,
+        amount: Uint128,
+        liquidation_price: Decimal,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -52,6 +63,8 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     /// Returns current configuration
     Configuration {},
+    /// Returns TokensBalanceResponse
+    TokensBalance { account: String },
     /// Returns TransferableAmountResponse
     TransferableAmount {
         /// Lendex contract address that calls "CanTransfer"
@@ -76,6 +89,13 @@ pub struct InterestResponse {
     pub interest: Decimal,
     pub utilisation: Decimal,
     pub charge_period: Timestamp,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct TokensBalanceResponse {
+    pub ltokens: Uint128,
+    pub btokens: Uint128,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

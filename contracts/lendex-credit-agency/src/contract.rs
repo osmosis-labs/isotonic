@@ -1,6 +1,6 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response};
+use cosmwasm_std::{to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response};
 use cw0::parse_reply_instantiate_data;
 use cw2::set_contract_version;
 
@@ -27,6 +27,7 @@ pub fn instantiate(
         lendex_token_id: msg.lendex_token_id,
         reward_token: msg.reward_token,
         common_token: msg.common_token,
+        liquidation_price: msg.liquidation_price,
     };
     CONFIG.save(deps.storage, &cfg)?;
     NEXT_REPLY_ID.save(deps.storage, &0)?;
@@ -48,6 +49,13 @@ pub fn execute(
 
     match msg {
         CreateMarket(market_cfg) => exec::create_market(deps, env, info, market_cfg),
+        Liquidate {
+            account,
+            collateral_denom,
+        } => {
+            let account = deps.api.addr_validate(&account)?;
+            exec::liquidate(deps, info, account, collateral_denom)
+        }
     }
 }
 
@@ -60,6 +68,8 @@ mod exec {
         msg::MarketConfig,
         state::{MarketState, MARKETS, REPLY_IDS},
     };
+    use lendex_market::{msg::QueryMsg as MarketQueryMsg, state::Config as MarketConfiguration};
+    use lendex_oracle::msg::{PriceResponse, QueryMsg as OracleQueryMsg};
 
     pub fn create_market(
         deps: DepsMut,
@@ -118,6 +128,77 @@ mod exec {
             .add_attribute("action", "create_market")
             .add_attribute("sender", info.sender)
             .add_submessage(SubMsg::reply_on_success(market_instantiate, reply_id)))
+    }
+
+    pub fn liquidate(
+        deps: DepsMut,
+        info: MessageInfo,
+        account: Addr,
+        collateral_denom: String,
+    ) -> Result<Response, ContractError> {
+        // assert that only one denom was sent and it matches the existing market
+        if info.funds.is_empty() || info.funds.len() != 1 {
+            return Err(ContractError::LiquidationOnlyOneDenomRequired {});
+        }
+        let funds = info.funds[0].clone();
+        // assert that given account actually has more debt then credit
+        let total_credit_line = query::total_credit_line(deps.as_ref(), account.to_string())?;
+        if total_credit_line.debt <= total_credit_line.credit_line {
+            return Err(ContractError::LiquidationNotAllowed {});
+        }
+
+        // Count btokens and burn then on account
+        // this requires that market returns error if repaying more then balance
+        let cfg = CONFIG.load(deps.storage)?;
+        let debt_market = query::market(deps.as_ref(), funds.denom.clone())?.market;
+        let msg = to_binary(&lendex_market::msg::ExecuteMsg::RepayTo {
+            account: account.to_string(),
+            amount: funds.amount,
+        })?;
+        let repay_from_msg = SubMsg::new(WasmMsg::Execute {
+            contract_addr: debt_market.to_string(),
+            msg,
+            funds: vec![funds.clone()],
+        });
+
+        let market_config: MarketConfiguration = deps
+            .querier
+            .query_wasm_smart(debt_market.to_string(), &MarketQueryMsg::Configuration {})?;
+        // find price rate of collateral denom
+        let price_oracle = Addr::unchecked(&market_config.price_oracle);
+        let price_response: PriceResponse = deps.querier.query_wasm_smart(
+            price_oracle,
+            &OracleQueryMsg::Price {
+                sell: funds.denom.clone(),
+                buy: cfg.common_token.clone(),
+            },
+        )?;
+
+        // find market with wanted collateral_denom
+        let collateral_market = query::market(deps.as_ref(), collateral_denom.clone())?.market;
+
+        // transfer claimed amount as reward
+        let msg = to_binary(&lendex_market::msg::ExecuteMsg::TransferFrom {
+            source: account.to_string(),
+            destination: info.sender.to_string(),
+            // transfer repaid amount represented as amount of common tokens, which is
+            // calculated into collateral_denom's amount later in the market
+            amount: funds.amount * price_response.rate,
+            liquidation_price: cfg.liquidation_price,
+        })?;
+        let transfer_from_msg = SubMsg::new(WasmMsg::Execute {
+            contract_addr: collateral_market.to_string(),
+            msg,
+            funds: vec![],
+        });
+
+        Ok(Response::new()
+            .add_attribute("action", "liquidate")
+            .add_attribute("liquidator", info.sender)
+            .add_attribute("account", account)
+            .add_attribute("collateral_denom", collateral_denom)
+            .add_submessage(repay_from_msg)
+            .add_submessage(transfer_from_msg))
     }
 }
 

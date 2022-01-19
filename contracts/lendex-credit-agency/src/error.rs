@@ -1,4 +1,5 @@
-use cosmwasm_std::StdError;
+use cosmwasm_std::{StdError, Uint128};
+
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -23,4 +24,25 @@ pub enum ContractError {
 
     #[error("A market for base asset {0} already exists")]
     MarketAlreadyExists(String),
+
+    #[error("Account cannot be liquidated as it does not have more debt then credit line")]
+    LiquidationNotAllowed {},
+
+    #[error("Only one denom can be sent for liquidation")]
+    LiquidationOnlyOneDenomRequired {},
+
+    #[error("Incorrect denom sent to liquidation: {incorrect} instead of {common}")]
+    LiquidationIncorrectDenom { incorrect: String, common: String },
+
+    #[error("Insufficient amount of tokens sent to liquidation: {sent} instead of {required}")]
+    LiquidationInsufficientTokens { sent: Uint128, required: Uint128 },
+
+    #[error(
+        "Insufficient amount of btokens on account {account}: {btokens} with debt of high {debt}"
+    )]
+    LiquidationInsufficientBTokens {
+        account: String,
+        btokens: Uint128,
+        debt: Uint128,
+    },
 }
