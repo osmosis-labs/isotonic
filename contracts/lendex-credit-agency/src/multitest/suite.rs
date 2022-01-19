@@ -110,7 +110,7 @@ impl SuiteBuilder {
                 owner.clone(),
                 &lendex_oracle::msg::InstantiateMsg {
                     oracle: owner.to_string(),
-                    maximum_age: Duration::new(999999),
+                    maximum_age: Duration::new(999999999),
                 },
                 &[],
                 "oracle",

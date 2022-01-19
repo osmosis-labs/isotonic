@@ -145,10 +145,6 @@ fn liquidating_whole_debt() {
 
     suite.advance_seconds(YEAR_IN_SECONDS);
 
-    suite
-        .oracle_set_price_market_per_common(denom, Decimal::percent(100))
-        .unwrap();
-
     // Repay some tokens to trigger interest rate charges
     suite
         .repay_tokens_on_market(debtor, coin(2, denom))
@@ -229,9 +225,6 @@ fn receive_reward_in_different_denom_fails_if_theres_no_reward_market() {
 
     suite.advance_seconds(YEAR_IN_SECONDS);
 
-    suite
-        .oracle_set_price_market_per_common(denom, Decimal::percent(100))
-        .unwrap();
     suite
         .oracle_set_price_market_per_common(reward_denom, Decimal::percent(150))
         .unwrap();
@@ -519,7 +512,7 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
         .borrow_tokens_from_market(others, coin(20_000, ust))
         .unwrap();
 
-    // debtor deposits 4000 ust
+    // debtor deposits 4000 atom
     suite
         .deposit_tokens_on_market(debtor, coin(4000, atom))
         .unwrap();
@@ -543,9 +536,6 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
     // change ATOM price to 3.0 per common denom
     suite
         .oracle_set_price_market_per_common(atom, Decimal::percent(300))
-        .unwrap();
-    suite
-        .oracle_set_price_market_per_common(ust, Decimal::percent(10))
         .unwrap();
 
     // current interest rates
@@ -580,7 +570,7 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
     assert_eq!(
         total_credit_line,
         CreditLineResponse {
-            // 12_360 - 6_000
+            // 1843 * 3 = 5529
             collateral: Uint128::new(5529),
             // 5529 * 0.5 collateral price
             credit_line: Uint128::new(2764),
