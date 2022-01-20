@@ -198,7 +198,7 @@ mod cr_utils {
         // (see price_local_per_common function from this file)
         let available = divide(
             available_common,
-            query::price_local_per_common(deps, config)?,
+            query::price_local_per_common(deps, config)?.rate,
         );
         Ok(available)
     }
@@ -444,7 +444,7 @@ mod execute {
         let debt = query::btoken_balance(deps.as_ref(), &cfg, &info.sender)?;
         // If there are more tokens sent then there are to repay, burn only desired
         // amount and return the difference
-        let repay_amount = std::cmp::min(funds_sent, debt);
+        let repay_amount = std::cmp::min(funds_sent, debt.amount);
 
         let mut response = Response::new();
 
@@ -500,10 +500,10 @@ mod execute {
 
         let btokens_balance = query::btoken_balance(deps.as_ref(), &cfg, &account)?;
         // if account has less btokens then caller wants to pay off, liquidation fails
-        if funds > btokens_balance {
+        if funds > btokens_balance.amount {
             return Err(ContractError::LiquidationInsufficientBTokens {
                 account: account.to_string(),
-                btokens: btokens_balance,
+                btokens: btokens_balance.amount,
             });
         }
 
@@ -559,7 +559,7 @@ mod execute {
         }
 
         // calculate repaid value
-        let price_rate = query::price_local_per_common(deps.as_ref(), &cfg)?;
+        let price_rate = query::price_local_per_common(deps.as_ref(), &cfg)?.rate;
         let repaid_value = cr_utils::divide(amount, price_rate * liquidation_price);
 
         // transfer claimed amount of ltokens from account source to destination
@@ -604,13 +604,13 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractErr
 mod query {
     use super::*;
 
-    use cosmwasm_std::{Decimal, Uint128};
+    use cosmwasm_std::{coin, Coin, Decimal, Uint128};
     use cw20::BalanceResponse;
     use lendex_oracle::msg::{PriceResponse, QueryMsg as OracleQueryMsg};
     use lendex_token::msg::{QueryMsg as TokenQueryMsg, TokenInfoResponse};
 
     use crate::msg::{InterestResponse, TokensBalanceResponse};
-    use crate::state::TokensInfo;
+    use crate::state::{coin_times_price, Price, TokensInfo};
 
     fn token_balance(
         deps: Deps,
@@ -625,16 +625,26 @@ mod query {
         deps: Deps,
         config: &Config,
         account: impl ToString,
-    ) -> Result<Uint128, ContractError> {
-        Ok(token_balance(deps, &config.btoken_contract, account.to_string())?.balance)
+    ) -> Result<Coin, ContractError> {
+        Ok(coin(
+            token_balance(deps, &config.btoken_contract, account.to_string())?
+                .balance
+                .u128(),
+            config.market_token.clone(),
+        ))
     }
 
     fn ltoken_balance(
         deps: Deps,
         config: &Config,
         account: impl ToString,
-    ) -> Result<Uint128, ContractError> {
-        Ok(token_balance(deps, &config.ltoken_contract, account.to_string())?.balance)
+    ) -> Result<Coin, ContractError> {
+        Ok(coin(
+            token_balance(deps, &config.ltoken_contract, account.to_string())?
+                .balance
+                .u128(),
+            config.market_token.clone(),
+        ))
     }
 
     /// Handler for `QueryMsg::TokensBalance`
@@ -644,8 +654,8 @@ mod query {
     ) -> Result<TokensBalanceResponse, ContractError> {
         let config = CONFIG.load(deps.storage)?;
         Ok(TokensBalanceResponse {
-            ltokens: ltoken_balance(deps, &config, account.clone())?,
-            btokens: btoken_balance(deps, &config, account)?,
+            ltokens: ltoken_balance(deps, &config, account.clone())?.amount,
+            btokens: btoken_balance(deps, &config, account)?.amount,
         })
     }
 
@@ -711,10 +721,14 @@ mod query {
     }
 
     /// Ratio is for sell market_token / buy common_token
-    pub fn price_local_per_common(deps: Deps, config: &Config) -> Result<Decimal, ContractError> {
+    pub fn price_local_per_common(deps: Deps, config: &Config) -> Result<Price, ContractError> {
         // If denoms are the same, just return 1:1
         if config.common_token == config.market_token {
-            Ok(Decimal::one())
+            Ok(Price {
+                sell_denom: config.market_token.clone(),
+                buy_denom: config.common_token.clone(),
+                rate: Decimal::one(),
+            })
         } else {
             let price_response: PriceResponse = deps.querier.query_wasm_smart(
                 config.price_oracle.clone(),
@@ -723,7 +737,11 @@ mod query {
                     buy: config.common_token.clone(),
                 },
             )?;
-            Ok(price_response.rate)
+            Ok(Price {
+                sell_denom: config.market_token.clone(),
+                buy_denom: config.common_token.clone(),
+                rate: price_response.rate,
+            })
         }
     }
 
@@ -732,16 +750,16 @@ mod query {
         let config = CONFIG.load(deps.storage)?;
         let collateral = ltoken_balance(deps, &config, &account)?;
         let debt = btoken_balance(deps, &config, &account)?;
-        if collateral.is_zero() && debt.is_zero() {
+        if collateral.amount.is_zero() && debt.amount.is_zero() {
             return Ok(CreditLineResponse::zero());
         }
 
         let price_ratio = price_local_per_common(deps, &config)?;
-        let collateral = collateral * price_ratio;
-        let debt = debt * price_ratio;
-        let credit_line = collateral * config.collateral_ratio;
+        let collateral = coin_times_price(&collateral, &price_ratio)?;
+        let debt = coin_times_price(&debt, &price_ratio)?.amount;
+        let credit_line = collateral.amount * config.collateral_ratio;
         Ok(CreditLineResponse {
-            collateral,
+            collateral: collateral.amount,
             debt,
             credit_line,
         })
@@ -778,7 +796,7 @@ mod query {
             };
             // common_token is same as market_token
             let ratio = price_local_per_common(deps.as_ref(), &config).unwrap();
-            assert_eq!(ratio, Decimal::one());
+            assert_eq!(ratio.rate, Decimal::one());
         }
     }
 }
