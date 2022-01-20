@@ -10,6 +10,9 @@ pub enum ContractError {
     #[error("Unauthorized")]
     Unauthorized {},
 
+    #[error("Creating Market failure - collateral ratio must be lower than liquidation price")]
+    MarketCfgCollateralFailure {},
+
     #[error("Unrecognised reply id: {0}")]
     UnrecognisedReply(u64),
 

@@ -84,6 +84,12 @@ mod exec {
             ContractError::Unauthorized {}
         );
 
+        // Collateral ratio must be lower then liquidation price, otherwise
+        // liquidation could decrese debt less then it decreases potential credit.
+        if market_cfg.collateral_ratio >= cfg.liquidation_price {
+            return Err(ContractError::MarketCfgCollateralFailure {});
+        }
+
         if let Some(state) = MARKETS.may_load(deps.storage, &market_cfg.market_token)? {
             use MarketState::*;
 
