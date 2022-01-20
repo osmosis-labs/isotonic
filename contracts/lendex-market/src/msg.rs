@@ -2,7 +2,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::iter::Sum;
 
-use cosmwasm_std::{Decimal, Timestamp, Uint128};
+use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
+
+use crate::error::PriceError;
 use utils::interest::Interest;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -74,6 +76,8 @@ pub enum QueryMsg {
     },
     /// Returns current utilisation and interest rates
     Interest {},
+    /// Returns PriceResponse structure representing sell/buy ratio for local(market)/common denoms
+    PriceLocalPerCommon {},
     /// Returns CreditLineResponse
     CreditLine { account: String },
 }
@@ -134,6 +138,30 @@ impl<'a> Sum<&'a Self> for CreditLineResponse {
             collateral: a.collateral + b.collateral,
             credit_line: a.credit_line + b.credit_line,
             debt: a.debt + b.debt,
+        })
+    }
+}
+
+// Structure containing price ratio for sell market_token / buy common_token
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct PriceRateResponse {
+    pub buy_denom: String,
+    pub sell_denom: String,
+    pub rate_sell_per_buy: Decimal,
+}
+
+// Helper that multiplies coins amount in sell denom times proper price rate
+// Returns error, if Coin.denom != Price.sell_denom
+pub fn coin_times_price(coin: &Coin, price: &PriceRateResponse) -> Result<Coin, PriceError> {
+    if coin.denom == price.sell_denom {
+        Ok(Coin {
+            amount: coin.amount * price.rate_sell_per_buy,
+            denom: price.buy_denom.clone(),
+        })
+    } else {
+        Err(PriceError::MulPrice {
+            incorrect: coin.denom.clone(),
+            correct: price.sell_denom.clone(),
         })
     }
 }

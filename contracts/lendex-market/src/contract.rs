@@ -198,7 +198,7 @@ mod cr_utils {
         // (see price_local_per_common function from this file)
         let available = divide(
             available_common,
-            query::price_local_per_common(deps, config)?.rate,
+            query::price_local_per_common(deps)?.rate_sell_per_buy,
         );
         Ok(available)
     }
@@ -559,7 +559,7 @@ mod execute {
         }
 
         // calculate repaid value
-        let price_rate = query::price_local_per_common(deps.as_ref(), &cfg)?.rate;
+        let price_rate = query::price_local_per_common(deps.as_ref())?.rate_sell_per_buy;
         let repaid_value = cr_utils::divide(amount, price_rate * liquidation_price);
 
         // transfer claimed amount of ltokens from account source to destination
@@ -593,6 +593,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractErr
             to_binary(&query::transferable_amount(deps, token, account)?)?
         }
         Interest {} => to_binary(&query::calculate_interest(deps)?)?,
+        PriceLocalPerCommon {} => to_binary(&query::price_local_per_common(deps)?)?,
         CreditLine { account } => {
             let account = deps.api.addr_validate(&account)?;
             to_binary(&query::credit_line(deps, account)?)?
@@ -609,8 +610,7 @@ mod query {
     use lendex_oracle::msg::{PriceResponse, QueryMsg as OracleQueryMsg};
     use lendex_token::msg::{QueryMsg as TokenQueryMsg, TokenInfoResponse};
 
-    use crate::msg::{InterestResponse, TokensBalanceResponse};
-    use crate::price::{coin_times_price, Price};
+    use crate::msg::{InterestResponse, TokensBalanceResponse,coin_times_price, PriceRateResponse};
     use crate::state::TokensInfo;
 
     fn token_balance(
@@ -721,14 +721,16 @@ mod query {
         })
     }
 
+    /// Handler for `QueryMsg::PriceLocalPerCommon`
     /// Ratio is for sell market_token / buy common_token
-    pub fn price_local_per_common(deps: Deps, config: &Config) -> Result<Price, ContractError> {
+    pub fn price_local_per_common(deps: Deps) -> Result<PriceRateResponse, ContractError> {
+        let config = CONFIG.load(deps.storage)?;
         // If denoms are the same, just return 1:1
         if config.common_token == config.market_token {
-            Ok(Price {
+            Ok(PriceRateResponse {
                 sell_denom: config.market_token.clone(),
-                buy_denom: config.common_token.clone(),
-                rate: Decimal::one(),
+                buy_denom: config.common_token,
+                rate_sell_per_buy: Decimal::one(),
             })
         } else {
             let price_response: PriceResponse = deps.querier.query_wasm_smart(
@@ -738,10 +740,10 @@ mod query {
                     buy: config.common_token.clone(),
                 },
             )?;
-            Ok(Price {
+            Ok(PriceRateResponse {
                 sell_denom: config.market_token.clone(),
-                buy_denom: config.common_token.clone(),
-                rate: price_response.rate,
+                buy_denom: config.common_token,
+                rate_sell_per_buy: price_response.rate,
             })
         }
     }
@@ -755,7 +757,7 @@ mod query {
             return Ok(CreditLineResponse::zero());
         }
 
-        let price_ratio = price_local_per_common(deps, &config)?;
+        let price_ratio = price_local_per_common(deps)?;
         let collateral = coin_times_price(&collateral, &price_ratio)?;
         let debt = coin_times_price(&debt, &price_ratio)?.amount;
         let credit_line = collateral.amount * config.collateral_ratio;
@@ -796,7 +798,7 @@ mod query {
                 credit_agency: Addr::unchecked("credit_agency"),
             };
             // common_token is same as market_token
-            let ratio = price_local_per_common(deps.as_ref(), &config).unwrap();
+            let ratio = price_local_per_common(deps.as_ref()).unwrap();
             assert_eq!(ratio.rate, Decimal::one());
         }
     }
