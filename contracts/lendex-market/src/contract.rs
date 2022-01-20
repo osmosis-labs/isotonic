@@ -610,7 +610,8 @@ mod query {
     use lendex_token::msg::{QueryMsg as TokenQueryMsg, TokenInfoResponse};
 
     use crate::msg::{InterestResponse, TokensBalanceResponse};
-    use crate::state::{coin_times_price, Price, TokensInfo};
+    use crate::price::{coin_times_price, Price};
+    use crate::state::TokensInfo;
 
     fn token_balance(
         deps: Deps,
