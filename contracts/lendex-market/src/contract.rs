@@ -609,7 +609,7 @@ mod query {
     use cw20::BalanceResponse;
     use lendex_oracle::msg::{PriceResponse, QueryMsg as OracleQueryMsg};
     use lendex_token::msg::{QueryMsg as TokenQueryMsg, TokenInfoResponse};
-    use utils::price::{coin_times_price, PriceRate};
+    use utils::price::{coin_times_price_rate, PriceRate};
 
     use crate::msg::{InterestResponse, TokensBalanceResponse};
     use crate::state::TokensInfo;
@@ -759,8 +759,8 @@ mod query {
         }
 
         let price_ratio = price_market_local_per_common(deps)?;
-        let collateral = coin_times_price(&collateral, &price_ratio)?;
-        let debt = coin_times_price(&debt, &price_ratio)?.amount;
+        let collateral = coin_times_price_rate(&collateral, &price_ratio)?;
+        let debt = coin_times_price_rate(&debt, &price_ratio)?.amount;
         let credit_line = collateral.amount * config.collateral_ratio;
         Ok(CreditLineResponse {
             collateral: collateral.amount,

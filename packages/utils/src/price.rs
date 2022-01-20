@@ -14,7 +14,7 @@ pub struct PriceRate {
 
 // Helper that multiplies coins amount in sell denom times proper price rate
 // Returns error, if Coin.denom != Price.sell_denom
-pub fn coin_times_price(coin: &Coin, price: &PriceRate) -> Result<Coin, PriceError> {
+pub fn coin_times_price_rate(coin: &Coin, price: &PriceRate) -> Result<Coin, PriceError> {
     if coin.denom == price.sell_denom {
         Ok(Coin {
             amount: coin.amount * price.rate_sell_per_buy,
