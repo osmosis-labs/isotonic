@@ -1,6 +1,8 @@
 use cosmwasm_std::{StdError, Uint128};
 use thiserror::Error;
 
+use utils::price::PriceError;
+
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
     #[error("{0}")]
@@ -43,10 +45,4 @@ pub enum ContractError {
         "Unauthorized - Liquidation helpers call requires sender to be a Market's Credit Agency"
     )]
     LiquidationRequiresCreditAgency {},
-}
-
-#[derive(Error, Debug, PartialEq)]
-pub enum PriceError {
-    #[error("Calucating denom failed because incorrect denom was used: {incorrect} instead of {correct}")]
-    MulPrice { incorrect: String, correct: String },
 }

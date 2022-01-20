@@ -63,12 +63,13 @@ mod exec {
     use super::*;
 
     use cosmwasm_std::{ensure_eq, StdError, SubMsg, WasmMsg};
+    use utils::price::{coin_times_price, PriceRate};
 
     use crate::{
         msg::MarketConfig,
         state::{MarketState, MARKETS, REPLY_IDS},
     };
-    use lendex_market::msg::{PriceRateResponse, QueryMsg as MarketQueryMsg};
+    use lendex_market::msg::QueryMsg as MarketQueryMsg;
 
     pub fn create_market(
         deps: DepsMut,
@@ -161,9 +162,9 @@ mod exec {
         });
 
         // find price rate of collateral denom
-        let price_response: PriceRateResponse = deps.querier.query_wasm_smart(
+        let price_response: PriceRate = deps.querier.query_wasm_smart(
             debt_market.to_string(),
-            &MarketQueryMsg::PriceLocalPerCommon {},
+            &MarketQueryMsg::PriceMarketLocalPerCommon {},
         )?;
 
         // find market with wanted collateral_denom
@@ -175,7 +176,7 @@ mod exec {
             destination: info.sender.to_string(),
             // transfer repaid amount represented as amount of common tokens, which is
             // calculated into collateral_denom's amount later in the market
-            amount: funds.amount * price_response.rate_sell_per_buy,
+            amount: coin_times_price(&funds, &price_response)?.amount,
             liquidation_price: cfg.liquidation_price,
         })?;
         let transfer_from_msg = SubMsg::new(WasmMsg::Execute {
