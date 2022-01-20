@@ -30,6 +30,6 @@ pub fn coin_times_price_rate(coin: &Coin, price: &PriceRate) -> Result<Coin, Pri
 
 #[derive(Error, Debug, PartialEq)]
 pub enum PriceError {
-    #[error("Calucating denom failed because incorrect denom was used: {incorrect} instead of {correct}")]
+    #[error("Calculating price failed because incorrect denom was used: {incorrect} instead of {correct}")]
     MulPrice { incorrect: String, correct: String },
 }
