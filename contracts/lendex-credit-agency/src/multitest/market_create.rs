@@ -1,5 +1,7 @@
 use super::suite::SuiteBuilder;
 
+use cosmwasm_std::Decimal;
+
 #[test]
 fn market_create() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
@@ -55,5 +57,29 @@ fn market_create_already_exists() {
     assert_eq!(
         err.to_string(),
         "A market for base asset OSMO already exists"
+    );
+}
+
+#[test]
+fn collateral_ratio_higher_then_liquidation_price() {
+    let mut suite = SuiteBuilder::new()
+        .with_gov("gov")
+        .with_liquidation_price(Decimal::percent(92))
+        .build();
+
+    assert_eq!(
+        suite
+            .create_market_quick("gov", "osmo", "OSMO", Decimal::percent(92), None)
+            .unwrap_err()
+            .to_string(),
+        "Creating Market failure - collateral ratio must be lower than liquidation price"
+    );
+
+    assert_eq!(
+        suite
+            .create_market_quick("gov", "osmo", "OSMO", Decimal::percent(93), None)
+            .unwrap_err()
+            .to_string(),
+        "Creating Market failure - collateral ratio must be lower than liquidation price"
     );
 }
