@@ -12,3 +12,11 @@ pub enum Interest {
         slope: Decimal,
     },
 }
+
+impl Interest {
+    pub fn calculate_interest_rate(&self, utilisation: Decimal) -> Decimal {
+        match self {
+            Interest::Linear { base, slope } => *base + *slope * utilisation,
+        }
+    }
+}
