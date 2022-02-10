@@ -1,4 +1,4 @@
-use cosmwasm_std::Decimal;
+use cosmwasm_std::{Decimal, Fraction};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -25,7 +25,7 @@ pub enum Interest {
         /// Max interest rate charged at 100% utilisation
         /// *Rslope2* in the Aave docs
         slope2: Decimal,
-        /// The optimal utilisation and the breakpoint between the two segments
+        /// The optimal utilisation and the breakpoint between the two segments.
         /// *Uoptimal* in the Aave docs
         optimal_utilisation: Decimal,
     },
@@ -35,13 +35,26 @@ impl Interest {
     pub fn calculate_interest_rate(&self, utilisation: Decimal) -> Decimal {
         match self {
             Interest::Linear { base, slope } => *base + *slope * utilisation,
-            #[allow(unused)]
             Interest::PiecewiseLinear {
                 base,
                 slope1,
                 slope2,
                 optimal_utilisation,
-            } => todo!(),
+            } => {
+                if utilisation < *optimal_utilisation || *optimal_utilisation == Decimal::one() {
+                    // unwrapping should be okay here - if `optimal_utilisation == 0`,
+                    // this branch will never be reached
+                    *base + *slope1 * (utilisation * optimal_utilisation.inv().unwrap())
+                } else {
+                    // unwrapping should be okay here - if `optimal_utilisation == 1`,
+                    // this branch will never be reached
+                    *base
+                        + *slope1
+                        + *slope2
+                            * ((utilisation - *optimal_utilisation)
+                                * (Decimal::one() - *optimal_utilisation).inv().unwrap())
+                }
+            }
         }
     }
 }
@@ -72,7 +85,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn piecewise_linear_interest_rate() {
         let interest = Interest::PiecewiseLinear {
             base: Decimal::percent(10),
@@ -108,6 +120,52 @@ mod tests {
         assert_eq!(
             interest.calculate_interest_rate(Decimal::one()),
             Decimal::percent(120)
+        );
+    }
+
+    #[test]
+    fn piecewise_linear_interest_rate_zero_optimal_utilisation() {
+        let interest = Interest::PiecewiseLinear {
+            base: Decimal::percent(10),
+            slope1: Decimal::percent(10),
+            slope2: Decimal::percent(100),
+            optimal_utilisation: Decimal::zero(),
+        };
+
+        assert_eq!(
+            interest.calculate_interest_rate(Decimal::zero()),
+            Decimal::percent(20)
+        );
+        assert_eq!(
+            interest.calculate_interest_rate(Decimal::percent(50)),
+            Decimal::percent(70)
+        );
+        assert_eq!(
+            interest.calculate_interest_rate(Decimal::one()),
+            Decimal::percent(120)
+        );
+    }
+
+    #[test]
+    fn piecewise_linear_interest_rate_one_optimal_utilisation() {
+        let interest = Interest::PiecewiseLinear {
+            base: Decimal::percent(10),
+            slope1: Decimal::percent(10),
+            slope2: Decimal::percent(100),
+            optimal_utilisation: Decimal::one(),
+        };
+
+        assert_eq!(
+            interest.calculate_interest_rate(Decimal::zero()),
+            Decimal::percent(10)
+        );
+        assert_eq!(
+            interest.calculate_interest_rate(Decimal::percent(50)),
+            Decimal::percent(15)
+        );
+        assert_eq!(
+            interest.calculate_interest_rate(Decimal::one()),
+            Decimal::percent(20)
         );
     }
 }
