@@ -76,8 +76,8 @@ mod tests {
     fn piecewise_linear_interest_rate() {
         let interest = Interest::PiecewiseLinear {
             base: Decimal::percent(10),
-            slope1: Decimal::percent(20),
-            slope2: Decimal::percent(120),
+            slope1: Decimal::percent(10),
+            slope2: Decimal::percent(100),
             optimal_utilisation: Decimal::percent(50),
         };
 
