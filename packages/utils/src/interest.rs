@@ -16,17 +16,18 @@ pub enum Interest {
     /// slope.
     /// https://docs.aave.com/risk/liquidity-risk/borrow-interest-rate
     PiecewiseLinear {
-        /// Base percentage, charged at 0% utilisation
-        /// *R0* in the Aave docs
+        /// Base percentage, charged at 0% utilisation.
+        /// *R0* in the Aave docs.
         base: Decimal,
-        /// Rate charged at the breakpoint
-        /// *Rslope1* in the Aave docs
+        /// Rate charged on top of `base` at the breakpoint.
+        /// *Rslope1* in the Aave docs.
         slope1: Decimal,
-        /// Max interest rate charged at 100% utilisation
-        /// *Rslope2* in the Aave docs
+        /// Determines the max interest rate charged. At 100% utilisation,
+        /// `base + slope1 + slope2` is the max interest rate.
+        /// *Rslope2* in the Aave docs.
         slope2: Decimal,
         /// The optimal utilisation and the breakpoint between the two segments.
-        /// *Uoptimal* in the Aave docs
+        /// *Uoptimal* in the Aave docs.
         optimal_utilisation: Decimal,
     },
 }
