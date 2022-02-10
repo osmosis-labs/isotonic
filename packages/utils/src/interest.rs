@@ -20,3 +20,29 @@ impl Interest {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn linear_interest_rate() {
+        let interest = Interest::Linear {
+            base: Decimal::percent(10),
+            slope: Decimal::percent(90),
+        };
+
+        assert_eq!(
+            interest.calculate_interest_rate(Decimal::zero()),
+            Decimal::percent(10)
+        );
+        assert_eq!(
+            interest.calculate_interest_rate(Decimal::percent(10)),
+            Decimal::percent(19)
+        );
+        assert_eq!(
+            interest.calculate_interest_rate(Decimal::one()),
+            Decimal::one()
+        );
+    }
+}
