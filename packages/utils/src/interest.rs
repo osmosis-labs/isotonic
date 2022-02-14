@@ -1,6 +1,7 @@
 use cosmwasm_std::{Decimal, Fraction};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 #[serde(rename_all = "snake_case")]
@@ -33,8 +34,32 @@ pub enum Interest {
 }
 
 impl Interest {
+    pub fn validate(self) -> Result<ValidatedInterest, InterestError> {
+        if let Interest::PiecewiseLinear {
+            optimal_utilisation,
+            ..
+        } = self
+        {
+            if optimal_utilisation.is_zero() || optimal_utilisation >= Decimal::one() {
+                return Err(InterestError::InvalidOptimalUtilisation(
+                    optimal_utilisation,
+                ));
+            }
+        }
+
+        Ok(ValidatedInterest::unchecked(self))
+    }
+}
+
+/// A wrapper around `Interest` that guarantees the interest rate cfg makes sense.
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct ValidatedInterest {
+    inner: Interest,
+}
+
+impl ValidatedInterest {
     pub fn calculate_interest_rate(&self, utilisation: Decimal) -> Decimal {
-        match *self {
+        match self.inner {
             Interest::Linear { base, slope } => base + slope * utilisation,
             Interest::PiecewiseLinear {
                 base,
@@ -57,6 +82,16 @@ impl Interest {
             }
         }
     }
+
+    pub fn unchecked(interest: Interest) -> Self {
+        Self { inner: interest }
+    }
+}
+
+#[derive(Error, Debug, PartialEq)]
+pub enum InterestError {
+    #[error("Optimal utilisation must be within the (0, 1) range, but it's {0}")]
+    InvalidOptimalUtilisation(Decimal),
 }
 
 #[cfg(test)]
@@ -68,7 +103,9 @@ mod tests {
         let interest = Interest::Linear {
             base: Decimal::percent(10),
             slope: Decimal::percent(90),
-        };
+        }
+        .validate()
+        .unwrap();
 
         assert_eq!(
             interest.calculate_interest_rate(Decimal::zero()),
@@ -91,7 +128,9 @@ mod tests {
             slope1: Decimal::percent(10),
             slope2: Decimal::percent(100),
             optimal_utilisation: Decimal::percent(50),
-        };
+        }
+        .validate()
+        .unwrap();
 
         assert_eq!(
             interest.calculate_interest_rate(Decimal::zero()),
@@ -125,47 +164,49 @@ mod tests {
 
     #[test]
     fn piecewise_linear_interest_rate_zero_optimal_utilisation() {
-        let interest = Interest::PiecewiseLinear {
+        let err = Interest::PiecewiseLinear {
             base: Decimal::percent(10),
             slope1: Decimal::percent(10),
             slope2: Decimal::percent(100),
             optimal_utilisation: Decimal::zero(),
-        };
+        }
+        .validate()
+        .unwrap_err();
 
         assert_eq!(
-            interest.calculate_interest_rate(Decimal::zero()),
-            Decimal::percent(20)
-        );
-        assert_eq!(
-            interest.calculate_interest_rate(Decimal::percent(50)),
-            Decimal::percent(70)
-        );
-        assert_eq!(
-            interest.calculate_interest_rate(Decimal::one()),
-            Decimal::percent(120)
+            err,
+            InterestError::InvalidOptimalUtilisation(Decimal::zero())
         );
     }
 
     #[test]
-    fn piecewise_linear_interest_rate_one_optimal_utilisation() {
-        let interest = Interest::PiecewiseLinear {
+    fn piecewise_linear_interest_rate_optimal_utilisation_too_big() {
+        let err = Interest::PiecewiseLinear {
             base: Decimal::percent(10),
             slope1: Decimal::percent(10),
             slope2: Decimal::percent(100),
             optimal_utilisation: Decimal::one(),
-        };
+        }
+        .validate()
+        .unwrap_err();
 
         assert_eq!(
-            interest.calculate_interest_rate(Decimal::zero()),
-            Decimal::percent(10)
+            err,
+            InterestError::InvalidOptimalUtilisation(Decimal::one())
         );
+
+        let err = Interest::PiecewiseLinear {
+            base: Decimal::percent(10),
+            slope1: Decimal::percent(10),
+            slope2: Decimal::percent(100),
+            optimal_utilisation: Decimal::percent(444),
+        }
+        .validate()
+        .unwrap_err();
+
         assert_eq!(
-            interest.calculate_interest_rate(Decimal::percent(50)),
-            Decimal::percent(15)
-        );
-        assert_eq!(
-            interest.calculate_interest_rate(Decimal::one()),
-            Decimal::percent(20)
+            err,
+            InterestError::InvalidOptimalUtilisation(Decimal::percent(444))
         );
     }
 }
