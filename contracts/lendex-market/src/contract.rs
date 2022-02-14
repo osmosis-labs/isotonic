@@ -183,6 +183,18 @@ mod cr_utils {
         top * bottom.inv().unwrap_or_else(Decimal::zero)
     }
 
+    fn available_local_tokens(
+        deps: Deps,
+        common_tokens: Uint128,
+    ) -> Result<Uint128, ContractError> {
+        // Price is defined as common/local
+        // (see price_market_local_per_common function from this file)
+        Ok(divide(
+            common_tokens,
+            query::price_market_local_per_common(deps)?.rate_sell_per_buy,
+        ))
+    }
+
     fn query_available_tokens(
         deps: Deps,
         config: &Config,
@@ -194,13 +206,8 @@ mod cr_utils {
         )?;
         // Available credit for that account amongst all markets
         let available_common = credit.credit_line.saturating_sub(credit.debt);
-        // Price is defined as common/local
-        // (see price_market_local_per_common function from this file)
-        let available = divide(
-            available_common,
-            query::price_market_local_per_common(deps)?.rate_sell_per_buy,
-        );
-        Ok(available)
+        let available_local = available_local_tokens(deps, available_common)?;
+        Ok(available_local)
     }
 
     /// Helper that determines if an address can borrow the specified amount.
