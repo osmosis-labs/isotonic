@@ -1,5 +1,4 @@
 use cosmwasm_std::{BlockInfo, Timestamp};
-use cw_storage_plus::U64Key;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -47,10 +46,6 @@ impl Expiration {
 
     pub fn time(&self) -> Timestamp {
         self.0
-    }
-
-    pub fn as_key(&self) -> U64Key {
-        U64Key::new(self.0.nanos())
     }
 }
 
