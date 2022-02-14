@@ -82,6 +82,8 @@ impl ValidatedInterest {
         }
     }
 
+    /// Bypasses the validation, building a `ValidatedInterest` out of the raw data.
+    /// If you're using this, you're guaranteeing the data is valid.
     pub fn unchecked(interest: Interest) -> Self {
         Self { inner: interest }
     }
