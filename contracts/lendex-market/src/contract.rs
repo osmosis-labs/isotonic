@@ -4,8 +4,8 @@ use cosmwasm_std::{
     coin, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
     MessageInfo, Reply, Response, StdResult, SubMsg, Timestamp, Uint128, WasmMsg,
 };
-use cw0::parse_reply_instantiate_data;
 use cw2::set_contract_version;
+use cw_utils::parse_reply_instantiate_data;
 
 use crate::error::ContractError;
 use crate::msg::{
