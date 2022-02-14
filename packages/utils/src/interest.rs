@@ -68,13 +68,11 @@ impl ValidatedInterest {
                 slope2,
                 optimal_utilisation,
             } => {
-                if utilisation < optimal_utilisation || optimal_utilisation == Decimal::one() {
-                    // unwrapping should be okay here - if `optimal_utilisation == 0`,
-                    // this branch will never be reached
+                // unwrapping is okay in the following situations - the type guarantees
+                // `0 < optimal_utilisation < 1`
+                if utilisation < optimal_utilisation {
                     base + slope1 * (utilisation * optimal_utilisation.inv().unwrap())
                 } else {
-                    // unwrapping should be okay here - if `optimal_utilisation == 1`,
-                    // this branch will never be reached
                     base + slope1
                         + slope2
                             * ((utilisation - optimal_utilisation)
