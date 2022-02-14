@@ -53,6 +53,7 @@ impl Interest {
 
 /// A wrapper around `Interest` that guarantees the interest rate cfg makes sense.
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[serde(transparent)]
 pub struct ValidatedInterest {
     inner: Interest,
 }
