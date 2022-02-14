@@ -2,7 +2,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::iter::Sum;
 
-use cosmwasm_std::{Decimal, Timestamp, Uint128};
+use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
+
 use utils::interest::Interest;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -53,7 +54,7 @@ pub enum ExecuteMsg {
     TransferFrom {
         source: String,
         destination: String,
-        amount: Uint128,
+        amount: Coin,
         liquidation_price: Decimal,
     },
 }
@@ -74,6 +75,8 @@ pub enum QueryMsg {
     },
     /// Returns current utilisation and interest rates
     Interest {},
+    /// Returns PriceRate, structure representing sell/buy ratio for local(market)/common denoms
+    PriceMarketLocalPerCommon {},
     /// Returns CreditLineResponse
     CreditLine { account: String },
 }

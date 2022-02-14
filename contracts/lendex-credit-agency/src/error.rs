@@ -1,4 +1,5 @@
 use cosmwasm_std::{StdError, Uint128};
+use utils::price::PriceError;
 
 use thiserror::Error;
 
@@ -6,6 +7,9 @@ use thiserror::Error;
 pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
+
+    #[error("{0}")]
+    Price(#[from] PriceError),
 
     #[error("Unauthorized")]
     Unauthorized {},

@@ -16,14 +16,18 @@ pub struct Config {
     pub symbol: String,
     pub decimals: u8,
     pub token_id: u64,
+    /// Denom for current market
     pub market_token: String,
     /// Interest rate calculation
     pub rates: Interest,
     pub interest_charge_period: u64,
     pub last_charged: u64,
+    /// Denom common amongst markets within same Credit Agency
     pub common_token: String,
     pub collateral_ratio: Decimal,
+    /// Address of Oracle's contract
     pub price_oracle: String,
+    /// Address of Credit Agency
     pub credit_agency: Addr,
 }
 
