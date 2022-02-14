@@ -6,7 +6,6 @@ use cosmwasm_std::{
 };
 use cw0::parse_reply_instantiate_data;
 use cw2::set_contract_version;
-use utils::interest::Interest;
 
 use crate::error::ContractError;
 use crate::msg::{
@@ -719,9 +718,7 @@ mod query {
             )
         };
 
-        let interest = match config.rates {
-            Interest::Linear { base, slope } => base + slope * utilisation,
-        };
+        let interest = config.rates.calculate_interest_rate(utilisation);
 
         Ok(InterestResponse {
             interest,
