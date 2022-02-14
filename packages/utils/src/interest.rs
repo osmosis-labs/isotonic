@@ -34,9 +34,9 @@ pub enum Interest {
 
 impl Interest {
     pub fn calculate_interest_rate(&self, utilisation: Decimal) -> Decimal {
-        match self {
-            &Interest::Linear { base, slope } => base + slope * utilisation,
-            &Interest::PiecewiseLinear {
+        match *self {
+            Interest::Linear { base, slope } => base + slope * utilisation,
+            Interest::PiecewiseLinear {
                 base,
                 slope1,
                 slope2,
