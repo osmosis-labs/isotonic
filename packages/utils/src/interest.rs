@@ -35,25 +35,24 @@ pub enum Interest {
 impl Interest {
     pub fn calculate_interest_rate(&self, utilisation: Decimal) -> Decimal {
         match self {
-            Interest::Linear { base, slope } => *base + *slope * utilisation,
-            Interest::PiecewiseLinear {
+            &Interest::Linear { base, slope } => base + slope * utilisation,
+            &Interest::PiecewiseLinear {
                 base,
                 slope1,
                 slope2,
                 optimal_utilisation,
             } => {
-                if utilisation < *optimal_utilisation || *optimal_utilisation == Decimal::one() {
+                if utilisation < optimal_utilisation || optimal_utilisation == Decimal::one() {
                     // unwrapping should be okay here - if `optimal_utilisation == 0`,
                     // this branch will never be reached
-                    *base + *slope1 * (utilisation * optimal_utilisation.inv().unwrap())
+                    base + slope1 * (utilisation * optimal_utilisation.inv().unwrap())
                 } else {
                     // unwrapping should be okay here - if `optimal_utilisation == 1`,
                     // this branch will never be reached
-                    *base
-                        + *slope1
-                        + *slope2
-                            * ((utilisation - *optimal_utilisation)
-                                * (Decimal::one() - *optimal_utilisation).inv().unwrap())
+                    base + slope1
+                        + slope2
+                            * ((utilisation - optimal_utilisation)
+                                * (Decimal::one() - optimal_utilisation).inv().unwrap())
                 }
             }
         }
