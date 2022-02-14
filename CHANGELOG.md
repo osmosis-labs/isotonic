@@ -1,5 +1,37 @@
 # Changelog
 
+## [v0.3.0](https://github.com/confio/lendex/tree/v0.3.0) (2022-02-14)
+
+[Full Changelog](https://github.com/confio/lendex/compare/v0.2.0...v0.3.0)
+
+**Closed issues:**
+
+- Price Oracle: Return inverse rate if buy/sell denoms matches [\#45](https://github.com/confio/lendex/issues/45)
+- Fix naming for price ratio [\#58](https://github.com/confio/lendex/issues/58)
+- Market: `collateral_ratio` must be lower then `liquidation_price` from CA [\#55](https://github.com/confio/lendex/issues/55)
+- Market Contract - Credit Agency authorizes transferable amount [\#53](https://github.com/confio/lendex/issues/53)
+- Set version `0.3.0` [\#50](https://github.com/confio/lendex/issues/50)
+- Direct Liquidation Possible [\#27](https://github.com/confio/lendex/issues/27)
+- Credit Agency properly authorizes borrows and transfers [\#26](https://github.com/confio/lendex/issues/26)
+- Add query for total credit on Credit Agency [\#23](https://github.com/confio/lendex/issues/23)
+- Provide Collateral Info from Market [\#21](https://github.com/confio/lendex/issues/21)
+- Create \(stub\) Price Oracle [\#20](https://github.com/confio/lendex/issues/20)
+- Create Credit Agency as Market Factory [\#19](https://github.com/confio/lendex/issues/19)
+
+**Merged pull requests:**
+
+- Change contract's version to 0.3.0 [\#75](https://github.com/confio/lendex/pull/75) ([ueco-jb](https://github.com/ueco-jb))
+- Update workspace-optimizer to latest v0.12.4 [\#62](https://github.com/confio/lendex/pull/62) ([maurolacy](https://github.com/maurolacy))
+- Fix tag consolidation for matching CHANGELOG entries [\#61](https://github.com/confio/lendex/pull/61) ([maurolacy](https://github.com/maurolacy))
+- CA: Return error if liquidation price is lower then collateral ratio [\#60](https://github.com/confio/lendex/pull/60) ([ueco-jb](https://github.com/ueco-jb))
+- Market: Price ratio helper refactored [\#59](https://github.com/confio/lendex/pull/59) ([ueco-jb](https://github.com/ueco-jb))
+- Market contract: CA authorizes transferable amount [\#54](https://github.com/confio/lendex/pull/54) ([ueco-jb](https://github.com/ueco-jb))
+- Credit Agency: Direct liquidation [\#52](https://github.com/confio/lendex/pull/52) ([ueco-jb](https://github.com/ueco-jb))
+- CA authorizes borrows and transfers [\#51](https://github.com/confio/lendex/pull/51) ([ueco-jb](https://github.com/ueco-jb))
+- Credit Agency - add query for total credit [\#46](https://github.com/confio/lendex/pull/46) ([ueco-jb](https://github.com/ueco-jb))
+- Rename `base_asset` to `market_token` [\#44](https://github.com/confio/lendex/pull/44) ([ueco-jb](https://github.com/ueco-jb))
+- Provide collateral info from market [\#41](https://github.com/confio/lendex/pull/41) ([ueco-jb](https://github.com/ueco-jb))
+
 ## [Unreleased](https://github.com/confio/lendex/tree/HEAD)
 
 [Full Changelog](https://github.com/confio/lendex/compare/v0.1.0...HEAD)
