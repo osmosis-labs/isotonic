@@ -176,7 +176,7 @@ mod exec {
             destination: info.sender.to_string(),
             // transfer repaid amount represented as amount of common tokens, which is
             // calculated into collateral_denom's amount later in the market
-            amount: coin_times_price_rate(&funds, &price_response)?.amount,
+            amount: coin_times_price_rate(&funds, &price_response)?,
             liquidation_price: cfg.liquidation_price,
         })?;
         let transfer_from_msg = SubMsg::new(WasmMsg::Execute {

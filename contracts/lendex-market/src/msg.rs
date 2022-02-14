@@ -2,7 +2,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::iter::Sum;
 
-use cosmwasm_std::{Decimal, Timestamp, Uint128};
+use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
 
 use utils::interest::Interest;
 
@@ -54,7 +54,7 @@ pub enum ExecuteMsg {
     TransferFrom {
         source: String,
         destination: String,
-        amount: Uint128,
+        amount: Coin,
         liquidation_price: Decimal,
     },
 }

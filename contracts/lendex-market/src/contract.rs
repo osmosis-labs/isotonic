@@ -535,20 +535,21 @@ mod execute {
 
     /// Handler for `ExecuteMsg::TransferFrom`
     /// Requires sender to be a Credit Agency, otherwise fails
-    /// it assumes that amount is in common denom (from CA)
+    /// Amount must be in common denom (from CA)
     pub fn transfer_from(
         mut deps: DepsMut,
         env: Env,
         info: MessageInfo,
         source: Addr,
         destination: Addr,
-        amount: Uint128,
+        amount: Coin,
         liquidation_price: Decimal,
     ) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
         if cfg.credit_agency != info.sender {
             return Err(ContractError::LiquidationRequiresCreditAgency {});
         }
+        let amount = validate_funds(&[amount], &cfg.common_token)?;
 
         let mut response = Response::new();
 
