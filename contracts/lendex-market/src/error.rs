@@ -1,5 +1,6 @@
 use cosmwasm_std::{StdError, Uint128};
 use thiserror::Error;
+use utils::interest::InterestError;
 
 use utils::credit_line::InvalidCommonTokenDenom;
 use utils::price::PriceError;
@@ -49,4 +50,7 @@ pub enum ContractError {
 
     #[error("{0}")]
     InvalidCommonTokenDenom(#[from] InvalidCommonTokenDenom),
+
+    #[error("{0}")]
+    InterestError(#[from] InterestError),
 }
