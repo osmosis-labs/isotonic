@@ -10,7 +10,7 @@ use super::ca_mock::{
     InstantiateMsg as CAInstantiateMsg,
 };
 use crate::msg::{
-    CreditLineValues, ExecuteMsg, InstantiateMsg, InterestResponse, QueryMsg,
+    CreditLineResponse, CreditLineValues, ExecuteMsg, InstantiateMsg, InterestResponse, QueryMsg,
     TransferableAmountResponse,
 };
 use crate::state::Config;
@@ -266,6 +266,11 @@ impl Suite {
         self.ltoken_contract.clone()
     }
 
+    /// The denom of the common token
+    pub fn common_token(&self) -> &str {
+        &self.common_token
+    }
+
     /// Deposit base asset in the lending pool and mint l-token
     pub fn deposit(&mut self, sender: &str, funds: &[Coin]) -> AnyResult<AppResponse> {
         self.app.execute_contract(
@@ -374,8 +379,8 @@ impl Suite {
     }
 
     /// Queries current interest and utilisation rates
-    pub fn query_credit_line(&self, account: impl ToString) -> AnyResult<CreditLineValues> {
-        let resp: CreditLineValues = self.app.wrap().query_wasm_smart(
+    pub fn query_credit_line(&self, account: impl ToString) -> AnyResult<CreditLineResponse> {
+        let resp: CreditLineResponse = self.app.wrap().query_wasm_smart(
             self.contract.clone(),
             &QueryMsg::CreditLine {
                 account: account.to_string(),
@@ -432,7 +437,9 @@ impl Suite {
         self.app.execute_contract(
             Addr::unchecked(account.to_string()),
             self.ca_contract.clone(),
-            &CAExecuteMsg::SetCreditLine { credit_line },
+            &CAExecuteMsg::SetCreditLine {
+                credit_line: credit_line.make_response(self.common_token()),
+            },
             &[],
         )
     }

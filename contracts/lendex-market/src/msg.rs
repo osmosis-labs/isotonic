@@ -2,9 +2,11 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::iter::Sum;
 
-use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
+use cosmwasm_std::{coin, Coin, Decimal, Timestamp, Uint128};
 
 use utils::interest::Interest;
+
+use crate::ContractError;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -107,6 +109,7 @@ pub struct TransferableAmountResponse {
     pub transferable: Uint128,
 }
 
+/// The Credit Line response with the common token denom included. Used in the API.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct CreditLineResponse {
@@ -118,6 +121,30 @@ pub struct CreditLineResponse {
     pub debt: Coin,
 }
 
+impl CreditLineResponse {
+    pub fn validate(&self, expected_denom: &str) -> Result<CreditLineValues, ContractError> {
+        for actual in [
+            &self.collateral.denom,
+            &self.credit_line.denom,
+            &self.debt.denom,
+        ] {
+            if actual != expected_denom {
+                return Err(ContractError::InvalidCommonTokenDenom {
+                    expected: expected_denom.to_string(),
+                    actual: actual.to_string(),
+                });
+            }
+        }
+
+        Ok(CreditLineValues {
+            collateral: self.collateral.amount,
+            credit_line: self.credit_line.amount,
+            debt: self.debt.amount,
+        })
+    }
+}
+
+/// The Credit Line with just the values and no denom included, used for internal calculations.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CreditLineValues {
     /// Total value of L-Tokens in common_token
@@ -134,6 +161,28 @@ impl CreditLineValues {
             collateral: Uint128::zero(),
             credit_line: Uint128::zero(),
             debt: Uint128::zero(),
+        }
+    }
+
+    pub fn new(
+        collateral: impl Into<Uint128>,
+        credit_line: impl Into<Uint128>,
+        debt: impl Into<Uint128>,
+    ) -> Self {
+        CreditLineValues {
+            collateral: collateral.into(),
+            credit_line: credit_line.into(),
+            debt: debt.into(),
+        }
+    }
+
+    pub fn make_response(self, denom: impl Into<String>) -> CreditLineResponse {
+        let denom = denom.into();
+
+        CreditLineResponse {
+            collateral: coin(self.collateral.u128(), denom.clone()),
+            credit_line: coin(self.credit_line.u128(), denom.clone()),
+            debt: coin(self.debt.u128(), denom),
         }
     }
 }

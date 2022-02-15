@@ -45,4 +45,7 @@ pub enum ContractError {
         "Unauthorized - Liquidation helpers call requires sender to be a Market's Credit Agency"
     )]
     LiquidationRequiresCreditAgency {},
+
+    #[error("Received invalid invalid common token from another contract, expected: {expected}, got: {actual}")]
+    InvalidCommonTokenDenom { expected: String, actual: String },
 }
