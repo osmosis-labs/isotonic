@@ -1,6 +1,6 @@
 pub mod contract;
 mod display_amount;
-mod error;
+pub mod error;
 pub mod i128;
 pub mod msg;
 #[cfg(test)]
