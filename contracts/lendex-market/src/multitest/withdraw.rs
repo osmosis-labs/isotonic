@@ -1,7 +1,7 @@
 use cosmwasm_std::{coin, Decimal, Uint128};
 
 use super::suite::SuiteBuilder;
-use crate::{error::ContractError, msg::CreditLineResponse};
+use crate::{error::ContractError, msg::CreditLineValues};
 use lendex_token::error::ContractError as TokenContractError;
 
 #[test]
@@ -76,7 +76,7 @@ fn cant_withdraw_with_debt_higher_then_credit_line() {
     suite
         .set_credit_line(
             lender,
-            CreditLineResponse {
+            CreditLineValues {
                 collateral: Uint128::new(100),
                 // 100 * 0.7 collateral ratio
                 credit_line: Uint128::new(70),
@@ -113,7 +113,7 @@ fn can_withdraw_up_to_credit_line() {
     suite
         .set_credit_line(
             lender,
-            CreditLineResponse {
+            CreditLineValues {
                 collateral: Uint128::new(100),
                 // 100 * 0.7 collateral ratio
                 credit_line: Uint128::new(70),
@@ -131,7 +131,7 @@ fn can_withdraw_up_to_credit_line() {
     suite
         .set_credit_line(
             lender,
-            CreditLineResponse {
+            CreditLineValues {
                 collateral: Uint128::new(10),
                 // 100 * 0.7 collateral ratio
                 credit_line: Uint128::new(7),

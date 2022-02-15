@@ -111,6 +111,16 @@ pub struct TransferableAmountResponse {
 #[serde(rename_all = "snake_case")]
 pub struct CreditLineResponse {
     /// Total value of L-Tokens in common_token
+    pub collateral: Coin,
+    /// collateral * collateral_ratio
+    pub credit_line: Coin,
+    /// Total value of B-Tokens in common_token
+    pub debt: Coin,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct CreditLineValues {
+    /// Total value of L-Tokens in common_token
     pub collateral: Uint128,
     /// collateral * collateral_ratio
     pub credit_line: Uint128,
@@ -118,9 +128,9 @@ pub struct CreditLineResponse {
     pub debt: Uint128,
 }
 
-impl CreditLineResponse {
+impl CreditLineValues {
     pub fn zero() -> Self {
-        CreditLineResponse {
+        CreditLineValues {
             collateral: Uint128::zero(),
             credit_line: Uint128::zero(),
             debt: Uint128::zero(),
@@ -128,7 +138,7 @@ impl CreditLineResponse {
     }
 }
 
-impl<'a> Sum<&'a Self> for CreditLineResponse {
+impl<'a> Sum<&'a Self> for CreditLineValues {
     fn sum<I>(iter: I) -> Self
     where
         I: Iterator<Item = &'a Self>,
@@ -148,23 +158,23 @@ mod tests {
     #[test]
     fn sum_credit_line_response() {
         let responses = vec![
-            CreditLineResponse {
+            CreditLineValues {
                 collateral: Uint128::new(500),
                 credit_line: Uint128::new(300),
                 debt: Uint128::new(200),
             },
-            CreditLineResponse {
+            CreditLineValues {
                 collateral: Uint128::new(1800),
                 credit_line: Uint128::new(200),
                 debt: Uint128::new(50),
             },
-            CreditLineResponse::zero(),
+            CreditLineValues::zero(),
         ];
 
-        let sum: CreditLineResponse = responses.iter().sum();
+        let sum: CreditLineValues = responses.iter().sum();
         assert_eq!(
             sum,
-            CreditLineResponse {
+            CreditLineValues {
                 collateral: Uint128::new(2300),
                 credit_line: Uint128::new(500),
                 debt: Uint128::new(250),

@@ -2,7 +2,7 @@ use cosmwasm_std::{coin, Decimal, StdError, Uint128};
 
 use super::suite::SuiteBuilder;
 use crate::error::ContractError;
-use crate::msg::CreditLineResponse;
+use crate::msg::CreditLineValues;
 
 #[test]
 fn deposit_works() {
@@ -79,7 +79,7 @@ fn query_transferable_amount() {
 
     // Set zero credit line in mock
     suite
-        .set_credit_line(lender, CreditLineResponse::zero())
+        .set_credit_line(lender, CreditLineValues::zero())
         .unwrap();
 
     let btoken = suite.btoken();
@@ -99,7 +99,7 @@ fn query_transferable_amount() {
     suite
         .set_credit_line(
             lender,
-            CreditLineResponse {
+            CreditLineValues {
                 collateral: Uint128::new(100),
                 // 100 * 0.8 collateral ratio
                 credit_line: Uint128::new(80),
@@ -118,7 +118,7 @@ fn query_transferable_amount() {
     suite
         .set_credit_line(
             lender,
-            CreditLineResponse {
+            CreditLineValues {
                 collateral: Uint128::new(100),
                 // 100 * 0.8 collateral ratio
                 credit_line: Uint128::new(80),

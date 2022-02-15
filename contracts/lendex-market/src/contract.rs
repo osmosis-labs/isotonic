@@ -9,7 +9,7 @@ use cw_utils::parse_reply_instantiate_data;
 
 use crate::error::ContractError;
 use crate::msg::{
-    CreditLineResponse, ExecuteMsg, InstantiateMsg, QueryMsg, QueryTotalCreditLine,
+    CreditLineValues, ExecuteMsg, InstantiateMsg, QueryMsg, QueryTotalCreditLine,
     TransferableAmountResponse,
 };
 use crate::state::{Config, CONFIG, SECONDS_IN_YEAR};
@@ -199,7 +199,7 @@ mod cr_utils {
         config: &Config,
         account: String,
     ) -> Result<Uint128, ContractError> {
-        let credit: CreditLineResponse = deps.querier.query_wasm_smart(
+        let credit: CreditLineValues = deps.querier.query_wasm_smart(
             &config.credit_agency,
             &QueryTotalCreditLine::TotalCreditLine { account },
         )?;
@@ -755,19 +755,19 @@ mod query {
     }
 
     /// Handler for `QueryMsg::CreditLine`
-    pub fn credit_line(deps: Deps, account: Addr) -> Result<CreditLineResponse, ContractError> {
+    pub fn credit_line(deps: Deps, account: Addr) -> Result<CreditLineValues, ContractError> {
         let config = CONFIG.load(deps.storage)?;
         let collateral = ltoken_balance(deps, &config, &account)?;
         let debt = btoken_balance(deps, &config, &account)?;
         if collateral.amount.is_zero() && debt.amount.is_zero() {
-            return Ok(CreditLineResponse::zero());
+            return Ok(CreditLineValues::zero());
         }
 
         let price_ratio = price_market_local_per_common(deps)?;
         let collateral = coin_times_price_rate(&collateral, &price_ratio)?;
         let debt = coin_times_price_rate(&debt, &price_ratio)?.amount;
         let credit_line = collateral.amount * config.collateral_ratio;
-        Ok(CreditLineResponse {
+        Ok(CreditLineValues {
             collateral: collateral.amount,
             debt,
             credit_line,

@@ -3,7 +3,7 @@ use anyhow::Result as AnyResult;
 use cosmwasm_std::{Addr, Coin, Decimal, Empty};
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
 use lendex_market::msg::{
-    CreditLineResponse, ExecuteMsg as MarketExecuteMsg, QueryMsg as MarketQueryMsg,
+    CreditLineValues, ExecuteMsg as MarketExecuteMsg, QueryMsg as MarketQueryMsg,
     TokensBalanceResponse,
 };
 use lendex_oracle::msg::ExecuteMsg as OracleExecuteMsg;
@@ -242,8 +242,8 @@ impl Suite {
     }
 
     /// Queries all markets within agency and returns sum of credit lines
-    pub fn query_total_credit_line(&self, account: &str) -> AnyResult<CreditLineResponse> {
-        let resp: CreditLineResponse = self.app.wrap().query_wasm_smart(
+    pub fn query_total_credit_line(&self, account: &str) -> AnyResult<CreditLineValues> {
+        let resp: CreditLineValues = self.app.wrap().query_wasm_smart(
             self.contract.clone(),
             &QueryMsg::TotalCreditLine {
                 account: account.to_string(),

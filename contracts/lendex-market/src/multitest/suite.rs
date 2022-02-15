@@ -10,7 +10,7 @@ use super::ca_mock::{
     InstantiateMsg as CAInstantiateMsg,
 };
 use crate::msg::{
-    CreditLineResponse, ExecuteMsg, InstantiateMsg, InterestResponse, QueryMsg,
+    CreditLineValues, ExecuteMsg, InstantiateMsg, InterestResponse, QueryMsg,
     TransferableAmountResponse,
 };
 use crate::state::Config;
@@ -374,8 +374,8 @@ impl Suite {
     }
 
     /// Queries current interest and utilisation rates
-    pub fn query_credit_line(&self, account: impl ToString) -> AnyResult<CreditLineResponse> {
-        let resp: CreditLineResponse = self.app.wrap().query_wasm_smart(
+    pub fn query_credit_line(&self, account: impl ToString) -> AnyResult<CreditLineValues> {
+        let resp: CreditLineValues = self.app.wrap().query_wasm_smart(
             self.contract.clone(),
             &QueryMsg::CreditLine {
                 account: account.to_string(),
@@ -427,7 +427,7 @@ impl Suite {
     pub fn set_credit_line(
         &mut self,
         account: impl ToString,
-        credit_line: CreditLineResponse,
+        credit_line: CreditLineValues,
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             Addr::unchecked(account.to_string()),
@@ -441,7 +441,7 @@ impl Suite {
     pub fn set_high_credit_line(&mut self, account: impl ToString) -> AnyResult<AppResponse> {
         self.set_credit_line(
             account,
-            CreditLineResponse {
+            CreditLineValues {
                 collateral: Uint128::new(10000),
                 credit_line: Uint128::new(10000),
                 debt: Uint128::zero(),

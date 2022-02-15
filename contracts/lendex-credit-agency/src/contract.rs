@@ -220,7 +220,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractErr
 mod query {
     use cosmwasm_std::{Order, StdResult};
     use cw_storage_plus::Bound;
-    use lendex_market::msg::{CreditLineResponse, QueryMsg as MarketQueryMsg};
+    use lendex_market::msg::{CreditLineValues, QueryMsg as MarketQueryMsg};
 
     use crate::{
         msg::{ListMarketsResponse, MarketResponse},
@@ -281,12 +281,12 @@ mod query {
     pub fn total_credit_line(
         deps: Deps,
         account: String,
-    ) -> Result<CreditLineResponse, ContractError> {
+    ) -> Result<CreditLineValues, ContractError> {
         let total_credit_line = list_markets(deps, None, None)?
             .markets
             .into_iter()
             .map(|market| {
-                let price_response: CreditLineResponse = deps.querier.query_wasm_smart(
+                let price_response: CreditLineValues = deps.querier.query_wasm_smart(
                     market.market,
                     &MarketQueryMsg::CreditLine {
                         account: account.clone(),
@@ -294,7 +294,7 @@ mod query {
                 )?;
                 Ok(price_response)
             })
-            .collect::<Result<Vec<CreditLineResponse>, ContractError>>()?
+            .collect::<Result<Vec<CreditLineValues>, ContractError>>()?
             .iter()
             .sum();
         Ok(total_credit_line)
