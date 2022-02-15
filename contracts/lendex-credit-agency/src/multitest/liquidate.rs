@@ -1,7 +1,7 @@
 use super::suite::SuiteBuilder;
 use crate::error::ContractError;
 
-use lendex_market::msg::CreditLineValues;
+use lendex_market::msg::{CreditLineResponse, CreditLineValues};
 use lendex_token::error::ContractError as TokenContractError;
 
 use cosmwasm_std::{coin, coins, Decimal, Uint128};
@@ -74,6 +74,7 @@ fn account_doesnt_have_debt_bigger_then_credit_line() {
             credit_line: Uint128::new(400),
             debt: Uint128::zero()
         }
+        .make_response(suite.common_token())
     );
 
     // debt must be higher then credit line, so 400 debt with 400 credit line won't allow liquidation
@@ -83,10 +84,10 @@ fn account_doesnt_have_debt_bigger_then_credit_line() {
     let total_credit_line = suite.query_total_credit_line(debtor).unwrap();
     assert!(matches!(
         total_credit_line,
-        CreditLineValues {
+        CreditLineResponse {
             debt,
             ..
-        } if debt == Uint128::new(400)));
+        } if debt.amount == Uint128::new(400)));
 
     let err = suite
         .liquidate(liquidator, debtor, &coins(400, denom), denom.to_owned())
@@ -131,6 +132,7 @@ fn liquidating_whole_debt() {
             credit_line: Uint128::new(400),
             debt: Uint128::zero()
         }
+        .make_response(suite.common_token())
     );
 
     // debt must be higher then credit line, but debtor can borrow at most 400 tokens
@@ -140,10 +142,10 @@ fn liquidating_whole_debt() {
     let total_credit_line = suite.query_total_credit_line(debtor).unwrap();
     assert!(matches!(
         total_credit_line,
-        CreditLineValues {
+        CreditLineResponse {
             debt,
             ..
-        } if debt == Uint128::new(400)));
+        } if debt.amount == Uint128::new(400)));
 
     suite.advance_seconds(YEAR_IN_SECONDS);
 
@@ -163,6 +165,7 @@ fn liquidating_whole_debt() {
             credit_line: Uint128::new(460),
             debt: Uint128::new(474)
         }
+        .make_response(suite.common_token())
     );
 
     suite
@@ -180,6 +183,7 @@ fn liquidating_whole_debt() {
             credit_line: Uint128::new(48),
             debt: Uint128::new(1) // FIXME: Rounding issue
         }
+        .make_response(suite.common_token())
     );
 
     let total_credit_line = suite.query_total_credit_line(liquidator).unwrap();
@@ -191,6 +195,7 @@ fn liquidating_whole_debt() {
             credit_line: Uint128::new(411),
             debt: Uint128::zero()
         }
+        .make_response(suite.common_token())
     );
 }
 
@@ -321,6 +326,7 @@ fn receive_reward_different_denom_fails_if_debtor_has_not_enough_reward_tokens()
             credit_line: Uint128::new(830),
             debt: Uint128::new(855)
         }
+        .make_response(suite.common_token())
     );
 
     let err = suite
@@ -406,6 +412,7 @@ fn receive_reward_in_different_denoms_no_interest_rates() {
             credit_line: Uint128::new(8000), // 16000 collateral * 0.5 collateral price
             debt: Uint128::new(7500)         // 75_000 * 0.1
         }
+        .make_response(suite.common_token())
     );
 
     suite
@@ -419,6 +426,7 @@ fn receive_reward_in_different_denoms_no_interest_rates() {
             credit_line: Uint128::new(6000), // 12000 collateral * 0.5 collateral price
             debt: Uint128::new(7500)         // 75_000 * 0.1
         }
+        .make_response(suite.common_token())
     );
 
     // successful liquidation of 6000 tokens
@@ -439,6 +447,7 @@ fn receive_reward_in_different_denoms_no_interest_rates() {
             // 7500 - (60_000 * 0.1)
             debt: Uint128::new(1500),
         }
+        .make_response(suite.common_token())
     );
     let balance = suite.query_tokens_balance(ust, debtor).unwrap();
     assert_eq!(balance.btokens, Uint128::new(15000)); // 1500 / 0.1 price
@@ -448,11 +457,11 @@ fn receive_reward_in_different_denoms_no_interest_rates() {
     let total_credit_line = suite.query_total_credit_line(liquidator).unwrap();
     assert!(matches!(
         total_credit_line,
-        CreditLineValues {
+        CreditLineResponse {
             collateral,
             ..
         // deposited 100_000 * 0.1 + repaid 2173 * 3.0 (actually 2172 - FIXME rounding error)
-        } if collateral == Uint128::new(16_519)
+        } if collateral.amount == Uint128::new(16_519)
     ));
     let balance = suite.query_tokens_balance(atom, liquidator).unwrap();
     assert_eq!(balance.ltokens, Uint128::new(2173)); // 2173 repaid
@@ -534,6 +543,7 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
             credit_line: Uint128::new(8000), // 16000 collateral * 0.5 collateral price
             debt: Uint128::new(7500)         // 75_000 * 0.1
         }
+        .make_response(suite.common_token())
     );
 
     suite.advance_seconds(YEAR_IN_SECONDS / 2);
@@ -582,5 +592,6 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
             // 8375 - (60_000 * 0.1)
             debt: Uint128::new(2325),
         }
+        .make_response(suite.common_token())
     );
 }

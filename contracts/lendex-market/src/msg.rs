@@ -6,7 +6,7 @@ use cosmwasm_std::{coin, Coin, Decimal, Timestamp, Uint128};
 
 use utils::interest::Interest;
 
-use crate::ContractError;
+use crate::error::InvalidCommonTokenDenom;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -122,14 +122,17 @@ pub struct CreditLineResponse {
 }
 
 impl CreditLineResponse {
-    pub fn validate(&self, expected_denom: &str) -> Result<CreditLineValues, ContractError> {
+    pub fn validate(
+        &self,
+        expected_denom: &str,
+    ) -> Result<CreditLineValues, InvalidCommonTokenDenom> {
         for actual in [
             &self.collateral.denom,
             &self.credit_line.denom,
             &self.debt.denom,
         ] {
             if actual != expected_denom {
-                return Err(ContractError::InvalidCommonTokenDenom {
+                return Err(InvalidCommonTokenDenom {
                     expected: expected_denom.to_string(),
                     actual: actual.to_string(),
                 });

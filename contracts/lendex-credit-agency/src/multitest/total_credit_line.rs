@@ -36,6 +36,7 @@ fn lender_on_one_market() {
             credit_line: Uint128::new(1000),
             debt: Uint128::zero()
         }
+        .make_response(suite.common_token())
     );
 }
 
@@ -104,6 +105,7 @@ fn lender_on_three_markets() {
             credit_line: Uint128::new(4625),
             debt: Uint128::zero()
         }
+        .make_response(suite.common_token())
     );
 }
 
@@ -175,6 +177,7 @@ fn lender_on_two_markets_with_two_borrowers() {
             credit_line: Uint128::new(225),
             debt: Uint128::zero()
         }
+        .make_response(suite.common_token())
     );
 
     let total_credit_line = suite.query_total_credit_line(borrower_one).unwrap();
@@ -188,6 +191,7 @@ fn lender_on_two_markets_with_two_borrowers() {
             // 500 borrowed * 0.5 oracle's price (second denom)
             debt: Uint128::new(250)
         }
+        .make_response(suite.common_token())
     );
 
     let total_credit_line = suite.query_total_credit_line(borrower_two).unwrap();
@@ -201,6 +205,7 @@ fn lender_on_two_markets_with_two_borrowers() {
             // 100 borrowed * 2.0 oracle's price (first denom)
             debt: Uint128::new(200)
         }
+        .make_response(suite.common_token())
     );
 }
 
@@ -266,6 +271,7 @@ fn two_lenders_with_borrower_on_two_markets() {
             credit_line: Uint128::new(375),
             debt: Uint128::zero()
         }
+        .make_response(suite.common_token())
     );
 
     let total_credit_line = suite.query_total_credit_line(lender_two).unwrap();
@@ -278,6 +284,7 @@ fn two_lenders_with_borrower_on_two_markets() {
             credit_line: Uint128::new(75),
             debt: Uint128::zero()
         }
+        .make_response(suite.common_token())
     );
 
     let total_credit_line = suite.query_total_credit_line(borrower).unwrap();
@@ -291,5 +298,6 @@ fn two_lenders_with_borrower_on_two_markets() {
             // 500 borrowed * 1.5 oracle's price + 300 borrowed * 0.5 oracle's price
             debt: Uint128::new(900)
         }
+        .make_response(suite.common_token())
     );
 }

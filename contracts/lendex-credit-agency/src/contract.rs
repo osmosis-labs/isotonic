@@ -147,15 +147,16 @@ mod exec {
             return Err(ContractError::LiquidationOnlyOneDenomRequired {});
         }
         let funds = info.funds[0].clone();
+        let cfg = CONFIG.load(deps.storage)?;
         // assert that given account actually has more debt then credit
         let total_credit_line = query::total_credit_line(deps.as_ref(), account.to_string())?;
+        let total_credit_line = total_credit_line.validate(&cfg.common_token)?;
         if total_credit_line.debt <= total_credit_line.credit_line {
             return Err(ContractError::LiquidationNotAllowed {});
         }
 
         // Count btokens and burn then on account
         // this requires that market returns error if repaying more then balance
-        let cfg = CONFIG.load(deps.storage)?;
         let debt_market = query::market(deps.as_ref(), funds.denom.clone())?.market;
         let msg = to_binary(&lendex_market::msg::ExecuteMsg::RepayTo {
             account: account.to_string(),
@@ -220,7 +221,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractErr
 mod query {
     use cosmwasm_std::{Order, StdResult};
     use cw_storage_plus::Bound;
-    use lendex_market::msg::{CreditLineValues, QueryMsg as MarketQueryMsg};
+    use lendex_market::msg::{CreditLineResponse, CreditLineValues, QueryMsg as MarketQueryMsg};
 
     use crate::{
         msg::{ListMarketsResponse, MarketResponse},
@@ -281,23 +282,26 @@ mod query {
     pub fn total_credit_line(
         deps: Deps,
         account: String,
-    ) -> Result<CreditLineValues, ContractError> {
-        let total_credit_line = list_markets(deps, None, None)?
+    ) -> Result<CreditLineResponse, ContractError> {
+        let common_token = CONFIG.load(deps.storage)?.common_token;
+
+        let total_credit_line: CreditLineValues = list_markets(deps, None, None)?
             .markets
             .into_iter()
             .map(|market| {
-                let price_response: CreditLineValues = deps.querier.query_wasm_smart(
+                let price_response: CreditLineResponse = deps.querier.query_wasm_smart(
                     market.market,
                     &MarketQueryMsg::CreditLine {
                         account: account.clone(),
                     },
                 )?;
+                let price_response = price_response.validate(&common_token)?;
                 Ok(price_response)
             })
             .collect::<Result<Vec<CreditLineValues>, ContractError>>()?
             .iter()
             .sum();
-        Ok(total_credit_line)
+        Ok(total_credit_line.make_response(common_token))
     }
 }
 

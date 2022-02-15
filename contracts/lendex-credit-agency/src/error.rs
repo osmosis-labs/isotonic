@@ -3,6 +3,8 @@ use utils::price::PriceError;
 
 use thiserror::Error;
 
+use lendex_market::InvalidCommonTokenDenom;
+
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
     #[error("{0}")]
@@ -52,4 +54,7 @@ pub enum ContractError {
         btokens: Uint128,
         debt: Uint128,
     },
+
+    #[error("{0}")]
+    InvalidCommonTokenDenom(#[from] InvalidCommonTokenDenom),
 }

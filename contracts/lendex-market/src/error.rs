@@ -46,6 +46,14 @@ pub enum ContractError {
     )]
     LiquidationRequiresCreditAgency {},
 
-    #[error("Received invalid invalid common token from another contract, expected: {expected}, got: {actual}")]
-    InvalidCommonTokenDenom { expected: String, actual: String },
+    #[error("{0}")]
+    InvalidCommonTokenDenom(#[from] InvalidCommonTokenDenom),
+}
+
+/// Used for when CreditLineResponse validation fails
+#[derive(Error, Debug, PartialEq)]
+#[error("Received invalid common token from another contract, expected: {expected}, got: {actual}")]
+pub struct InvalidCommonTokenDenom {
+    pub expected: String,
+    pub actual: String,
 }
