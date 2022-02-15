@@ -1,6 +1,8 @@
 use super::suite::SuiteBuilder;
+use crate::error::ContractError;
 
 use lendex_market::msg::CreditLineResponse;
+use lendex_token::error::ContractError as TokenContractError;
 
 use cosmwasm_std::{coin, coins, Decimal, Uint128};
 
@@ -33,8 +35,8 @@ fn send_more_then_one_denom() {
         )
         .unwrap_err();
     assert_eq!(
-        err.to_string(),
-        "Only one denom can be sent for liquidation"
+        ContractError::LiquidationOnlyOneDenomRequired {},
+        err.downcast().unwrap(),
     );
 }
 
@@ -90,8 +92,8 @@ fn account_doesnt_have_debt_bigger_then_credit_line() {
         .liquidate(liquidator, debtor, &coins(400, denom), denom.to_owned())
         .unwrap_err();
     assert_eq!(
-        err.to_string(),
-        "Account cannot be liquidated as it does not have more debt then credit line"
+        ContractError::LiquidationNotAllowed {},
+        err.downcast().unwrap()
     );
 }
 
@@ -243,8 +245,8 @@ fn receive_reward_in_different_denom_fails_if_theres_no_reward_market() {
         )
         .unwrap_err();
     assert_eq!(
-        err.to_string(),
-        "No market set up for base asset ".to_owned() + reward_denom
+        ContractError::NoMarket(reward_denom.to_owned()),
+        err.downcast().unwrap()
     );
 }
 
@@ -332,8 +334,11 @@ fn receive_reward_different_denom_fails_if_debtor_has_not_enough_reward_tokens()
     // Transferable amount is available balance / collateral ratio
     // balance = credit line - debt / price ratio = 830 - 755 (855 - 100 liquidated) / 1.5 = 50
     assert_eq!(
-        err.to_string(),
-        "Performing operation while there is not enough tokens, 50 tokens available, 72 needed"
+        TokenContractError::InsufficientTokens {
+            available: Uint128::new(50),
+            needed: Uint128::new(72)
+        },
+        err.downcast().unwrap()
     );
 }
 
