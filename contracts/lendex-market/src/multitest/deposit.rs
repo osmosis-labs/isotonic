@@ -1,6 +1,7 @@
 use cosmwasm_std::{coin, Decimal, StdError, Uint128};
 
 use super::suite::SuiteBuilder;
+use crate::error::ContractError;
 use crate::msg::CreditLineResponse;
 
 #[test]
@@ -30,12 +31,12 @@ fn deposit_multiple_denoms_fails() {
         .with_market_token("ATOM")
         .build();
 
+    let err = suite
+        .deposit(lender, &[coin(100, "ATOM"), coin(50, "BTC")])
+        .unwrap_err();
     assert_eq!(
-        suite
-            .deposit(lender, &[coin(100, "ATOM"), coin(50, "BTC")])
-            .unwrap_err()
-            .to_string(),
-        "Sent too many denoms, must deposit only 'ATOM' in the lending pool"
+        ContractError::ExtraDenoms("ATOM".to_owned()),
+        err.downcast().unwrap()
     );
 }
 
@@ -47,12 +48,10 @@ fn deposit_wrong_denom_fails() {
         .with_market_token("ATOM")
         .build();
 
+    let err = suite.deposit(lender, &[coin(50, "BTC")]).unwrap_err();
     assert_eq!(
-        suite
-            .deposit(lender, &[coin(50, "BTC")])
-            .unwrap_err()
-            .to_string(),
-        "Sent unsupported token, must deposit 'ATOM' in the lending pool"
+        ContractError::InvalidDenom("ATOM".to_owned()),
+        err.downcast().unwrap()
     );
 }
 
@@ -61,10 +60,8 @@ fn deposit_nothing_fails() {
     let lender = "lender";
     let mut suite = SuiteBuilder::new().with_market_token("ATOM").build();
 
-    assert_eq!(
-        suite.deposit(lender, &[]).unwrap_err().to_string(),
-        "No funds sent"
-    );
+    let err = suite.deposit(lender, &[]).unwrap_err();
+    assert_eq!(ContractError::NoFundsSent {}, err.downcast().unwrap());
 }
 
 #[test]

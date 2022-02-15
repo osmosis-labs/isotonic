@@ -3,10 +3,11 @@ pub mod rebasing;
 pub mod receiver;
 pub mod suite;
 
+use cosmwasm_std::{coin, coins, Event, Uint128};
+
 use crate::display_amount::DisplayAmount;
 use crate::msg::TokenInfoResponse;
 use crate::ContractError;
-use cosmwasm_std::{coin, coins, Event, Uint128};
 use suite::{Suite, SuiteBuilder};
 
 #[test]
@@ -462,7 +463,7 @@ mod send {
             .send(lender, receiver, Uint128::new(40), exec)
             .unwrap_err();
 
-        assert_eq!("Invalid message on receiver", err.to_string());
+        assert!(err.to_string().contains("error executing WasmMsg"));
         assert_eq!(suite.query_receiver().unwrap(), 0);
         assert_eq!(
             suite.query_balance(lender).unwrap(),

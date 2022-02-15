@@ -1,4 +1,5 @@
 use super::suite::SuiteBuilder;
+use crate::error::ContractError;
 
 use cosmwasm_std::Decimal;
 
@@ -35,13 +36,10 @@ fn market_create_multiple() {
 fn market_create_unauthorized() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
 
-    assert_eq!(
-        suite
-            .create_market_quick("random_dude", "osmo", "OSMO", None, None)
-            .unwrap_err()
-            .to_string(),
-        "Unauthorized"
-    );
+    let err = suite
+        .create_market_quick("random_dude", "osmo", "OSMO", None, None)
+        .unwrap_err();
+    assert_eq!(ContractError::Unauthorized {}, err.downcast().unwrap());
 }
 
 #[test]
@@ -55,8 +53,8 @@ fn market_create_already_exists() {
         .create_market_quick("gov", "osmo", "OSMO", None, None)
         .unwrap_err();
     assert_eq!(
-        err.to_string(),
-        "A market for base asset OSMO already exists"
+        ContractError::MarketAlreadyExists("OSMO".to_owned()),
+        err.downcast().unwrap()
     );
 }
 
@@ -67,19 +65,19 @@ fn collateral_ratio_higher_then_liquidation_price() {
         .with_liquidation_price(Decimal::percent(92))
         .build();
 
+    let err = suite
+        .create_market_quick("gov", "osmo", "OSMO", Decimal::percent(92), None)
+        .unwrap_err();
     assert_eq!(
-        suite
-            .create_market_quick("gov", "osmo", "OSMO", Decimal::percent(92), None)
-            .unwrap_err()
-            .to_string(),
-        "Creating Market failure - collateral ratio must be lower than liquidation price"
+        ContractError::MarketCfgCollateralFailure {},
+        err.downcast().unwrap()
     );
 
+    let err = suite
+        .create_market_quick("gov", "osmo", "OSMO", Decimal::percent(93), None)
+        .unwrap_err();
     assert_eq!(
-        suite
-            .create_market_quick("gov", "osmo", "OSMO", Decimal::percent(93), None)
-            .unwrap_err()
-            .to_string(),
-        "Creating Market failure - collateral ratio must be lower than liquidation price"
+        ContractError::MarketCfgCollateralFailure {},
+        err.downcast().unwrap()
     );
 }

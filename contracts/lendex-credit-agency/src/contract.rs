@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response};
-use cw0::parse_reply_instantiate_data;
 use cw2::set_contract_version;
+use cw_utils::parse_reply_instantiate_data;
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
@@ -254,10 +254,12 @@ mod query {
         limit: Option<u32>,
     ) -> Result<ListMarketsResponse, ContractError> {
         let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
-        let start = start_after.map(|addr| Bound::exclusive(addr.as_str()));
+        let start = start_after
+            .as_ref()
+            .map(|addr| Bound::exclusive(addr.as_str()));
 
         let markets: StdResult<Vec<_>> = MARKETS
-            .range_de(deps.storage, start, None, Order::Ascending)
+            .range(deps.storage, start, None, Order::Ascending)
             .map(|m| {
                 let (market_token, market) = m?;
 

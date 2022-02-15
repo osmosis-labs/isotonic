@@ -2,6 +2,7 @@ use cosmwasm_std::{coin, Decimal, Uint128};
 
 use super::suite::SuiteBuilder;
 use crate::{error::ContractError, msg::CreditLineResponse};
+use lendex_token::error::ContractError as TokenContractError;
 
 #[test]
 fn withdraw_works() {
@@ -44,9 +45,13 @@ fn withdraw_overflow_is_handled() {
 
     // Try to withdraw more base asset than we have deposited - should fail and not
     // affect any balances.
+    let err = suite.withdraw(lender, 150).unwrap_err();
     assert_eq!(
-        suite.withdraw(lender, 150).unwrap_err().to_string(),
-        "Performing operation while there is not enough tokens, 100 tokens available, 150 needed"
+        TokenContractError::InsufficientTokens {
+            available: Uint128::new(100),
+            needed: Uint128::new(150)
+        },
+        err.downcast().unwrap()
     );
     assert_eq!(suite.query_asset_balance(lender).unwrap(), 0);
     assert_eq!(suite.query_contract_asset_balance().unwrap(), 100);

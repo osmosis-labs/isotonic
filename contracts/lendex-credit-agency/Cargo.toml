@@ -16,9 +16,9 @@ library = []
 [dependencies]
 cosmwasm-std = { version = "1.0.0-beta5" }
 cosmwasm-storage = { version = "1.0.0-beta5" }
-cw-storage-plus = "0.10"
-cw0 = "0.10"
-cw2 = "0.10"
+cw-storage-plus = "0.12.1"
+cw-utils = "0.12.1"
+cw2 = "0.12.1"
 lendex-market = { path = "../lendex-market", version = "0.3.0", features = ["library"] }
 lendex-oracle = { path = "../lendex-oracle", version = "0.3.0", features = ["library"] }
 lendex-token = { path = "../lendex-token", version = "0.3.0", features = ["library"] }
@@ -30,4 +30,4 @@ utils = { version = "0.3.0", path = "../../packages/utils" }
 [dev-dependencies]
 anyhow = "1"
 cosmwasm-schema = { version = "1.0.0-beta5" }
-cw-multi-test = "0.10"
+cw-multi-test = "0.12.1"
