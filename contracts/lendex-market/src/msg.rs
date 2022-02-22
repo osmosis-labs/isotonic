@@ -1,8 +1,6 @@
+use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::iter::Sum;
-
-use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
 
 use utils::interest::Interest;
 
@@ -105,70 +103,4 @@ pub struct TokensBalanceResponse {
 #[serde(rename_all = "snake_case")]
 pub struct TransferableAmountResponse {
     pub transferable: Uint128,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct CreditLineResponse {
-    /// Total value of L-Tokens in common_token
-    pub collateral: Uint128,
-    /// collateral * collateral_ratio
-    pub credit_line: Uint128,
-    /// Total value of B-Tokens in common_token
-    pub debt: Uint128,
-}
-
-impl CreditLineResponse {
-    pub fn zero() -> Self {
-        CreditLineResponse {
-            collateral: Uint128::zero(),
-            credit_line: Uint128::zero(),
-            debt: Uint128::zero(),
-        }
-    }
-}
-
-impl<'a> Sum<&'a Self> for CreditLineResponse {
-    fn sum<I>(iter: I) -> Self
-    where
-        I: Iterator<Item = &'a Self>,
-    {
-        iter.fold(Self::zero(), |a, b| Self {
-            collateral: a.collateral + b.collateral,
-            credit_line: a.credit_line + b.credit_line,
-            debt: a.debt + b.debt,
-        })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn sum_credit_line_response() {
-        let responses = vec![
-            CreditLineResponse {
-                collateral: Uint128::new(500),
-                credit_line: Uint128::new(300),
-                debt: Uint128::new(200),
-            },
-            CreditLineResponse {
-                collateral: Uint128::new(1800),
-                credit_line: Uint128::new(200),
-                debt: Uint128::new(50),
-            },
-            CreditLineResponse::zero(),
-        ];
-
-        let sum: CreditLineResponse = responses.iter().sum();
-        assert_eq!(
-            sum,
-            CreditLineResponse {
-                collateral: Uint128::new(2300),
-                credit_line: Uint128::new(500),
-                debt: Uint128::new(250),
-            },
-        );
-    }
 }

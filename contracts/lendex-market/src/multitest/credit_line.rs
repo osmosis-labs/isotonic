@@ -1,8 +1,7 @@
 use super::suite::SuiteBuilder;
 
 use cosmwasm_std::{coin, Decimal, StdError, Uint128};
-
-use crate::msg::CreditLineResponse;
+use utils::credit_line::CreditLineValues;
 
 #[test]
 fn oracle_price_not_set() {
@@ -37,7 +36,10 @@ fn zero_credit_line() {
 
     // No tokens were deposited nor borrowed, so credit line is zero
     let credit_line = suite.query_credit_line(lender).unwrap();
-    assert_eq!(credit_line, CreditLineResponse::zero());
+    assert_eq!(
+        credit_line,
+        CreditLineValues::zero().make_response(suite.common_token())
+    );
 }
 
 #[test]
@@ -73,12 +75,13 @@ fn borrower_borrows_tokens() {
     let credit_line = suite.query_credit_line(borrower).unwrap();
     assert_eq!(
         credit_line,
-        CreditLineResponse {
+        CreditLineValues {
             collateral: Uint128::zero(),
             credit_line: Uint128::zero(),
             // 1000 borrowed * 2.0 oracle's price
             debt: Uint128::new(2000),
         }
+        .make_response(suite.common_token())
     );
 }
 
@@ -108,7 +111,7 @@ fn lender_deposits_tokens() {
     let credit_line = suite.query_credit_line(lender).unwrap();
     assert_eq!(
         credit_line,
-        CreditLineResponse {
+        CreditLineValues {
             // 1000 collateral * 2.0 oracle's price
             collateral: Uint128::new(2000),
             // 1000 collateral * 2.0 oracle's price * 0.7 collateral_ratio
@@ -116,6 +119,7 @@ fn lender_deposits_tokens() {
             // no debt because of lack of btokens
             debt: Uint128::zero(),
         }
+        .make_response(suite.common_token())
     );
 }
 
@@ -158,7 +162,7 @@ fn deposits_and_borrows_tokens() {
     let credit_line = suite.query_credit_line(lender).unwrap();
     assert_eq!(
         credit_line,
-        CreditLineResponse {
+        CreditLineValues {
             // 1000 collateral * 2.0 oracle's price
             collateral: Uint128::new(2000),
             // 1000 collateral * 2.0 oracle's price * 0.7 collateral_ratio
@@ -166,11 +170,12 @@ fn deposits_and_borrows_tokens() {
             // no debt because of lack of btokens
             debt: Uint128::zero(),
         }
+        .make_response(suite.common_token())
     );
     let credit_line = suite.query_credit_line(borrower).unwrap();
     assert_eq!(
         credit_line,
-        CreditLineResponse {
+        CreditLineValues {
             // 1100 collateral (deposited) * 2.0 oracle's price
             collateral: Uint128::new(2200),
             // 1100 collateral * 2.0 oracle's price * 0.7 collateral_ratio
@@ -178,6 +183,7 @@ fn deposits_and_borrows_tokens() {
             // 1000 borrowed * 2.0 oracle's price
             debt: Uint128::new(2000),
         }
+        .make_response(suite.common_token())
     );
 }
 
@@ -207,7 +213,7 @@ fn deposits_and_borrows_tokens_market_common_matches_denoms() {
     let credit_line = suite.query_credit_line(lender).unwrap();
     assert_eq!(
         credit_line,
-        CreditLineResponse {
+        CreditLineValues {
             // 1000 collateral * 1.0 oracle's price (no common_token denom)
             collateral: Uint128::new(1000),
             // 1000 collateral * 0.5 oracle's price * 0.7 collateral_ratio
@@ -215,11 +221,12 @@ fn deposits_and_borrows_tokens_market_common_matches_denoms() {
             // no debt because of lack of btokens
             debt: Uint128::zero(),
         }
+        .make_response(suite.common_token())
     );
     let credit_line = suite.query_credit_line(borrower).unwrap();
     assert_eq!(
         credit_line,
-        CreditLineResponse {
+        CreditLineValues {
             // 1100 collateral (deposited) * 1.0 oracle's price
             collateral: Uint128::new(1100),
             // 1100 collateral * 1.0 oracle's price * 0.7 collateral_ratio
@@ -227,5 +234,6 @@ fn deposits_and_borrows_tokens_market_common_matches_denoms() {
             // 1000 borrowed * 1.0 oracle's price
             debt: Uint128::new(1000),
         }
+        .make_response(suite.common_token())
     );
 }

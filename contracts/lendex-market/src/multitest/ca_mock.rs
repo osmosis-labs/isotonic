@@ -10,8 +10,7 @@ use cosmwasm_std::{
 };
 use cw_multi_test::{Contract, ContractWrapper};
 use cw_storage_plus::Map;
-
-use crate::msg::CreditLineResponse;
+use utils::credit_line::CreditLineResponse;
 
 pub const CLR: Map<&Addr, CreditLineResponse> = Map::new("clr");
 

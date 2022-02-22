@@ -9,8 +9,7 @@ use cw_utils::parse_reply_instantiate_data;
 
 use crate::error::ContractError;
 use crate::msg::{
-    CreditLineResponse, ExecuteMsg, InstantiateMsg, QueryMsg, QueryTotalCreditLine,
-    TransferableAmountResponse,
+    ExecuteMsg, InstantiateMsg, QueryMsg, QueryTotalCreditLine, TransferableAmountResponse,
 };
 use crate::state::{Config, CONFIG, SECONDS_IN_YEAR};
 
@@ -173,6 +172,8 @@ pub fn execute(
 
 // Available credit line helpers
 mod cr_utils {
+    use utils::credit_line::CreditLineResponse;
+
     use super::*;
 
     use cosmwasm_std::Fraction;
@@ -203,6 +204,8 @@ mod cr_utils {
             &config.credit_agency,
             &QueryTotalCreditLine::TotalCreditLine { account },
         )?;
+        let credit = credit.validate(&config.common_token)?;
+
         // Available credit for that account amongst all markets
         let available_common = credit.credit_line.saturating_sub(credit.debt);
         let available_local = available_local_tokens(deps, available_common)?;
@@ -616,6 +619,7 @@ mod query {
     use cw20::BalanceResponse;
     use lendex_oracle::msg::{PriceResponse, QueryMsg as OracleQueryMsg};
     use lendex_token::msg::{QueryMsg as TokenQueryMsg, TokenInfoResponse};
+    use utils::credit_line::{CreditLineResponse, CreditLineValues};
     use utils::price::{coin_times_price_rate, PriceRate};
 
     use crate::msg::{InterestResponse, TokensBalanceResponse};
@@ -760,17 +764,14 @@ mod query {
         let collateral = ltoken_balance(deps, &config, &account)?;
         let debt = btoken_balance(deps, &config, &account)?;
         if collateral.amount.is_zero() && debt.amount.is_zero() {
-            return Ok(CreditLineResponse::zero());
+            return Ok(CreditLineValues::zero().make_response(config.common_token));
         }
 
         let price_ratio = price_market_local_per_common(deps)?;
         let collateral = coin_times_price_rate(&collateral, &price_ratio)?;
         let debt = coin_times_price_rate(&debt, &price_ratio)?.amount;
         let credit_line = collateral.amount * config.collateral_ratio;
-        Ok(CreditLineResponse {
-            collateral: collateral.amount,
-            debt,
-            credit_line,
-        })
+        Ok(CreditLineValues::new(collateral.amount, credit_line, debt)
+            .make_response(config.common_token))
     }
 }

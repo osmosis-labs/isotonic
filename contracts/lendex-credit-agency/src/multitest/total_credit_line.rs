@@ -1,8 +1,7 @@
 use super::suite::SuiteBuilder;
 
-use lendex_market::msg::CreditLineResponse;
-
 use cosmwasm_std::{coin, Decimal, Uint128};
+use utils::credit_line::CreditLineValues;
 
 #[test]
 fn lender_on_one_market() {
@@ -30,12 +29,13 @@ fn lender_on_one_market() {
     let total_credit_line = suite.query_total_credit_line(lender).unwrap();
     assert_eq!(
         total_credit_line,
-        CreditLineResponse {
+        CreditLineValues {
             collateral: Uint128::new(2000),
             // 1000 collateral * 2.0 oracle's price * 0.5 collateral_ratio (default in crate_market_quick)
             credit_line: Uint128::new(1000),
             debt: Uint128::zero()
         }
+        .make_response(suite.common_token())
     );
 }
 
@@ -94,7 +94,7 @@ fn lender_on_three_markets() {
     let total_credit_line = suite.query_total_credit_line(lender).unwrap();
     assert_eq!(
         total_credit_line,
-        CreditLineResponse {
+        CreditLineValues {
             // 1000 deposited * 2.0 oracle's price + 500 deposited * 0.5 oracle's price
             //   + 7 * 1000.0 oracle's price
             collateral: Uint128::new(9250),
@@ -104,6 +104,7 @@ fn lender_on_three_markets() {
             credit_line: Uint128::new(4625),
             debt: Uint128::zero()
         }
+        .make_response(suite.common_token())
     );
 }
 
@@ -167,7 +168,7 @@ fn lender_on_two_markets_with_two_borrowers() {
     let total_credit_line = suite.query_total_credit_line(lender).unwrap();
     assert_eq!(
         total_credit_line,
-        CreditLineResponse {
+        CreditLineValues {
             // 100 deposited * 2.0 oracle's price + 500 deposited * 0.5 oracle's price
             collateral: Uint128::new(450),
             // 100 collateral * 2.0 oracle's price * 0.5 default collateral_ratio
@@ -175,12 +176,13 @@ fn lender_on_two_markets_with_two_borrowers() {
             credit_line: Uint128::new(225),
             debt: Uint128::zero()
         }
+        .make_response(suite.common_token())
     );
 
     let total_credit_line = suite.query_total_credit_line(borrower_one).unwrap();
     assert_eq!(
         total_credit_line,
-        CreditLineResponse {
+        CreditLineValues {
             // 1000 deposited * 2.0 oracle's price
             collateral: Uint128::new(2000),
             // 1000 collateral * 2.0 oracle's price * 0.5 default collateral_ratio
@@ -188,12 +190,13 @@ fn lender_on_two_markets_with_two_borrowers() {
             // 500 borrowed * 0.5 oracle's price (second denom)
             debt: Uint128::new(250)
         }
+        .make_response(suite.common_token())
     );
 
     let total_credit_line = suite.query_total_credit_line(borrower_two).unwrap();
     assert_eq!(
         total_credit_line,
-        CreditLineResponse {
+        CreditLineValues {
             // 1500 deposited * 0.5 oracle's price
             collateral: Uint128::new(750),
             // 1500 collateral * 0.5 oracle's price * 0.5 default collateral_ratio
@@ -201,6 +204,7 @@ fn lender_on_two_markets_with_two_borrowers() {
             // 100 borrowed * 2.0 oracle's price (first denom)
             debt: Uint128::new(200)
         }
+        .make_response(suite.common_token())
     );
 }
 
@@ -259,31 +263,33 @@ fn two_lenders_with_borrower_on_two_markets() {
     let total_credit_line = suite.query_total_credit_line(lender_one).unwrap();
     assert_eq!(
         total_credit_line,
-        CreditLineResponse {
+        CreditLineValues {
             // 500 deposited * 1.5 oracle's price
             collateral: Uint128::new(750),
             // 500 collateral * 1.5 oracle's price * 0.5 default collateral_ratio
             credit_line: Uint128::new(375),
             debt: Uint128::zero()
         }
+        .make_response(suite.common_token())
     );
 
     let total_credit_line = suite.query_total_credit_line(lender_two).unwrap();
     assert_eq!(
         total_credit_line,
-        CreditLineResponse {
+        CreditLineValues {
             // 300 deposited * 0.5 oracle's price
             collateral: Uint128::new(150),
             // 300 collateral * 0.5 oracle's price * 0.5 default collateral_ratio
             credit_line: Uint128::new(75),
             debt: Uint128::zero()
         }
+        .make_response(suite.common_token())
     );
 
     let total_credit_line = suite.query_total_credit_line(borrower).unwrap();
     assert_eq!(
         total_credit_line,
-        CreditLineResponse {
+        CreditLineValues {
             // 3000 deposited * 1.5 oracle's price
             collateral: Uint128::new(4500),
             // 3000 collateral * 1.5 oracle's price * 0.5 default collateral_ratio
@@ -291,5 +297,6 @@ fn two_lenders_with_borrower_on_two_markets() {
             // 500 borrowed * 1.5 oracle's price + 300 borrowed * 0.5 oracle's price
             debt: Uint128::new(900)
         }
+        .make_response(suite.common_token())
     );
 }

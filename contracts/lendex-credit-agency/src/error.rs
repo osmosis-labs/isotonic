@@ -1,5 +1,5 @@
 use cosmwasm_std::{StdError, Uint128};
-use utils::price::PriceError;
+use utils::{credit_line::InvalidCommonTokenDenom, price::PriceError};
 
 use thiserror::Error;
 
@@ -52,4 +52,7 @@ pub enum ContractError {
         btokens: Uint128,
         debt: Uint128,
     },
+
+    #[error("{0}")]
+    InvalidCommonTokenDenom(#[from] InvalidCommonTokenDenom),
 }

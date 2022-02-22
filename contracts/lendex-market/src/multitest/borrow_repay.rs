@@ -1,7 +1,8 @@
 use cosmwasm_std::{coin, Decimal, Uint128};
+use utils::credit_line::CreditLineValues;
 
 use super::suite::SuiteBuilder;
-use crate::{error::ContractError, msg::CreditLineResponse};
+use crate::error::ContractError;
 
 #[test]
 fn borrow_works() {
@@ -67,7 +68,7 @@ fn cant_borrow_with_debt_higher_then_credit_line() {
     suite
         .set_credit_line(
             borrower,
-            CreditLineResponse {
+            CreditLineValues {
                 collateral: Uint128::new(100),
                 // 100 * 0.7 collateral ratio
                 credit_line: Uint128::new(70),
@@ -104,7 +105,7 @@ fn cant_borrow_more_then_credit_line() {
     suite
         .set_credit_line(
             borrower,
-            CreditLineResponse {
+            CreditLineValues {
                 collateral: Uint128::new(100),
                 // 100 * 0.7 collateral ratio
                 credit_line: Uint128::new(70),

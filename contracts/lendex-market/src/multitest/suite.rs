@@ -3,6 +3,7 @@ use anyhow::{anyhow, Result as AnyResult};
 use cosmwasm_std::{Addr, Coin, Decimal, Empty, StdResult, Uint128};
 use cw20::BalanceResponse;
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
+use utils::credit_line::{CreditLineResponse, CreditLineValues};
 use utils::{interest::Interest, time::Duration};
 
 use super::ca_mock::{
@@ -10,8 +11,7 @@ use super::ca_mock::{
     InstantiateMsg as CAInstantiateMsg,
 };
 use crate::msg::{
-    CreditLineResponse, ExecuteMsg, InstantiateMsg, InterestResponse, QueryMsg,
-    TransferableAmountResponse,
+    ExecuteMsg, InstantiateMsg, InterestResponse, QueryMsg, TransferableAmountResponse,
 };
 use crate::state::Config;
 
@@ -266,6 +266,11 @@ impl Suite {
         self.ltoken_contract.clone()
     }
 
+    /// The denom of the common token
+    pub fn common_token(&self) -> &str {
+        &self.common_token
+    }
+
     /// Deposit base asset in the lending pool and mint l-token
     pub fn deposit(&mut self, sender: &str, funds: &[Coin]) -> AnyResult<AppResponse> {
         self.app.execute_contract(
@@ -427,12 +432,14 @@ impl Suite {
     pub fn set_credit_line(
         &mut self,
         account: impl ToString,
-        credit_line: CreditLineResponse,
+        credit_line: CreditLineValues,
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             Addr::unchecked(account.to_string()),
             self.ca_contract.clone(),
-            &CAExecuteMsg::SetCreditLine { credit_line },
+            &CAExecuteMsg::SetCreditLine {
+                credit_line: credit_line.make_response(self.common_token()),
+            },
             &[],
         )
     }
@@ -441,7 +448,7 @@ impl Suite {
     pub fn set_high_credit_line(&mut self, account: impl ToString) -> AnyResult<AppResponse> {
         self.set_credit_line(
             account,
-            CreditLineResponse {
+            CreditLineValues {
                 collateral: Uint128::new(10000),
                 credit_line: Uint128::new(10000),
                 debt: Uint128::zero(),

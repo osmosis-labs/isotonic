@@ -1,6 +1,7 @@
 use cosmwasm_std::{StdError, Uint128};
 use thiserror::Error;
 
+use utils::credit_line::InvalidCommonTokenDenom;
 use utils::price::PriceError;
 
 #[derive(Error, Debug, PartialEq)]
@@ -45,4 +46,7 @@ pub enum ContractError {
         "Unauthorized - Liquidation helpers call requires sender to be a Market's Credit Agency"
     )]
     LiquidationRequiresCreditAgency {},
+
+    #[error("{0}")]
+    InvalidCommonTokenDenom(#[from] InvalidCommonTokenDenom),
 }
