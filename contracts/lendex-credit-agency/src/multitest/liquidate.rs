@@ -1,10 +1,10 @@
 use super::suite::SuiteBuilder;
 use crate::error::ContractError;
 
-use lendex_market::msg::{CreditLineResponse, CreditLineValues};
 use lendex_token::error::ContractError as TokenContractError;
 
 use cosmwasm_std::{coin, coins, Decimal, Uint128};
+use utils::credit_line::{CreditLineResponse, CreditLineValues};
 
 const YEAR_IN_SECONDS: u64 = 31_556_736;
 

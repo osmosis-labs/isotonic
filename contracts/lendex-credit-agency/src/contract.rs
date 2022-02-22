@@ -221,7 +221,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractErr
 mod query {
     use cosmwasm_std::{Order, StdResult};
     use cw_storage_plus::Bound;
-    use lendex_market::msg::{CreditLineResponse, CreditLineValues, QueryMsg as MarketQueryMsg};
+    use lendex_market::msg::QueryMsg as MarketQueryMsg;
+    use utils::credit_line::{CreditLineResponse, CreditLineValues};
 
     use crate::{
         msg::{ListMarketsResponse, MarketResponse},

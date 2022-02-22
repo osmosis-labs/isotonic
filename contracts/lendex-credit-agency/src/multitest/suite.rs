@@ -3,10 +3,10 @@ use anyhow::Result as AnyResult;
 use cosmwasm_std::{Addr, Coin, Decimal, Empty};
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
 use lendex_market::msg::{
-    CreditLineResponse, ExecuteMsg as MarketExecuteMsg, QueryMsg as MarketQueryMsg,
-    TokensBalanceResponse,
+    ExecuteMsg as MarketExecuteMsg, QueryMsg as MarketQueryMsg, TokensBalanceResponse,
 };
 use lendex_oracle::msg::ExecuteMsg as OracleExecuteMsg;
+use utils::credit_line::CreditLineResponse;
 use utils::{interest::Interest, time::Duration};
 
 use crate::msg::{

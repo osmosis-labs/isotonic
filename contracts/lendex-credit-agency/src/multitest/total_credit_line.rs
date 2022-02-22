@@ -1,8 +1,7 @@
 use super::suite::SuiteBuilder;
 
-use lendex_market::msg::CreditLineValues;
-
 use cosmwasm_std::{coin, Decimal, Uint128};
+use utils::credit_line::CreditLineValues;
 
 #[test]
 fn lender_on_one_market() {

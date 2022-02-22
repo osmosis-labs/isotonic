@@ -1,9 +1,7 @@
 use cosmwasm_std::{StdError, Uint128};
-use utils::price::PriceError;
+use utils::{credit_line::InvalidCommonTokenDenom, price::PriceError};
 
 use thiserror::Error;
-
-use lendex_market::InvalidCommonTokenDenom;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
