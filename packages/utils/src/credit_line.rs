@@ -137,4 +137,40 @@ mod tests {
             },
         );
     }
+
+    #[test]
+    fn credit_line_response_validation() {
+        let resp = CreditLineResponse {
+            collateral: coin(50, "BTC"),
+            credit_line: coin(40, "BTC"),
+            debt: coin(20, "BTC"),
+        };
+        assert_eq!(
+            Ok(CreditLineValues {
+                collateral: Uint128::from(50u128),
+                credit_line: Uint128::from(40u128),
+                debt: Uint128::from(20u128)
+            }),
+            resp.validate("BTC")
+        );
+        assert_eq!(
+            Err(InvalidCommonTokenDenom {
+                expected: "OSMO".to_string(),
+                actual: "BTC".to_string()
+            }),
+            resp.validate("OSMO")
+        );
+    }
+
+    #[test]
+    fn credit_line_inconsistent_response_validation() {
+        let resp = CreditLineResponse {
+            collateral: coin(50, "BTC"),
+            credit_line: coin(40, "OSMO"),
+            debt: coin(20, "BTC"),
+        };
+        assert!(resp.validate("OSMO").is_err());
+        assert!(resp.validate("BTC").is_err());
+        assert!(resp.validate("ATOM").is_err());
+    }
 }
