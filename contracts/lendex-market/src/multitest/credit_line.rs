@@ -1,8 +1,7 @@
 use super::suite::SuiteBuilder;
 
 use cosmwasm_std::{coin, Decimal, StdError, Uint128};
-
-use crate::msg::CreditLineValues;
+use utils::credit_line::CreditLineValues;
 
 #[test]
 fn oracle_price_not_set() {

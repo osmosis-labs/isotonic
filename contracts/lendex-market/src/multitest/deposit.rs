@@ -1,8 +1,8 @@
 use cosmwasm_std::{coin, Decimal, StdError, Uint128};
+use utils::credit_line::CreditLineValues;
 
 use super::suite::SuiteBuilder;
 use crate::error::ContractError;
-use crate::msg::CreditLineValues;
 
 #[test]
 fn deposit_works() {

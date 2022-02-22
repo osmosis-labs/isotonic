@@ -1,7 +1,8 @@
 use cosmwasm_std::{coin, Decimal, Uint128};
+use utils::credit_line::CreditLineValues;
 
 use super::suite::SuiteBuilder;
-use crate::{error::ContractError, msg::CreditLineValues};
+use crate::error::ContractError;
 use lendex_token::error::ContractError as TokenContractError;
 
 #[test]

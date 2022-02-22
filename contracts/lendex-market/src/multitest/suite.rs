@@ -3,6 +3,7 @@ use anyhow::{anyhow, Result as AnyResult};
 use cosmwasm_std::{Addr, Coin, Decimal, Empty, StdResult, Uint128};
 use cw20::BalanceResponse;
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
+use utils::credit_line::{CreditLineResponse, CreditLineValues};
 use utils::{interest::Interest, time::Duration};
 
 use super::ca_mock::{
@@ -10,8 +11,7 @@ use super::ca_mock::{
     InstantiateMsg as CAInstantiateMsg,
 };
 use crate::msg::{
-    CreditLineResponse, CreditLineValues, ExecuteMsg, InstantiateMsg, InterestResponse, QueryMsg,
-    TransferableAmountResponse,
+    ExecuteMsg, InstantiateMsg, InterestResponse, QueryMsg, TransferableAmountResponse,
 };
 use crate::state::Config;
 

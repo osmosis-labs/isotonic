@@ -9,8 +9,7 @@ use cw_utils::parse_reply_instantiate_data;
 
 use crate::error::ContractError;
 use crate::msg::{
-    CreditLineValues, ExecuteMsg, InstantiateMsg, QueryMsg, QueryTotalCreditLine,
-    TransferableAmountResponse,
+    ExecuteMsg, InstantiateMsg, QueryMsg, QueryTotalCreditLine, TransferableAmountResponse,
 };
 use crate::state::{Config, CONFIG, SECONDS_IN_YEAR};
 
@@ -173,7 +172,7 @@ pub fn execute(
 
 // Available credit line helpers
 mod cr_utils {
-    use crate::msg::CreditLineResponse;
+    use utils::credit_line::CreditLineResponse;
 
     use super::*;
 
@@ -620,9 +619,10 @@ mod query {
     use cw20::BalanceResponse;
     use lendex_oracle::msg::{PriceResponse, QueryMsg as OracleQueryMsg};
     use lendex_token::msg::{QueryMsg as TokenQueryMsg, TokenInfoResponse};
+    use utils::credit_line::{CreditLineResponse, CreditLineValues};
     use utils::price::{coin_times_price_rate, PriceRate};
 
-    use crate::msg::{CreditLineResponse, InterestResponse, TokensBalanceResponse};
+    use crate::msg::{InterestResponse, TokensBalanceResponse};
     use crate::state::TokensInfo;
 
     fn token_balance(
