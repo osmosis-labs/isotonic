@@ -1,6 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use utils::interest::Interest;
+use utils::interest::ValidatedInterest;
 
 use cosmwasm_std::{Addr, Decimal};
 use cw_storage_plus::Item;
@@ -19,7 +19,7 @@ pub struct Config {
     /// Denom for current market
     pub market_token: String,
     /// Interest rate calculation
-    pub rates: Interest,
+    pub rates: ValidatedInterest,
     pub interest_charge_period: u64,
     pub last_charged: u64,
     /// Denom common amongst markets within same Credit Agency
