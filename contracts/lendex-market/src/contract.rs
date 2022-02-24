@@ -67,6 +67,7 @@ pub fn instantiate(
         decimals: msg.decimals,
         token_id: msg.token_id,
         market_token: msg.market_token,
+        cap: msg.cap,
         rates: msg.interest_rate.validate()?,
         interest_charge_period: msg.interest_charge_period,
         last_charged: env.block.time.seconds()

@@ -2,7 +2,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utils::interest::ValidatedInterest;
 
-use cosmwasm_std::{Addr, Decimal};
+use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw_storage_plus::Item;
 use lendex_token::msg::TokenInfoResponse;
 
@@ -18,6 +18,8 @@ pub struct Config {
     pub token_id: u64,
     /// Denom for current market
     pub market_token: String,
+    /// An optional cap on total number of tokens deposited into the market
+    pub cap: Option<Uint128>,
     /// Interest rate calculation
     pub rates: ValidatedInterest,
     pub interest_charge_period: u64,

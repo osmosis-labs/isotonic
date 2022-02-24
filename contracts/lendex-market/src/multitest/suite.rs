@@ -57,6 +57,8 @@ pub struct SuiteBuilder {
     decimals: u8,
     /// Native denom for the base asset
     market_token: String,
+    /// An optional cap on total number of tokens deposited into the market
+    cap: Option<Uint128>,
     /// Initial funds to provide for testing
     funds: Vec<(Addr, Vec<Coin>)>,
     /// Initial funds stored on contract
@@ -80,6 +82,7 @@ impl SuiteBuilder {
             symbol: "LDX".to_owned(),
             decimals: 9,
             market_token: "native_denom".to_owned(),
+            cap: None,
             funds: vec![],
             contract_funds: None,
             interest_base: Decimal::percent(3),
@@ -97,6 +100,11 @@ impl SuiteBuilder {
 
     pub fn with_common_token(mut self, denom: impl Into<String>) -> Self {
         self.common_token = denom.into();
+        self
+    }
+
+    pub fn with_cap(mut self, cap: impl Into<Uint128>) -> Self {
+        self.cap = Some(cap.into());
         self
     }
 
@@ -173,6 +181,7 @@ impl SuiteBuilder {
                     decimals: self.decimals,
                     token_id,
                     market_token: market_token.clone(),
+                    cap: self.cap,
                     interest_rate: Interest::Linear {
                         base: self.interest_base,
                         slope: self.interest_slope,

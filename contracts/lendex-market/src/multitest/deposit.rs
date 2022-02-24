@@ -139,3 +139,27 @@ fn query_transferable_amount() {
         err.downcast().unwrap()
     );
 }
+
+#[test]
+#[ignore]
+fn cannot_deposit_over_cap() {
+    let mut suite = SuiteBuilder::new()
+        .with_funds("alice", &[coin(100, "ATOM")])
+        .with_market_token("ATOM")
+        .with_cap(90u128)
+        .build();
+
+    // This is okay.
+    suite.deposit("alice", &[coin(80, "ATOM")]).unwrap();
+
+    // This one pushes things over the cap.
+    let err = suite.deposit("alice", &[coin(20, "ATOM")]).unwrap_err();
+    assert_eq!(
+        ContractError::DepositOverCap {
+            attempted_deposit: Uint128::from(20u128),
+            total: Uint128::from(80u128),
+            cap: Uint128::from(90u128)
+        },
+        err.downcast().unwrap()
+    );
+}
