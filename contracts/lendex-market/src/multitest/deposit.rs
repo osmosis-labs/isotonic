@@ -141,7 +141,6 @@ fn query_transferable_amount() {
 }
 
 #[test]
-#[ignore]
 fn cannot_deposit_over_cap() {
     let mut suite = SuiteBuilder::new()
         .with_funds("alice", &[coin(100, "ATOM")])
@@ -157,7 +156,7 @@ fn cannot_deposit_over_cap() {
     assert_eq!(
         ContractError::DepositOverCap {
             attempted_deposit: Uint128::from(20u128),
-            total: Uint128::from(80u128),
+            ltoken_supply: Uint128::from(80u128),
             cap: Uint128::from(90u128)
         },
         err.downcast().unwrap()
