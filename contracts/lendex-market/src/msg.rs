@@ -30,6 +30,8 @@ pub struct InstantiateMsg {
     pub collateral_ratio: Decimal,
     /// Address of contract to query for price
     pub price_oracle: String,
+    /// Defines the portion of borrower interest that is converted into reserves (0 <= x <= 1)
+    pub reserve_factor: Decimal,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

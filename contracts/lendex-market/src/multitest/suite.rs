@@ -73,6 +73,8 @@ pub struct SuiteBuilder {
     common_token: String,
     /// Ratio of how much tokens can be borrowed for one unit, 0 <= x < 1
     collateral_ratio: Decimal,
+    /// Defines the portion of borrower interest that is converted into reserves (0 <= x <= 1)
+    reserve_factor: Decimal,
 }
 
 impl SuiteBuilder {
@@ -90,6 +92,7 @@ impl SuiteBuilder {
             interest_charge_period: 300,
             common_token: "common".to_owned(),
             collateral_ratio: Decimal::percent(50),
+            reserve_factor: Decimal::percent(10),
         }
     }
 
@@ -130,6 +133,11 @@ impl SuiteBuilder {
     /// Sets initial collateral ratio
     pub fn with_collateral_ratio(mut self, collateral_ratio: Decimal) -> Self {
         self.collateral_ratio = collateral_ratio;
+        self
+    }
+
+    pub fn with_reserve_factor(mut self, reserve_factor: Decimal) -> Self {
+        self.reserve_factor = reserve_factor;
         self
     }
 
@@ -191,6 +199,7 @@ impl SuiteBuilder {
                     common_token: common_token.clone(),
                     collateral_ratio: self.collateral_ratio,
                     price_oracle: oracle_contract.to_string(),
+                    reserve_factor: self.reserve_factor,
                 },
                 &[],
                 "market",

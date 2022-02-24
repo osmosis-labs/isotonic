@@ -11,7 +11,7 @@ use crate::error::ContractError;
 use crate::msg::{
     ExecuteMsg, InstantiateMsg, QueryMsg, QueryTotalCreditLine, TransferableAmountResponse,
 };
-use crate::state::{Config, CONFIG, SECONDS_IN_YEAR};
+use crate::state::{Config, CONFIG, RESERVE, SECONDS_IN_YEAR};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:lendex-market";
@@ -76,8 +76,11 @@ pub fn instantiate(
         collateral_ratio: msg.collateral_ratio,
         price_oracle: msg.price_oracle,
         credit_agency: info.sender.clone(),
+        reserve_factor: msg.reserve_factor,
     };
     CONFIG.save(deps.storage, &cfg)?;
+
+    RESERVE.save(deps.storage, &Uint128::zero())?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
