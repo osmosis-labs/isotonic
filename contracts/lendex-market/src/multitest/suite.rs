@@ -136,8 +136,8 @@ impl SuiteBuilder {
         self
     }
 
-    pub fn with_reserve_factor(mut self, reserve_factor: Decimal) -> Self {
-        self.reserve_factor = reserve_factor;
+    pub fn with_reserve_factor(mut self, reserve_factor: u64) -> Self {
+        self.reserve_factor = Decimal::percent(reserve_factor);
         self
     }
 

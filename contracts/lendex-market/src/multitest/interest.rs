@@ -181,6 +181,7 @@ fn charge_interest_deposit() {
         .with_funds(lender, &[coin(4000, market_token)])
         .with_funds(borrower, &[coin(2300, market_token)])
         .with_interest(4, 20)
+        .with_reserve_factor(0)
         .with_market_token(market_token)
         .build();
 
@@ -208,6 +209,7 @@ fn charge_interest_deposit() {
         .unwrap();
 
     // TODO: rounding error
+    // Reserve factor is 10%, 160 tokens from l_sypply
     assert_eq!(
         suite.query_ltoken_info().unwrap().total_supply,
         DisplayAmount::raw(3318u128)

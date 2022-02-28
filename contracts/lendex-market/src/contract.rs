@@ -266,7 +266,7 @@ mod execute {
 
         let tokens_info = query::token_info(deps.as_ref(), &cfg)?;
 
-        let supplied = tokens_info.ltoken.total_supply.display_amount();
+        let supplied = dbg!(tokens_info.ltoken.total_supply.display_amount());
         let borrowed = tokens_info.btoken.total_supply.display_amount();
 
         // safety - if there are no ltokens, don't charge interest (would panic later)
@@ -296,13 +296,14 @@ mod execute {
         // liquid assets = supplied - borrowed
         let base_asset_balance = supplied - borrowed;
 
-        let l_supply = dbg!(borrowed) + dbg!(base_asset_balance) - dbg!(reserve);
+        let l_supply = borrowed + base_asset_balance - reserve;
 
         // lMul = b_supply() * ratio / l_supply
-        let ltoken_ratio: Decimal = Decimal::from_ratio(borrowed * btoken_ratio, l_supply);
+        let ltoken_ratio: Decimal =
+            Decimal::from_ratio(dbg!(borrowed) * dbg!(btoken_ratio), dbg!(l_supply));
 
         let ltoken_rebase = to_binary(&ExecuteMsg::Rebase {
-            ratio: ltoken_ratio + Decimal::one(),
+            ratio: dbg!(ltoken_ratio + Decimal::one()),
         })?;
         let lwrapped = SubMsg::new(WasmMsg::Execute {
             contract_addr: cfg.ltoken_contract.to_string(),
