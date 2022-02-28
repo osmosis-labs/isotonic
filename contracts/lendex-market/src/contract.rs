@@ -265,22 +265,24 @@ mod execute {
         CONFIG.save(deps.storage, &cfg)?;
 
         let tokens_info = query::token_info(deps.as_ref(), &cfg)?;
+
+        let supplied = tokens_info.ltoken.total_supply.display_amount();
+        let borrowed = tokens_info.btoken.total_supply.display_amount();
+
         // safety - if there are no ltokens, don't charge interest (would panic later)
-        if tokens_info.ltoken.total_supply.display_amount() == Uint128::zero() {
+        if supplied == Uint128::zero() {
             return Ok(vec![]);
         }
 
         let interest = query::interest(&cfg, &tokens_info)?;
 
-        // calculate_interest() * epochs_passed * epoch_length / SECONDS_IN_YEAR
+        // bMul = calculate_interest() * epochs_passed * epoch_length / SECONDS_IN_YEAR
         let btoken_ratio: Decimal =
             interest.interest * Decimal::from_ratio(charged_time as u128, SECONDS_IN_YEAR);
 
-        // b_supply() * ratio / l_supply()
-        let ltoken_ratio: Decimal = Decimal::from_ratio(
-            tokens_info.btoken.total_supply.display_amount() * btoken_ratio,
-            tokens_info.ltoken.total_supply.display_amount(),
-        );
+        let mut reserve = RESERVE.load(deps.storage)?;
+        reserve += cfg.reserve_factor * borrowed;
+        RESERVE.save(deps.storage, &reserve)?;
 
         let btoken_rebase = to_binary(&ExecuteMsg::Rebase {
             ratio: btoken_ratio + Decimal::one(),
@@ -290,6 +292,14 @@ mod execute {
             msg: btoken_rebase,
             funds: vec![],
         });
+
+        // liquid assets = supplied - borrowed
+        let base_asset_balance = supplied - borrowed;
+
+        let l_supply = borrowed + base_asset_balance - reserve;
+
+        // lMul = b_supply() * ratio / l_supply
+        let ltoken_ratio: Decimal = Decimal::from_ratio(borrowed * btoken_ratio, l_supply);
 
         let ltoken_rebase = to_binary(&ExecuteMsg::Rebase {
             ratio: ltoken_ratio + Decimal::one(),
