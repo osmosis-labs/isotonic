@@ -140,7 +140,7 @@ fn charge_interest_borrow() {
     suite.advance_seconds((SECONDS_IN_YEAR) as u64);
 
     // Repay some tokens
-    // interest is 20%
+    // interests are 20%
     // that means btoken 1600 + 320
     // repay 800 -> 1120 left btokens
     suite.repay(borrower, coin(800, market_token)).unwrap();
@@ -153,7 +153,7 @@ fn charge_interest_borrow() {
 
     // Repay some tokens
     // Utilisation is 48.3%
-    // interest is 13.66%
+    // interests are 13.66%
     // btoken 1120 + 13.66% - 800 = 472.992
     suite.repay(borrower, coin(800, market_token)).unwrap();
 
@@ -181,6 +181,7 @@ fn charge_interest_deposit() {
         .with_funds(lender, &[coin(4000, market_token)])
         .with_funds(borrower, &[coin(2300, market_token)])
         .with_interest(4, 20)
+        // set to not disrupt calculations done here; reserve factor is tested elsewhere
         .with_reserve_factor(0)
         .with_market_token(market_token)
         .build();
@@ -209,7 +210,6 @@ fn charge_interest_deposit() {
         .unwrap();
 
     // TODO: rounding error
-    // Reserve factor is 10%, 160 tokens from l_sypply
     assert_eq!(
         suite.query_ltoken_info().unwrap().total_supply,
         DisplayAmount::raw(3318u128)

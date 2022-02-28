@@ -81,6 +81,8 @@ pub enum QueryMsg {
     PriceMarketLocalPerCommon {},
     /// Returns CreditLineResponse
     CreditLine { account: String },
+    /// Returns ReserveResponse
+    Reserve {},
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -107,4 +109,10 @@ pub struct TokensBalanceResponse {
 #[serde(rename_all = "snake_case")]
 pub struct TransferableAmountResponse {
     pub transferable: Uint128,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ReserveResponse {
+    pub reserve: Uint128,
 }

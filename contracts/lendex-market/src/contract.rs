@@ -266,7 +266,7 @@ mod execute {
 
         let tokens_info = query::token_info(deps.as_ref(), &cfg)?;
 
-        let supplied = dbg!(tokens_info.ltoken.total_supply.display_amount());
+        let supplied = tokens_info.ltoken.total_supply.display_amount();
         let borrowed = tokens_info.btoken.total_supply.display_amount();
 
         // safety - if there are no ltokens, don't charge interest (would panic later)
@@ -299,11 +299,10 @@ mod execute {
         let l_supply = borrowed + base_asset_balance - reserve;
 
         // lMul = b_supply() * ratio / l_supply
-        let ltoken_ratio: Decimal =
-            Decimal::from_ratio(dbg!(borrowed) * dbg!(btoken_ratio), dbg!(l_supply));
+        let ltoken_ratio: Decimal = Decimal::from_ratio(borrowed * btoken_ratio, l_supply);
 
         let ltoken_rebase = to_binary(&ExecuteMsg::Rebase {
-            ratio: dbg!(ltoken_ratio + Decimal::one()),
+            ratio: ltoken_ratio + Decimal::one(),
         })?;
         let lwrapped = SubMsg::new(WasmMsg::Execute {
             contract_addr: cfg.ltoken_contract.to_string(),
@@ -637,6 +636,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractErr
             let account = deps.api.addr_validate(&account)?;
             to_binary(&query::credit_line(deps, account)?)?
         }
+        Reserve {} => to_binary(&query::reserve(deps)?)?,
     };
     Ok(res)
 }
@@ -651,7 +651,7 @@ mod query {
     use utils::credit_line::{CreditLineResponse, CreditLineValues};
     use utils::price::{coin_times_price_rate, PriceRate};
 
-    use crate::msg::{InterestResponse, TokensBalanceResponse};
+    use crate::msg::{InterestResponse, ReserveResponse, TokensBalanceResponse};
     use crate::state::TokensInfo;
 
     fn token_balance(
@@ -802,5 +802,11 @@ mod query {
         let credit_line = collateral.amount * config.collateral_ratio;
         Ok(CreditLineValues::new(collateral.amount, credit_line, debt)
             .make_response(config.common_token))
+    }
+
+    /// Handler for `QueryMsg::Reserve`
+    pub fn reserve(deps: Deps) -> Result<ReserveResponse, ContractError> {
+        let reserve = RESERVE.load(deps.storage)?;
+        Ok(ReserveResponse { reserve })
     }
 }

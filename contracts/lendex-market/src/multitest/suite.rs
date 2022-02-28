@@ -11,7 +11,8 @@ use super::ca_mock::{
     InstantiateMsg as CAInstantiateMsg,
 };
 use crate::msg::{
-    ExecuteMsg, InstantiateMsg, InterestResponse, QueryMsg, TransferableAmountResponse,
+    ExecuteMsg, InstantiateMsg, InterestResponse, QueryMsg, ReserveResponse,
+    TransferableAmountResponse,
 };
 use crate::state::Config;
 
@@ -472,5 +473,14 @@ impl Suite {
                 debt: Uint128::zero(),
             },
         )
+    }
+
+    /// Queries reserves
+    pub fn query_reserve(&self) -> AnyResult<Uint128> {
+        let response: ReserveResponse = self
+            .app
+            .wrap()
+            .query_wasm_smart(self.contract.clone(), &QueryMsg::Reserve {})?;
+        Ok(response.reserve)
     }
 }
