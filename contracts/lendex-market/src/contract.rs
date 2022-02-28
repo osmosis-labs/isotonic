@@ -296,7 +296,7 @@ mod execute {
         // liquid assets = supplied - borrowed
         let base_asset_balance = supplied - borrowed;
 
-        let l_supply = borrowed + base_asset_balance - reserve;
+        let l_supply = dbg!(borrowed) + dbg!(base_asset_balance) - dbg!(reserve);
 
         // lMul = b_supply() * ratio / l_supply
         let ltoken_ratio: Decimal = Decimal::from_ratio(borrowed * btoken_ratio, l_supply);

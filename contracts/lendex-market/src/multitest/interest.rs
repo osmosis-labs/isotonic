@@ -160,7 +160,7 @@ fn charge_interest_borrow() {
     // TODO: rounding error
     assert_eq!(
         suite.query_btoken_info().unwrap().total_supply,
-        DisplayAmount::raw(474u128)
+        DisplayAmount::raw(472u128)
     );
 
     // Repay the rest of debt (borrower had extra 500 tokens)
