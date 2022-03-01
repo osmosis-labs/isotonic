@@ -43,7 +43,7 @@ pub struct MarketConfig {
     /// Native denom for the market token
     pub market_token: String,
     /// An optional cap on total number of tokens deposited into the market
-    pub cap: Option<Uint128>,
+    pub market_cap: Option<Uint128>,
     /// Interest rate curve
     pub interest_rate: Interest,
     /// Define interest's charged period (in seconds)

@@ -115,7 +115,7 @@ mod exec {
             decimals: market_cfg.decimals,
             token_id: cfg.lendex_token_id,
             market_token: market_cfg.market_token.clone(),
-            cap: market_cfg.cap,
+            market_cap: market_cfg.market_cap,
             interest_rate: market_cfg.interest_rate,
             distributed_token: cfg.reward_token,
             interest_charge_period: market_cfg.interest_charge_period,

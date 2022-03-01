@@ -67,7 +67,7 @@ pub fn instantiate(
         decimals: msg.decimals,
         token_id: msg.token_id,
         market_token: msg.market_token,
-        cap: msg.cap,
+        market_cap: msg.market_cap,
         rates: msg.interest_rate.validate()?,
         interest_charge_period: msg.interest_charge_period,
         last_charged: env.block.time.seconds()
@@ -321,7 +321,7 @@ mod execute {
 
         let mut response = Response::new();
 
-        if let Some(cap) = cfg.cap {
+        if let Some(cap) = cfg.market_cap {
             let ltoken_supply = query::token_info(deps.as_ref(), &cfg)?
                 .ltoken
                 .total_supply

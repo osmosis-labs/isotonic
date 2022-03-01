@@ -17,7 +17,7 @@ pub struct InstantiateMsg {
     /// Native denom for the market tokene
     pub market_token: String,
     /// An optional cap on total number of tokens deposited into the market
-    pub cap: Option<Uint128>,
+    pub market_cap: Option<Uint128>,
     /// Interest rate curve
     pub interest_rate: Interest,
     /// Token which would be distributed via created lendex contracts

@@ -181,7 +181,7 @@ impl SuiteBuilder {
                     decimals: self.decimals,
                     token_id,
                     market_token: market_token.clone(),
-                    cap: self.cap,
+                    market_cap: self.cap,
                     interest_rate: Interest::Linear {
                         base: self.interest_base,
                         slope: self.interest_slope,
