@@ -23,7 +23,7 @@ fn send_more_then_one_denom() {
         .build();
 
     suite
-        .create_market_quick("gov", "osmo", denom, Decimal::percent(80), None)
+        .create_market_quick("gov", "osmo", denom, Decimal::percent(80), None, None)
         .unwrap();
 
     let err = suite
@@ -55,7 +55,7 @@ fn account_doesnt_have_debt_bigger_then_credit_line() {
         .build();
 
     suite
-        .create_market_quick("gov", "osmo", denom, Decimal::percent(80), None)
+        .create_market_quick("gov", "osmo", denom, Decimal::percent(80), None, None)
         .unwrap();
 
     suite
@@ -113,7 +113,7 @@ fn liquidating_whole_debt() {
         .build();
 
     suite
-        .create_market_quick("gov", "osmo", denom, Decimal::percent(80), None)
+        .create_market_quick("gov", "osmo", denom, Decimal::percent(80), None, None)
         .unwrap();
 
     suite
@@ -215,7 +215,7 @@ fn receive_reward_in_different_denom_fails_if_theres_no_reward_market() {
         .build();
 
     suite
-        .create_market_quick("gov", "osmo", denom, Decimal::percent(80), None)
+        .create_market_quick("gov", "osmo", denom, Decimal::percent(80), None, None)
         .unwrap();
 
     suite
@@ -278,11 +278,12 @@ fn receive_reward_different_denom_fails_if_debtor_has_not_enough_reward_tokens()
             denom,
             Decimal::percent(80),
             (Decimal::percent(80), Decimal::percent(45)),
+            None,
         )
         .unwrap();
     // create reward_denom market
     suite
-        .create_market_quick("gov", "eth", reward_denom, Decimal::percent(80), None)
+        .create_market_quick("gov", "eth", reward_denom, Decimal::percent(80), None, None)
         .unwrap();
 
     suite
@@ -371,6 +372,7 @@ fn receive_reward_in_different_denoms_no_interest_rates() {
             atom,
             Decimal::percent(50),                        // collateral price
             (Decimal::percent(3), Decimal::percent(20)), // interest rates (base, slope)
+            None,
         )
         .unwrap();
     // create ust market eth
@@ -381,6 +383,7 @@ fn receive_reward_in_different_denoms_no_interest_rates() {
             ust,
             Decimal::percent(60),                        // collateral price
             (Decimal::percent(3), Decimal::percent(20)), // interest rates (base, slope)
+            None,
         )
         .unwrap();
 
@@ -492,6 +495,7 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
             atom,
             Decimal::percent(50),                        // collateral price
             (Decimal::percent(3), Decimal::percent(20)), // interest rates (base, slope)
+            None,
         )
         .unwrap();
     // create ust market eth
@@ -502,6 +506,7 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
             ust,
             Decimal::percent(60),                        // collateral price
             (Decimal::percent(3), Decimal::percent(20)), // interest rates (base, slope)
+            None,
         )
         .unwrap();
 

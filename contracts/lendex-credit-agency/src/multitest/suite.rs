@@ -197,6 +197,7 @@ impl Suite {
         market_token: &str,
         collateral_ratio: impl Into<Option<Decimal>>,
         interest_rates: impl Into<Option<(Decimal, Decimal)>>,
+        reserve_factor: impl Into<Option<Decimal>>,
     ) -> AnyResult<AppResponse> {
         self.create_market(
             caller,
@@ -218,6 +219,7 @@ impl Suite {
                     .into()
                     .unwrap_or_else(|| Decimal::percent(50)),
                 price_oracle: self.oracle_contract.to_string(),
+                reserve_factor: reserve_factor.into().unwrap_or_else(|| Decimal::percent(0)),
             },
         )
     }

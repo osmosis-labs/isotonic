@@ -8,7 +8,7 @@ fn market_create() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
 
     suite
-        .create_market_quick("gov", "osmo", "OSMO", None, None)
+        .create_market_quick("gov", "osmo", "OSMO", None, None, None)
         .unwrap();
     suite.assert_market("OSMO");
 }
@@ -18,13 +18,13 @@ fn market_create_multiple() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
 
     suite
-        .create_market_quick("gov", "osmo", "OSMO", None, None)
+        .create_market_quick("gov", "osmo", "OSMO", None, None, None)
         .unwrap();
     suite
-        .create_market_quick("gov", "btc", "BTC", None, None)
+        .create_market_quick("gov", "btc", "BTC", None, None, None)
         .unwrap();
     suite
-        .create_market_quick("gov", "atom", "ATOM", None, None)
+        .create_market_quick("gov", "atom", "ATOM", None, None, None)
         .unwrap();
 
     suite.assert_market("OSMO");
@@ -37,7 +37,7 @@ fn market_create_unauthorized() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
 
     let err = suite
-        .create_market_quick("random_dude", "osmo", "OSMO", None, None)
+        .create_market_quick("random_dude", "osmo", "OSMO", None, None, None)
         .unwrap_err();
     assert_eq!(ContractError::Unauthorized {}, err.downcast().unwrap());
 }
@@ -47,10 +47,10 @@ fn market_create_already_exists() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
 
     suite
-        .create_market_quick("gov", "osmo", "OSMO", None, None)
+        .create_market_quick("gov", "osmo", "OSMO", None, None, None)
         .unwrap();
     let err = suite
-        .create_market_quick("gov", "osmo", "OSMO", None, None)
+        .create_market_quick("gov", "osmo", "OSMO", None, None, None)
         .unwrap_err();
     assert_eq!(
         ContractError::MarketAlreadyExists("OSMO".to_owned()),
@@ -66,7 +66,7 @@ fn collateral_ratio_higher_then_liquidation_price() {
         .build();
 
     let err = suite
-        .create_market_quick("gov", "osmo", "OSMO", Decimal::percent(92), None)
+        .create_market_quick("gov", "osmo", "OSMO", Decimal::percent(92), None, None)
         .unwrap_err();
     assert_eq!(
         ContractError::MarketCfgCollateralFailure {},
@@ -74,7 +74,7 @@ fn collateral_ratio_higher_then_liquidation_price() {
     );
 
     let err = suite
-        .create_market_quick("gov", "osmo", "OSMO", Decimal::percent(93), None)
+        .create_market_quick("gov", "osmo", "OSMO", Decimal::percent(93), None, None)
         .unwrap_err();
     assert_eq!(
         ContractError::MarketCfgCollateralFailure {},

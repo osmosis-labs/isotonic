@@ -122,6 +122,7 @@ mod exec {
             common_token: cfg.common_token,
             collateral_ratio: market_cfg.collateral_ratio,
             price_oracle: market_cfg.price_oracle,
+            reserve_factor: market_cfg.reserve_factor,
         };
         let market_instantiate = WasmMsg::Instantiate {
             admin: Some(env.contract.address.to_string()),
