@@ -205,6 +205,7 @@ impl Suite {
                 symbol: lendex_token.to_string(),
                 decimals: 9,
                 market_token: market_token.to_string(),
+                market_cap: None,
                 interest_rate: match interest_rates.into() {
                     Some((base, slope)) => Interest::Linear { base, slope },
                     None => Interest::Linear {

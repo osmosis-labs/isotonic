@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Decimal};
+use cosmwasm_std::{Addr, Decimal, Uint128};
 use utils::interest::Interest;
 
 use schemars::JsonSchema;
@@ -42,6 +42,8 @@ pub struct MarketConfig {
     pub decimals: u8,
     /// Native denom for the market token
     pub market_token: String,
+    /// An optional cap on total number of tokens deposited into the market
+    pub market_cap: Option<Uint128>,
     /// Interest rate curve
     pub interest_rate: Interest,
     /// Define interest's charged period (in seconds)

@@ -53,4 +53,11 @@ pub enum ContractError {
 
     #[error("{0}")]
     InterestError(#[from] InterestError),
+
+    #[error("Cannot deposit {attempted_deposit} tokens - market cap is {cap} and there are already {ltoken_supply} tokens present")]
+    DepositOverCap {
+        attempted_deposit: Uint128,
+        ltoken_supply: Uint128,
+        cap: Uint128,
+    },
 }

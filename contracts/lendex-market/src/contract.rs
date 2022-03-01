@@ -67,6 +67,7 @@ pub fn instantiate(
         decimals: msg.decimals,
         token_id: msg.token_id,
         market_token: msg.market_token,
+        market_cap: msg.market_cap,
         rates: msg.interest_rate.validate()?,
         interest_charge_period: msg.interest_charge_period,
         last_charged: env.block.time.seconds()
@@ -319,6 +320,20 @@ mod execute {
         let funds_sent = validate_funds(&info.funds, &cfg.market_token)?;
 
         let mut response = Response::new();
+
+        if let Some(cap) = cfg.market_cap {
+            let ltoken_supply = query::token_info(deps.as_ref(), &cfg)?
+                .ltoken
+                .total_supply
+                .display_amount();
+            if ltoken_supply + funds_sent > cap {
+                return Err(ContractError::DepositOverCap {
+                    attempted_deposit: funds_sent,
+                    ltoken_supply,
+                    cap,
+                });
+            }
+        }
 
         // Create rebase messagess for tokens based on interest and supply
         let charge_msgs = charge_interest(deps, env)?;
