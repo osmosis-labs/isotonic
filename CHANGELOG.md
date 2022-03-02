@@ -1,5 +1,33 @@
 # Changelog
 
+## [Unreleased](https://github.com/confio/isotonic/tree/HEAD)
+
+[Full Changelog](https://github.com/confio/isotonic/compare/v0.4.0...HEAD)
+
+## [v0.4.0](https://github.com/confio/lendex/tree/v0.4.0) (2022-03-02)
+
+[Full Changelog](https://github.com/confio/lendex/compare/v0.3.0...v0.4.0)
+
+**Closed issues:**
+
+- New liquidation \(option 2\): each market maintains a list of opt-in liquidators [\#82](https://github.com/confio/isotonic/issues/82)
+- Rename to Isotonic [\#80](https://github.com/confio/isotonic/issues/80)
+- Update to cw-plus 0.12.1 [\#77](https://github.com/confio/isotonic/issues/77)
+- Replace Market's `Uint128` responses with `Coin` to acknowledge denoms [\#73](https://github.com/confio/isotonic/issues/73)
+- Liquidate via AMM [\#68](https://github.com/confio/isotonic/issues/68)
+- Allow list for who can liquidate [\#66](https://github.com/confio/isotonic/issues/66)
+- Add cap to each market [\#65](https://github.com/confio/isotonic/issues/65)
+- Add new interest rate model [\#64](https://github.com/confio/isotonic/issues/64)
+
+**Merged pull requests:**
+
+- Optional market caps [\#81](https://github.com/confio/isotonic/pull/81) ([uint](https://github.com/uint))
+- Add denoms to CreditLineResponse [\#79](https://github.com/confio/isotonic/pull/79) ([uint](https://github.com/uint))
+- Update cw-plus packages to 0.12.1 [\#78](https://github.com/confio/isotonic/pull/78) ([ueco-jb](https://github.com/ueco-jb))
+- Update changelog accordingly to 0.3.0 release [\#76](https://github.com/confio/isotonic/pull/76) ([ueco-jb](https://github.com/ueco-jb))
+- Validate interest rate [\#74](https://github.com/confio/isotonic/pull/74) ([uint](https://github.com/uint))
+- Piecewise linear interest rate model [\#72](https://github.com/confio/isotonic/pull/72) ([uint](https://github.com/uint))
+
 ## [v0.3.0](https://github.com/confio/lendex/tree/v0.3.0) (2022-02-14)
 
 [Full Changelog](https://github.com/confio/lendex/compare/v0.2.0...v0.3.0)
