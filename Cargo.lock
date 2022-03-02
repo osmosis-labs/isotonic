@@ -402,7 +402,7 @@ dependencies = [
 
 [[package]]
 name = "lendex-credit-agency"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "cosmwasm-schema",
@@ -423,7 +423,7 @@ dependencies = [
 
 [[package]]
 name = "lendex-market"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "cosmwasm-schema",
@@ -444,7 +444,7 @@ dependencies = [
 
 [[package]]
 name = "lendex-oracle"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -459,7 +459,7 @@ dependencies = [
 
 [[package]]
 name = "lendex-token"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "cosmwasm-schema",
@@ -737,7 +737,7 @@ checksum = "8ccb82d61f80a663efe1f787a51b16b5a51e3314d6ac365b08639f52387b33f3"
 
 [[package]]
 name = "utils"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "cosmwasm-std",
  "cw-storage-plus",
