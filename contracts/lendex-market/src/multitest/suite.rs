@@ -93,7 +93,7 @@ impl SuiteBuilder {
             interest_charge_period: 300,
             common_token: "common".to_owned(),
             collateral_ratio: Decimal::percent(50),
-            reserve_factor: Decimal::percent(10),
+            reserve_factor: Decimal::percent(0),
         }
     }
 

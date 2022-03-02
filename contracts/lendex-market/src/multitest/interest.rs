@@ -160,7 +160,7 @@ fn charge_interest_borrow() {
     // TODO: rounding error
     assert_eq!(
         suite.query_btoken_info().unwrap().total_supply,
-        DisplayAmount::raw(472u128)
+        DisplayAmount::raw(474u128)
     );
 
     // Repay the rest of debt (borrower had extra 500 tokens)
@@ -181,8 +181,6 @@ fn charge_interest_deposit() {
         .with_funds(lender, &[coin(4000, market_token)])
         .with_funds(borrower, &[coin(2300, market_token)])
         .with_interest(4, 20)
-        // set to not disrupt calculations done here; reserve factor is tested elsewhere
-        .with_reserve_factor(0)
         .with_market_token(market_token)
         .build();
 
