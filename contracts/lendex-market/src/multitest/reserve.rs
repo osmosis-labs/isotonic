@@ -144,23 +144,25 @@ fn charged_couple_times() {
     // interests are 16%(4% base + 20% slope * 60% utilization)
     // supplied (ltokens) = 2000
     // borrwed (btokens) = 1200
-    // reserve = 15% * borrowed = 180
     // bMul (btoken_ratio) = 4% after 3 months
+    // charged interests = 4% * 1200 = 48
+    // reserve = 15% * charged interests = 7.2 ~= 7
     // liquid assets = 800
-    // ltokens supplied = 1200 + 800 - 180 = 1820
-    // lMul (ltoken_ratio) = borrowed * bMul / lMul = 1200 * 0.04 / 1820 ~= 0.026
-    // that means ltokens 2000 * 1.023 = 2046
-    // deposit 1000 -> 3046 left btokens
+    // ltokens supplied = 1200 + 800 - 7 = 1993
+    // lMul (ltoken_ratio) = borrowed * bMul / lMul = 1200 * 0.04 / 1993 ~= 0.024
+    // that means ltokens 2000 * 1.024 = 2048
+    // deposit 1000 -> 3048 left btokens
     suite
         .deposit(lender, &[Coin::new(1000, market_token)])
         .unwrap();
 
+    // TODO: rounding error
     assert_eq!(
         suite.query_ltoken_info().unwrap().total_supply,
-        DisplayAmount::raw(3052u128)
+        DisplayAmount::raw(3047u128)
     );
 
-    assert_eq!(suite.query_reserve().unwrap(), Uint128::new(180));
+    assert_eq!(suite.query_reserve().unwrap(), Uint128::new(7));
 
     suite.borrow(borrower, 800).unwrap();
 
@@ -168,23 +170,24 @@ fn charged_couple_times() {
 
     // Deposit some tokens
     // interests are 17.4%(4% base + 20% slope * 67% utilization)
-    // supplied (ltokens) = 3052
+    // supplied (ltokens) = 3047
     // borrwed (btokens) = 2047 (1200 * 1.04 + 1000)
-    // reserve = 15% * borrowed = 180 + (15% * 2047) = 487
     // bMul (btoken_ratio) = 5.8% after 7 months
-    // liquid assets = 1005
-    // ltokens supplied = 2047 + 1005 - 487 = 2965
-    // lMul (ltoken_ratio) = borrowed * bMul / lMul = 2047 * 0.1015 / 2965 ~= 0.046
-    // that means ltokens 3052 * 1.046 = 3192
-    // deposit 1000 -> 4265.6 left btokens
+    // charged interets = 5.8% * 2047 = 118.7 ~= 118
+    // reserve = 15% * charged interests = 7 + (15% * 118) = 24
+    // liquid assets =  3047 + 7 (old reserve) - 2047 (borrowed) = 1007
+    // ltokens supplied = 2047 + 1007 - 24 = 3030
+    // lMul (ltoken_ratio) = borrowed * bMul / lMul = 2047 * 0.058 / 3030 ~= 0.039
+    // that means ltokens 3047 * 1.039 = 3165
+    // deposit 1000 -> 4165 left btokens
     suite
         .deposit(lender, &[Coin::new(1000, market_token)])
         .unwrap();
 
     assert_eq!(
         suite.query_ltoken_info().unwrap().total_supply,
-        DisplayAmount::raw(4192u128)
+        DisplayAmount::raw(4165u128)
     );
 
-    assert_eq!(suite.query_reserve().unwrap(), Uint128::new(487));
+    assert_eq!(suite.query_reserve().unwrap(), Uint128::new(24));
 }

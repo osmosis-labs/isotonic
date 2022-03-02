@@ -280,10 +280,10 @@ mod execute {
         let btoken_ratio: Decimal =
             interest.interest * Decimal::from_ratio(charged_time as u128, SECONDS_IN_YEAR);
 
-        let mut reserve = RESERVE.load(deps.storage)?;
+        let old_reserve = RESERVE.load(deps.storage)?;
         // Add to reserve only portion of money charged here
         let charged_interest = btoken_ratio * borrowed;
-        reserve += cfg.reserve_factor * charged_interest;
+        let reserve = old_reserve + cfg.reserve_factor * charged_interest;
         RESERVE.save(deps.storage, &reserve)?;
 
         let btoken_rebase = to_binary(&ExecuteMsg::Rebase {
@@ -295,11 +295,10 @@ mod execute {
             funds: vec![],
         });
 
-        // liquid assets = supplied - borrowed
-        let base_asset_balance = supplied - borrowed;
-        // let base_asset_balance = deps.querier.query_balance(&env.contract.address, &cfg.market_token)?;
+        // remember to add old reserve balance into supplied tokens
+        let base_asset_balance = supplied + old_reserve - borrowed;
 
-        let l_supply = dbg!(borrowed) + dbg!(base_asset_balance) - dbg!(reserve);
+        let l_supply = borrowed + base_asset_balance - reserve;
 
         // lMul = b_supply() * ratio / l_supply
         let ltoken_ratio: Decimal = Decimal::from_ratio(borrowed * btoken_ratio, l_supply);
