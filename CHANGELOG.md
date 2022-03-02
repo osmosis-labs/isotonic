@@ -8,6 +8,10 @@
 
 [Full Changelog](https://github.com/confio/lendex/compare/v0.3.0...v0.4.0)
 
+**Breaking changes:**
+
+- Add reserve for each Market [\#47](https://github.com/confio/isotonic/issues/47)
+
 **Closed issues:**
 
 - New liquidation \(option 2\): each market maintains a list of opt-in liquidators [\#82](https://github.com/confio/isotonic/issues/82)
@@ -21,6 +25,7 @@
 
 **Merged pull requests:**
 
+- Add reserve factor for each market [\#85](https://github.com/confio/isotonic/pull/85) ([ueco-jb](https://github.com/ueco-jb))
 - Optional market caps [\#81](https://github.com/confio/isotonic/pull/81) ([uint](https://github.com/uint))
 - Add denoms to CreditLineResponse [\#79](https://github.com/confio/isotonic/pull/79) ([uint](https://github.com/uint))
 - Update cw-plus packages to 0.12.1 [\#78](https://github.com/confio/isotonic/pull/78) ([ueco-jb](https://github.com/ueco-jb))
