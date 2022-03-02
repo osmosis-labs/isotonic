@@ -631,6 +631,7 @@ mod execute {
         });
 
         response = response
+            .add_submessage(ensure_account_entered_market(&cfg, &destination)?)
             .add_attribute("action", "transfer_from")
             .add_attribute("from", source)
             .add_attribute("to", destination)

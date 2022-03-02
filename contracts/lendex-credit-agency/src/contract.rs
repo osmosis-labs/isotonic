@@ -214,15 +214,11 @@ mod exec {
     ) -> Result<Response, ContractError> {
         let market = info.sender;
 
-        ENTERED_MARKETS.update(
-            deps.storage,
-            market.clone(),
-            |maybe_set| -> Result<_, StdError> {
-                let mut markets = maybe_set.unwrap_or_default();
-                markets.insert(market.clone());
-                Ok(markets)
-            },
-        )?;
+        ENTERED_MARKETS.update(deps.storage, &account, |maybe_set| -> Result<_, StdError> {
+            let mut markets = maybe_set.unwrap_or_default();
+            markets.insert(market.clone());
+            Ok(markets)
+        })?;
 
         Ok(Response::new()
             .add_attribute("action", "ensure_account_entered_market")
@@ -255,7 +251,7 @@ mod query {
 
     use crate::{
         msg::{ListMarketsResponse, MarketResponse},
-        state::MARKETS,
+        state::{ENTERED_MARKETS, MARKETS},
     };
 
     use super::*;
@@ -314,13 +310,15 @@ mod query {
         account: String,
     ) -> Result<CreditLineResponse, ContractError> {
         let common_token = CONFIG.load(deps.storage)?.common_token;
+        let markets = ENTERED_MARKETS
+            .may_load(deps.storage, &Addr::unchecked(&account))?
+            .unwrap_or_default();
 
-        let total_credit_line: CreditLineValues = list_markets(deps, None, None)?
-            .markets
+        let total_credit_line: CreditLineValues = markets
             .into_iter()
             .map(|market| {
                 let price_response: CreditLineResponse = deps.querier.query_wasm_smart(
-                    market.market,
+                    market,
                     &MarketQueryMsg::CreditLine {
                         account: account.clone(),
                     },

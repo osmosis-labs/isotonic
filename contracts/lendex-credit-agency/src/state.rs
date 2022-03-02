@@ -48,4 +48,4 @@ pub const NEXT_REPLY_ID: Item<u64> = Item::new("next_reply_id");
 pub const MARKETS: Map<&str, MarketState> = Map::new("market");
 /// A set of "entered markets" for each account, as in markets in which the account is
 /// actively participating.
-pub const ENTERED_MARKETS: Map<Addr, HashSet<Addr>> = Map::new("entered_martkets");
+pub const ENTERED_MARKETS: Map<&Addr, HashSet<Addr>> = Map::new("entered_martkets");
