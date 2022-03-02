@@ -240,6 +240,8 @@ mod cr_utils {
 }
 
 mod execute {
+    use crate::msg::CreditAgencyExecuteMsg;
+
     use super::*;
 
     /// Function that is supposed to be called before every mint/burn operation.
@@ -329,6 +331,18 @@ mod execute {
         }
     }
 
+    fn ensure_account_entered_market(cfg: &Config, account: &Addr) -> StdResult<SubMsg> {
+        let msg = to_binary(&CreditAgencyExecuteMsg::EnsureAccountEnteredMarket {
+            account: account.to_string(),
+        })?;
+
+        Ok(SubMsg::new(WasmMsg::Execute {
+            contract_addr: cfg.credit_agency.to_string(),
+            msg,
+            funds: vec![],
+        }))
+    }
+
     /// Handler for `ExecuteMsg::Deposit`
     pub fn deposit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
@@ -351,7 +365,7 @@ mod execute {
         }
 
         // Create rebase messagess for tokens based on interest and supply
-        let charge_msgs = charge_interest(deps, env)?;
+        let charge_msgs = charge_interest(deps, env.clone())?;
         if !charge_msgs.is_empty() {
             response = response.add_submessages(charge_msgs);
         }
@@ -368,8 +382,9 @@ mod execute {
 
         response = response
             .add_attribute("action", "deposit")
-            .add_attribute("sender", info.sender)
-            .add_submessage(wrapped_msg);
+            .add_attribute("sender", info.sender.clone())
+            .add_submessage(wrapped_msg)
+            .add_submessage(ensure_account_entered_market(&cfg, &info.sender)?);
         Ok(response)
     }
 
@@ -441,7 +456,7 @@ mod execute {
         let mut response = Response::new();
 
         // Create rebase messagess for tokens based on interest and supply
-        let charge_msgs = charge_interest(deps, env)?;
+        let charge_msgs = charge_interest(deps, env.clone())?;
         if !charge_msgs.is_empty() {
             response = response.add_submessages(charge_msgs);
         }
@@ -460,13 +475,14 @@ mod execute {
         // Sent tokens to sender's account
         let bank_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: info.sender.to_string(),
-            amount: vec![coin(amount.u128(), cfg.market_token)],
+            amount: vec![coin(amount.u128(), &cfg.market_token)],
         });
 
         response = response
             .add_attribute("action", "borrow")
-            .add_attribute("sender", info.sender)
+            .add_attribute("sender", info.sender.clone())
             .add_submessage(mint_msg)
+            .add_submessage(ensure_account_entered_market(&cfg, &info.sender)?)
             .add_message(bank_msg);
         Ok(response)
     }

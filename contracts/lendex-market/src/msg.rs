@@ -116,3 +116,13 @@ pub struct TransferableAmountResponse {
 pub struct ReserveResponse {
     pub reserve: Uint128,
 }
+
+// TODO: should this be defined elsewhere?
+// This is here so we can call CA entrypoints without adding credit agency as a dependency.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CreditAgencyExecuteMsg {
+    /// Ensures a given account has entered a market. Meant to be called by a specific
+    /// market contract - so the sender of the msg would be the market
+    EnsureAccountEnteredMarket { account: String },
+}

@@ -22,6 +22,8 @@ pub struct InstantiateMsg {}
 pub enum ExecuteMsg {
     /// Sets CreditLineResponse for address taken from info.sender
     SetCreditLine { credit_line: CreditLineResponse },
+    /// Stud
+    EnsureAccountEnteredMarket { account: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,6 +53,7 @@ fn execute(
                 Ok(credit_line)
             })?;
         }
+        ExecuteMsg::EnsureAccountEnteredMarket { .. } => {}
     }
 
     Ok(Response::new())

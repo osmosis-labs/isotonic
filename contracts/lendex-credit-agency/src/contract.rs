@@ -56,6 +56,10 @@ pub fn execute(
             let account = deps.api.addr_validate(&account)?;
             exec::liquidate(deps, info, account, collateral_denom)
         }
+        EnsureAccountEnteredMarket { account } => {
+            let account = deps.api.addr_validate(&account)?;
+            exec::ensure_account_entered_market(deps, info, account)
+        }
     }
 }
 
@@ -67,7 +71,7 @@ mod exec {
 
     use crate::{
         msg::MarketConfig,
-        state::{MarketState, MARKETS, REPLY_IDS},
+        state::{MarketState, ENTERED_MARKETS, MARKETS, REPLY_IDS},
     };
     use lendex_market::msg::QueryMsg as MarketQueryMsg;
 
@@ -201,6 +205,29 @@ mod exec {
             .add_attribute("collateral_denom", collateral_denom)
             .add_submessage(repay_from_msg)
             .add_submessage(transfer_from_msg))
+    }
+
+    pub fn ensure_account_entered_market(
+        deps: DepsMut,
+        info: MessageInfo,
+        account: Addr,
+    ) -> Result<Response, ContractError> {
+        let market = info.sender;
+
+        ENTERED_MARKETS.update(
+            deps.storage,
+            market.clone(),
+            |maybe_set| -> Result<_, StdError> {
+                let mut markets = maybe_set.unwrap_or_default();
+                markets.insert(market.clone());
+                Ok(markets)
+            },
+        )?;
+
+        Ok(Response::new()
+            .add_attribute("action", "ensure_account_entered_market")
+            .add_attribute("market", market)
+            .add_attribute("account", account))
     }
 }
 
