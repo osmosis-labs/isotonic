@@ -9,7 +9,7 @@ use cw_utils::parse_reply_instantiate_data;
 
 use crate::error::ContractError;
 use crate::msg::{
-    ExecuteMsg, InstantiateMsg, QueryMsg, QueryTotalCreditLine, TransferableAmountResponse,
+    ExecuteMsg, InstantiateMsg, QueryMsg, QueryTotalCreditLine, SudoMsg, TransferableAmountResponse,
 };
 use crate::state::{Config, CONFIG, RESERVE, SECONDS_IN_YEAR};
 
@@ -827,5 +827,27 @@ mod query {
     pub fn reserve(deps: Deps) -> Result<ReserveResponse, ContractError> {
         let reserve = RESERVE.load(deps.storage)?;
         Ok(ReserveResponse { reserve })
+    }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn sudo(deps: DepsMut, _env: Env, msg: SudoMsg) -> Result<Response, ContractError> {
+    use SudoMsg::*;
+    match msg {
+        AdjustCollateralRatio { new_ratio } => sudo::adjust_collateral_ratio(deps, new_ratio),
+    }
+}
+
+mod sudo {
+    use super::*;
+
+    pub fn adjust_collateral_ratio(
+        deps: DepsMut,
+        new_ratio: Decimal,
+    ) -> Result<Response, ContractError> {
+        let mut cfg = CONFIG.load(deps.storage)?;
+        cfg.collateral_ratio = new_ratio;
+        CONFIG.save(deps.storage, &cfg)?;
+        Ok(Response::new())
     }
 }

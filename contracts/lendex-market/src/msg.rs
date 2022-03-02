@@ -87,6 +87,12 @@ pub enum QueryMsg {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 #[serde(rename_all = "snake_case")]
+pub enum SudoMsg {
+    AdjustCollateralRatio { new_ratio: Decimal },
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[serde(rename_all = "snake_case")]
 pub enum QueryTotalCreditLine {
     TotalCreditLine { account: String },
 }
