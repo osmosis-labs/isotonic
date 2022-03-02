@@ -11,7 +11,7 @@ use crate::error::ContractError;
 use crate::msg::{
     ExecuteMsg, InstantiateMsg, QueryMsg, QueryTotalCreditLine, TransferableAmountResponse,
 };
-use crate::state::{Config, CONFIG, SECONDS_IN_YEAR};
+use crate::state::{Config, CONFIG, RESERVE, SECONDS_IN_YEAR};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:lendex-market";
@@ -76,8 +76,11 @@ pub fn instantiate(
         collateral_ratio: msg.collateral_ratio,
         price_oracle: msg.price_oracle,
         credit_agency: info.sender.clone(),
+        reserve_factor: msg.reserve_factor,
     };
     CONFIG.save(deps.storage, &cfg)?;
+
+    RESERVE.save(deps.storage, &Uint128::zero())?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
@@ -262,22 +265,26 @@ mod execute {
         CONFIG.save(deps.storage, &cfg)?;
 
         let tokens_info = query::token_info(deps.as_ref(), &cfg)?;
+
+        let supplied = tokens_info.ltoken.total_supply.display_amount();
+        let borrowed = tokens_info.btoken.total_supply.display_amount();
+
         // safety - if there are no ltokens, don't charge interest (would panic later)
-        if tokens_info.ltoken.total_supply.display_amount() == Uint128::zero() {
+        if supplied == Uint128::zero() {
             return Ok(vec![]);
         }
 
         let interest = query::interest(&cfg, &tokens_info)?;
 
-        // calculate_interest() * epochs_passed * epoch_length / SECONDS_IN_YEAR
+        // bMul = calculate_interest() * epochs_passed * epoch_length / SECONDS_IN_YEAR
         let btoken_ratio: Decimal =
             interest.interest * Decimal::from_ratio(charged_time as u128, SECONDS_IN_YEAR);
 
-        // b_supply() * ratio / l_supply()
-        let ltoken_ratio: Decimal = Decimal::from_ratio(
-            tokens_info.btoken.total_supply.display_amount() * btoken_ratio,
-            tokens_info.ltoken.total_supply.display_amount(),
-        );
+        let old_reserve = RESERVE.load(deps.storage)?;
+        // Add to reserve only portion of money charged here
+        let charged_interest = btoken_ratio * borrowed;
+        let reserve = old_reserve + cfg.reserve_factor * charged_interest;
+        RESERVE.save(deps.storage, &reserve)?;
 
         let btoken_rebase = to_binary(&ExecuteMsg::Rebase {
             ratio: btoken_ratio + Decimal::one(),
@@ -287,6 +294,14 @@ mod execute {
             msg: btoken_rebase,
             funds: vec![],
         });
+
+        // remember to add old reserve balance into supplied tokens
+        let base_asset_balance = supplied + old_reserve - borrowed;
+
+        let l_supply = borrowed + base_asset_balance - reserve;
+
+        // lMul = b_supply() * ratio / l_supply
+        let ltoken_ratio: Decimal = Decimal::from_ratio(borrowed * btoken_ratio, l_supply);
 
         let ltoken_rebase = to_binary(&ExecuteMsg::Rebase {
             ratio: ltoken_ratio + Decimal::one(),
@@ -623,6 +638,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractErr
             let account = deps.api.addr_validate(&account)?;
             to_binary(&query::credit_line(deps, account)?)?
         }
+        Reserve {} => to_binary(&query::reserve(deps)?)?,
     };
     Ok(res)
 }
@@ -637,7 +653,7 @@ mod query {
     use utils::credit_line::{CreditLineResponse, CreditLineValues};
     use utils::price::{coin_times_price_rate, PriceRate};
 
-    use crate::msg::{InterestResponse, TokensBalanceResponse};
+    use crate::msg::{InterestResponse, ReserveResponse, TokensBalanceResponse};
     use crate::state::TokensInfo;
 
     fn token_balance(
@@ -788,5 +804,11 @@ mod query {
         let credit_line = collateral.amount * config.collateral_ratio;
         Ok(CreditLineValues::new(collateral.amount, credit_line, debt)
             .make_response(config.common_token))
+    }
+
+    /// Handler for `QueryMsg::Reserve`
+    pub fn reserve(deps: Deps) -> Result<ReserveResponse, ContractError> {
+        let reserve = RESERVE.load(deps.storage)?;
+        Ok(ReserveResponse { reserve })
     }
 }

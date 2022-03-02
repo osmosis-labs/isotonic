@@ -5,7 +5,7 @@ fn query_market() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
 
     suite
-        .create_market_quick("gov", "osmo", "OSMO", None, None)
+        .create_market_quick("gov", "osmo", "OSMO", None, None, None)
         .unwrap();
     let res = suite.query_market("OSMO").unwrap();
     assert_eq!(res.market_token, "OSMO");
@@ -26,13 +26,13 @@ fn list_markets() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
 
     suite
-        .create_market_quick("gov", "osmo", "OSMO", None, None)
+        .create_market_quick("gov", "osmo", "OSMO", None, None, None)
         .unwrap();
     suite
-        .create_market_quick("gov", "atom", "ATOM", None, None)
+        .create_market_quick("gov", "atom", "ATOM", None, None, None)
         .unwrap();
     suite
-        .create_market_quick("gov", "btc", "BTC", None, None)
+        .create_market_quick("gov", "btc", "BTC", None, None, None)
         .unwrap();
     let mut list: Vec<_> = suite
         .list_markets()
@@ -75,6 +75,7 @@ fn list_markets_default_pagination() {
                 &format!("TOKEN{:02}", i),
                 None,
                 None,
+                None,
             )
             .unwrap();
     }
@@ -112,6 +113,7 @@ fn list_markets_custom_pagination() {
                 "gov",
                 &format!("token{:02}", i),
                 &format!("TOKEN{:02}", i),
+                None,
                 None,
                 None,
             )

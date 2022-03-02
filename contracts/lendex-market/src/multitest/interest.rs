@@ -140,7 +140,7 @@ fn charge_interest_borrow() {
     suite.advance_seconds((SECONDS_IN_YEAR) as u64);
 
     // Repay some tokens
-    // interest is 20%
+    // interests are 20%
     // that means btoken 1600 + 320
     // repay 800 -> 1120 left btokens
     suite.repay(borrower, coin(800, market_token)).unwrap();
@@ -153,7 +153,7 @@ fn charge_interest_borrow() {
 
     // Repay some tokens
     // Utilisation is 48.3%
-    // interest is 13.66%
+    // interests are 13.66%
     // btoken 1120 + 13.66% - 800 = 472.992
     suite.repay(borrower, coin(800, market_token)).unwrap();
 

@@ -31,9 +31,11 @@ pub struct Config {
     pub price_oracle: String,
     /// Address of Credit Agency
     pub credit_agency: Addr,
+    pub reserve_factor: Decimal,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");
+pub const RESERVE: Item<Uint128> = Item::new("reserve");
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct TokensInfo {
