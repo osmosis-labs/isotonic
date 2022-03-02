@@ -365,7 +365,7 @@ mod execute {
         }
 
         // Create rebase messagess for tokens based on interest and supply
-        let charge_msgs = charge_interest(deps, env.clone())?;
+        let charge_msgs = charge_interest(deps, env)?;
         if !charge_msgs.is_empty() {
             response = response.add_submessages(charge_msgs);
         }
@@ -456,7 +456,7 @@ mod execute {
         let mut response = Response::new();
 
         // Create rebase messagess for tokens based on interest and supply
-        let charge_msgs = charge_interest(deps, env.clone())?;
+        let charge_msgs = charge_interest(deps, env)?;
         if !charge_msgs.is_empty() {
             response = response.add_submessages(charge_msgs);
         }
