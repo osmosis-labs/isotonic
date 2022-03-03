@@ -37,6 +37,13 @@ pub enum ExecuteMsg {
     EnterMarket {
         account: String,
     },
+    /// Exits market if:
+    /// * Sender have no BTokens in the market
+    /// * Sender have no LTokens in the market, or collateral provided by owned LTokens
+    ///   is not affecting liquidity of sender
+    ExitMarket {
+        market: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

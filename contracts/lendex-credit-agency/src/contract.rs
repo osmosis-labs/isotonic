@@ -60,6 +60,10 @@ pub fn execute(
             let account = deps.api.addr_validate(&account)?;
             exec::enter_market(deps, info, account)
         }
+        ExitMarket { market } => {
+            let market = deps.api.addr_validate(&market)?;
+            exec::exit_market(deps, info, market)
+        }
     }
 }
 
@@ -67,7 +71,10 @@ mod exec {
     use super::*;
 
     use cosmwasm_std::{ensure_eq, StdError, SubMsg, WasmMsg};
-    use utils::price::{coin_times_price_rate, PriceRate};
+    use utils::{
+        credit_line::{CreditLineResponse, CreditLineValues},
+        price::{coin_times_price_rate, PriceRate},
+    };
 
     use crate::{
         msg::MarketConfig,
@@ -224,6 +231,75 @@ mod exec {
             .add_attribute("action", "enter_market")
             .add_attribute("market", market)
             .add_attribute("account", account))
+    }
+
+    pub fn exit_market(
+        deps: DepsMut,
+        info: MessageInfo,
+        market: Addr,
+    ) -> Result<Response, ContractError> {
+        let common_token = CONFIG.load(deps.storage)?.common_token;
+        let mut markets = ENTERED_MARKETS
+            .may_load(deps.storage, &info.sender)?
+            .unwrap_or_default();
+
+        if !markets.contains(&market) {
+            return Err(ContractError::NotOnMarket {
+                address: info.sender,
+                market: market.clone(),
+            });
+        }
+
+        let market_credit_line: CreditLineResponse = deps.querier.query_wasm_smart(
+            market.clone(),
+            &MarketQueryMsg::CreditLine {
+                account: info.sender.to_string(),
+            },
+        )?;
+
+        if !market_credit_line.debt.amount.is_zero() {
+            return Err(ContractError::DebtOnMarket {
+                address: info.sender,
+                market,
+                debt: market_credit_line.debt,
+            });
+        }
+
+        let reduced_credit_line = markets
+            .iter()
+            .map(|market| -> Result<CreditLineValues, ContractError> {
+                let price_response: CreditLineResponse = deps.querier.query_wasm_smart(
+                    market.clone(),
+                    &MarketQueryMsg::CreditLine {
+                        account: info.sender.to_string(),
+                    },
+                )?;
+                let price_response = price_response.validate(&common_token)?;
+                Ok(price_response)
+            })
+            .try_fold(
+                CreditLineValues::zero(),
+                |total, credit_line| match credit_line {
+                    Ok(cl) => Ok(total + cl),
+                    Err(err) => Err(err),
+                },
+            )?;
+
+        if reduced_credit_line.credit_line < reduced_credit_line.debt {
+            return Err(ContractError::NotEnoughCollat {
+                debt: reduced_credit_line.debt,
+                credit_line: reduced_credit_line.credit_line,
+                collateral: reduced_credit_line.collateral,
+            });
+        }
+
+        markets.remove(&market);
+        ENTERED_MARKETS.save(deps.storage, &info.sender, &markets)?;
+
+        Ok(Response::new()
+            .add_attribute("action", "exit_market")
+            .add_attribute("market", market)
+            .add_attribute("account", info.sender))
     }
 }
 

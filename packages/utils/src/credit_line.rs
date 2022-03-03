@@ -1,4 +1,5 @@
 use std::iter::Sum;
+use std::ops::Add;
 
 use cosmwasm_std::{coin, Coin, Uint128};
 use schemars::JsonSchema;
@@ -82,6 +83,18 @@ impl CreditLineValues {
             collateral: coin(self.collateral.u128(), denom.clone()),
             credit_line: coin(self.credit_line.u128(), denom.clone()),
             debt: coin(self.debt.u128(), denom),
+        }
+    }
+}
+
+impl Add for CreditLineValues {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            collateral: self.collateral + rhs.collateral,
+            credit_line: self.credit_line + rhs.credit_line,
+            debt: self.debt + rhs.debt,
         }
     }
 }
