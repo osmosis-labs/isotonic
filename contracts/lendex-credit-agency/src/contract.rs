@@ -221,7 +221,7 @@ mod exec {
         })?;
 
         Ok(Response::new()
-            .add_attribute("action", "ensure_account_entered_market")
+            .add_attribute("action", "enter_market")
             .add_attribute("market", market)
             .add_attribute("account", account))
     }

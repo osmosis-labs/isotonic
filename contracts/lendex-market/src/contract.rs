@@ -331,7 +331,7 @@ mod execute {
         }
     }
 
-    fn ensure_account_entered_market(cfg: &Config, account: &Addr) -> StdResult<SubMsg> {
+    fn enter_market(cfg: &Config, account: &Addr) -> StdResult<SubMsg> {
         let msg = to_binary(&CreditAgencyExecuteMsg::EnterMarket {
             account: account.to_string(),
         })?;
@@ -384,7 +384,7 @@ mod execute {
             .add_attribute("action", "deposit")
             .add_attribute("sender", info.sender.clone())
             .add_submessage(wrapped_msg)
-            .add_submessage(ensure_account_entered_market(&cfg, &info.sender)?);
+            .add_submessage(enter_market(&cfg, &info.sender)?);
         Ok(response)
     }
 
@@ -482,7 +482,7 @@ mod execute {
             .add_attribute("action", "borrow")
             .add_attribute("sender", info.sender.clone())
             .add_submessage(mint_msg)
-            .add_submessage(ensure_account_entered_market(&cfg, &info.sender)?)
+            .add_submessage(enter_market(&cfg, &info.sender)?)
             .add_message(bank_msg);
         Ok(response)
     }
@@ -631,7 +631,7 @@ mod execute {
         });
 
         response = response
-            .add_submessage(ensure_account_entered_market(&cfg, &destination)?)
+            .add_submessage(enter_market(&cfg, &destination)?)
             .add_attribute("action", "transfer_from")
             .add_attribute("from", source)
             .add_attribute("to", destination)
