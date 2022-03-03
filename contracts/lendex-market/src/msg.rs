@@ -124,5 +124,5 @@ pub struct ReserveResponse {
 pub enum CreditAgencyExecuteMsg {
     /// Ensures a given account has entered a market. Meant to be called by a specific
     /// market contract - so the sender of the msg would be the market
-    EnsureAccountEnteredMarket { account: String },
+    EnterMarket { account: String },
 }

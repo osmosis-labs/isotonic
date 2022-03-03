@@ -56,9 +56,9 @@ pub fn execute(
             let account = deps.api.addr_validate(&account)?;
             exec::liquidate(deps, info, account, collateral_denom)
         }
-        EnsureAccountEnteredMarket { account } => {
+        EnterMarket { account } => {
             let account = deps.api.addr_validate(&account)?;
-            exec::ensure_account_entered_market(deps, info, account)
+            exec::enter_market(deps, info, account)
         }
     }
 }
@@ -207,7 +207,7 @@ mod exec {
             .add_submessage(transfer_from_msg))
     }
 
-    pub fn ensure_account_entered_market(
+    pub fn enter_market(
         deps: DepsMut,
         info: MessageInfo,
         account: Addr,

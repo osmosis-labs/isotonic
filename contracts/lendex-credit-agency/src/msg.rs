@@ -32,7 +32,7 @@ pub enum ExecuteMsg {
     },
     /// Ensures a given account has entered a market. Meant to be called by a specific
     /// market contract - so the sender of the msg would be the market
-    EnsureAccountEnteredMarket {
+    EnterMarket {
         account: String,
     },
 }

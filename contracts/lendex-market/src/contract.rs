@@ -332,7 +332,7 @@ mod execute {
     }
 
     fn ensure_account_entered_market(cfg: &Config, account: &Addr) -> StdResult<SubMsg> {
-        let msg = to_binary(&CreditAgencyExecuteMsg::EnsureAccountEnteredMarket {
+        let msg = to_binary(&CreditAgencyExecuteMsg::EnterMarket {
             account: account.to_string(),
         })?;
 
