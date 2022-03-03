@@ -26,6 +26,7 @@ schemars = "0.8.3"
 serde = { version = "1.0.127", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.26" }
 utils = { version = "0.4.0", path = "../../packages/utils" }
+either = "1.6"
 
 [dev-dependencies]
 anyhow = "1"

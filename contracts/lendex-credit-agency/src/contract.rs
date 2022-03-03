@@ -8,6 +8,8 @@ use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, SudoMsg};
 use crate::state::{Config, CONFIG, NEXT_REPLY_ID};
 
+use either::Either;
+
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:lendex-credit-agency";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -314,6 +316,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractErr
             to_binary(&query::list_markets(deps, start_after, limit)?)?
         }
         TotalCreditLine { account } => to_binary(&query::total_credit_line(deps, account)?)?,
+        ListEnteredMarkets { .. } => todo!(),
+        IsOnMarket { .. } => todo!(),
     };
 
     Ok(res)
@@ -326,7 +330,9 @@ mod query {
     use utils::credit_line::{CreditLineResponse, CreditLineValues};
 
     use crate::{
-        msg::{ListMarketsResponse, MarketResponse},
+        msg::{
+            IsOnMarketResponse, ListEnteredMarketsResponse, ListMarketsResponse, MarketResponse,
+        },
         state::{ENTERED_MARKETS, MARKETS},
     };
 
@@ -406,6 +412,49 @@ mod query {
             .iter()
             .sum();
         Ok(total_credit_line.make_response(common_token))
+    }
+
+    fn entered_markets(
+        deps: Deps,
+        account: String,
+        start_after: Option<String>,
+        limit: Option<u32>,
+    ) -> Result<ListEnteredMarketsResponse, ContractError> {
+        let account = Addr::unchecked(&account);
+        let markets = ENTERED_MARKETS
+            .may_load(deps.storage, &account)?
+            .unwrap_or_default()
+            .into_iter();
+
+        let markets = if let Some(start_after) = &start_after {
+            Either::Left(
+                markets
+                    .skip_while(move |market| market != start_after)
+                    .skip(1),
+            )
+        } else {
+            Either::Right(markets)
+        };
+
+        let markets = markets.take(limit.unwrap_or(u32::MAX) as usize).collect();
+
+        Ok(ListEnteredMarketsResponse { markets })
+    }
+
+    fn is_on_market(
+        deps: Deps,
+        account: String,
+        market: String,
+    ) -> Result<IsOnMarketResponse, ContractError> {
+        let account = Addr::unchecked(&account);
+        let market = Addr::unchecked(&market);
+        let markets = ENTERED_MARKETS
+            .may_load(deps.storage, &account)?
+            .unwrap_or_default();
+
+        Ok(IsOnMarketResponse {
+            participating: markets.contains(&market),
+        })
     }
 }
 

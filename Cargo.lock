@@ -412,6 +412,7 @@ dependencies = [
  "cw-storage-plus",
  "cw-utils",
  "cw2",
+ "either",
  "lendex-market",
  "lendex-oracle",
  "lendex-token",

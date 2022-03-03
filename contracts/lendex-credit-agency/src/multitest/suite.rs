@@ -226,6 +226,17 @@ impl Suite {
         )
     }
 
+    pub fn enter_market(&mut self, market: &str, addr: &str) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            Addr::unchecked(market),
+            self.contract.clone(),
+            &ExecuteMsg::EnterMarket {
+                account: addr.to_owned(),
+            },
+            &[],
+        )
+    }
+
     pub fn common_token(&self) -> &str {
         &self.common_token
     }
