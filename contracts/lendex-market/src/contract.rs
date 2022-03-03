@@ -250,7 +250,7 @@ mod execute {
     /// b_ratio = calculate_interest() * epochs_passed * epoch_length / 31.556.736
     /// ltokens formula:
     /// l_ratio = b_supply() * b_ratio / l_supply()
-    fn charge_interest(deps: DepsMut, env: Env) -> Result<Vec<SubMsg>, ContractError> {
+    pub fn charge_interest(deps: DepsMut, env: Env) -> Result<Vec<SubMsg>, ContractError> {
         use lendex_token::msg::ExecuteMsg;
 
         let mut cfg = CONFIG.load(deps.storage)?;
@@ -831,7 +831,7 @@ mod query {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn sudo(deps: DepsMut, _env: Env, msg: SudoMsg) -> Result<Response, ContractError> {
+pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, ContractError> {
     use SudoMsg::*;
     match msg {
         AdjustCollateralRatio { new_ratio } => sudo::adjust_collateral_ratio(deps, new_ratio),
@@ -839,7 +839,7 @@ pub fn sudo(deps: DepsMut, _env: Env, msg: SudoMsg) -> Result<Response, Contract
         AdjustPriceOracle { new_oracle } => sudo::adjust_price_oracle(deps, new_oracle),
         AdjustMarketCap { new_cap } => sudo::adjust_market_cap(deps, new_cap),
         AdjustInterestRates { new_interest_rates } => {
-            sudo::adjust_interest_rates(deps, new_interest_rates)
+            sudo::adjust_interest_rates(deps, env, new_interest_rates)
         }
     }
 }
@@ -890,13 +890,19 @@ mod sudo {
     }
 
     pub fn adjust_interest_rates(
-        deps: DepsMut,
+        mut deps: DepsMut,
+        env: Env,
         new_interest_rates: Interest,
     ) -> Result<Response, ContractError> {
         let mut cfg = CONFIG.load(deps.storage)?;
+        let charge_msgs = execute::charge_interest(deps.branch(), env)?;
+        let mut response = Response::new();
+        if !charge_msgs.is_empty() {
+            response = response.add_submessages(charge_msgs);
+        }
         let interest_rates = new_interest_rates.validate()?;
         cfg.rates = interest_rates;
         CONFIG.save(deps.storage, &cfg)?;
-        Ok(Response::new())
+        Ok(response)
     }
 }
