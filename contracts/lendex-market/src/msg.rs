@@ -89,6 +89,7 @@ pub enum QueryMsg {
 #[serde(rename_all = "snake_case")]
 pub enum SudoMsg {
     AdjustCollateralRatio { new_ratio: Decimal },
+    AdjustReserveFactor { new_factor: Decimal },
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]

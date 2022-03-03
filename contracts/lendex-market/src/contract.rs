@@ -835,6 +835,7 @@ pub fn sudo(deps: DepsMut, _env: Env, msg: SudoMsg) -> Result<Response, Contract
     use SudoMsg::*;
     match msg {
         AdjustCollateralRatio { new_ratio } => sudo::adjust_collateral_ratio(deps, new_ratio),
+        AdjustReserveFactor { new_factor } => sudo::adjust_reserve_factor(deps, new_factor),
     }
 }
 
@@ -847,6 +848,16 @@ mod sudo {
     ) -> Result<Response, ContractError> {
         let mut cfg = CONFIG.load(deps.storage)?;
         cfg.collateral_ratio = new_ratio;
+        CONFIG.save(deps.storage, &cfg)?;
+        Ok(Response::new())
+    }
+
+    pub fn adjust_reserve_factor(
+        deps: DepsMut,
+        new_factor: Decimal,
+    ) -> Result<Response, ContractError> {
+        let mut cfg = CONFIG.load(deps.storage)?;
+        cfg.reserve_factor = new_factor;
         CONFIG.save(deps.storage, &cfg)?;
         Ok(Response::new())
     }
