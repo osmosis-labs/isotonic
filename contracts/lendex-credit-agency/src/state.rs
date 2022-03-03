@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -44,3 +46,6 @@ pub const REPLY_IDS: Map<u64, String> = Map::new("reply_ids");
 pub const NEXT_REPLY_ID: Item<u64> = Item::new("next_reply_id");
 /// A map of base asset -> market contract address
 pub const MARKETS: Map<&str, MarketState> = Map::new("market");
+/// A set of "entered markets" for each account, as in markets in which the account is
+/// actively participating.
+pub const ENTERED_MARKETS: Map<&Addr, HashSet<Addr>> = Map::new("entered_martkets");

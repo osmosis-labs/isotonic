@@ -56,6 +56,10 @@ pub fn execute(
             let account = deps.api.addr_validate(&account)?;
             exec::liquidate(deps, info, account, collateral_denom)
         }
+        EnterMarket { account } => {
+            let account = deps.api.addr_validate(&account)?;
+            exec::enter_market(deps, info, account)
+        }
     }
 }
 
@@ -67,7 +71,7 @@ mod exec {
 
     use crate::{
         msg::MarketConfig,
-        state::{MarketState, MARKETS, REPLY_IDS},
+        state::{MarketState, ENTERED_MARKETS, MARKETS, REPLY_IDS},
     };
     use lendex_market::msg::QueryMsg as MarketQueryMsg;
 
@@ -202,6 +206,25 @@ mod exec {
             .add_submessage(repay_from_msg)
             .add_submessage(transfer_from_msg))
     }
+
+    pub fn enter_market(
+        deps: DepsMut,
+        info: MessageInfo,
+        account: Addr,
+    ) -> Result<Response, ContractError> {
+        let market = info.sender;
+
+        ENTERED_MARKETS.update(deps.storage, &account, |maybe_set| -> Result<_, StdError> {
+            let mut markets = maybe_set.unwrap_or_default();
+            markets.insert(market.clone());
+            Ok(markets)
+        })?;
+
+        Ok(Response::new()
+            .add_attribute("action", "enter_market")
+            .add_attribute("market", market)
+            .add_attribute("account", account))
+    }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -228,7 +251,7 @@ mod query {
 
     use crate::{
         msg::{ListMarketsResponse, MarketResponse},
-        state::MARKETS,
+        state::{ENTERED_MARKETS, MARKETS},
     };
 
     use super::*;
@@ -287,13 +310,15 @@ mod query {
         account: String,
     ) -> Result<CreditLineResponse, ContractError> {
         let common_token = CONFIG.load(deps.storage)?.common_token;
+        let markets = ENTERED_MARKETS
+            .may_load(deps.storage, &Addr::unchecked(&account))?
+            .unwrap_or_default();
 
-        let total_credit_line: CreditLineValues = list_markets(deps, None, None)?
-            .markets
+        let total_credit_line: CreditLineValues = markets
             .into_iter()
             .map(|market| {
                 let price_response: CreditLineResponse = deps.querier.query_wasm_smart(
-                    market.market,
+                    market,
                     &MarketQueryMsg::CreditLine {
                         account: account.clone(),
                     },

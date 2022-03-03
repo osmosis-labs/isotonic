@@ -240,6 +240,8 @@ mod cr_utils {
 }
 
 mod execute {
+    use crate::msg::CreditAgencyExecuteMsg;
+
     use super::*;
 
     /// Function that is supposed to be called before every mint/burn operation.
@@ -329,6 +331,18 @@ mod execute {
         }
     }
 
+    fn enter_market(cfg: &Config, account: &Addr) -> StdResult<SubMsg> {
+        let msg = to_binary(&CreditAgencyExecuteMsg::EnterMarket {
+            account: account.to_string(),
+        })?;
+
+        Ok(SubMsg::new(WasmMsg::Execute {
+            contract_addr: cfg.credit_agency.to_string(),
+            msg,
+            funds: vec![],
+        }))
+    }
+
     /// Handler for `ExecuteMsg::Deposit`
     pub fn deposit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
@@ -368,8 +382,9 @@ mod execute {
 
         response = response
             .add_attribute("action", "deposit")
-            .add_attribute("sender", info.sender)
-            .add_submessage(wrapped_msg);
+            .add_attribute("sender", info.sender.clone())
+            .add_submessage(wrapped_msg)
+            .add_submessage(enter_market(&cfg, &info.sender)?);
         Ok(response)
     }
 
@@ -460,13 +475,14 @@ mod execute {
         // Sent tokens to sender's account
         let bank_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: info.sender.to_string(),
-            amount: vec![coin(amount.u128(), cfg.market_token)],
+            amount: vec![coin(amount.u128(), &cfg.market_token)],
         });
 
         response = response
             .add_attribute("action", "borrow")
-            .add_attribute("sender", info.sender)
+            .add_attribute("sender", info.sender.clone())
             .add_submessage(mint_msg)
+            .add_submessage(enter_market(&cfg, &info.sender)?)
             .add_message(bank_msg);
         Ok(response)
     }
@@ -615,6 +631,7 @@ mod execute {
         });
 
         response = response
+            .add_submessage(enter_market(&cfg, &destination)?)
             .add_attribute("action", "transfer_from")
             .add_attribute("from", source)
             .add_attribute("to", destination)
