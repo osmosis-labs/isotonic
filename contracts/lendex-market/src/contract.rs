@@ -838,11 +838,16 @@ pub fn sudo(deps: DepsMut, _env: Env, msg: SudoMsg) -> Result<Response, Contract
         AdjustReserveFactor { new_factor } => sudo::adjust_reserve_factor(deps, new_factor),
         AdjustPriceOracle { new_oracle } => sudo::adjust_price_oracle(deps, new_oracle),
         AdjustMarketCap { new_cap } => sudo::adjust_market_cap(deps, new_cap),
+        AdjustInterestRates { new_interest_rates } => {
+            sudo::adjust_interest_rates(deps, new_interest_rates)
+        }
     }
 }
 
 mod sudo {
     use super::*;
+
+    use utils::interest::Interest;
 
     pub fn adjust_collateral_ratio(
         deps: DepsMut,
@@ -880,6 +885,17 @@ mod sudo {
     ) -> Result<Response, ContractError> {
         let mut cfg = CONFIG.load(deps.storage)?;
         cfg.market_cap = new_cap;
+        CONFIG.save(deps.storage, &cfg)?;
+        Ok(Response::new())
+    }
+
+    pub fn adjust_interest_rates(
+        deps: DepsMut,
+        new_interest_rates: Interest,
+    ) -> Result<Response, ContractError> {
+        let mut cfg = CONFIG.load(deps.storage)?;
+        let interest_rates = new_interest_rates.validate()?;
+        cfg.rates = interest_rates;
         CONFIG.save(deps.storage, &cfg)?;
         Ok(Response::new())
     }

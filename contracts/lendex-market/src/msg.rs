@@ -92,6 +92,7 @@ pub enum SudoMsg {
     AdjustReserveFactor { new_factor: Decimal },
     AdjustPriceOracle { new_oracle: String },
     AdjustMarketCap { new_cap: Option<Uint128> },
+    AdjustInterestRates { new_interest_rates: Interest },
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
