@@ -90,6 +90,8 @@ pub enum QueryMsg {
 pub enum SudoMsg {
     AdjustCollateralRatio { new_ratio: Decimal },
     AdjustReserveFactor { new_factor: Decimal },
+    AdjustPriceOracle { new_oracle: String },
+    AdjustMarketCap { new_cap: Option<Uint128> },
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
