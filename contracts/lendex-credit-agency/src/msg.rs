@@ -1,4 +1,6 @@
 use cosmwasm_std::{Addr, Decimal, Uint128};
+use lendex_market::msg::MigrateMsg as MarketMigrateMsg;
+
 use utils::interest::Interest;
 
 use schemars::JsonSchema;
@@ -83,9 +85,19 @@ pub enum QueryMsg {
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum SudoMsg {
-    AdjustMarketId { new_market_id: u64 },
-    AdjustTokenId { new_token_id: u64 },
-    AdjustCommonToken { new_common_token: String },
+    AdjustMarketId {
+        new_market_id: u64,
+    },
+    AdjustTokenId {
+        new_token_id: u64,
+    },
+    AdjustCommonToken {
+        new_common_token: String,
+    },
+    MigrateMarket {
+        contract: String,
+        migrate_msg: MarketMigrateMsg,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]

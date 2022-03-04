@@ -375,11 +375,19 @@ pub fn sudo(deps: DepsMut, _env: Env, msg: SudoMsg) -> Result<Response, Contract
         AdjustMarketId { new_market_id } => sudo::adjust_market_id(deps, new_market_id),
         AdjustTokenId { new_token_id } => sudo::adjust_token_id(deps, new_token_id),
         AdjustCommonToken { new_common_token } => sudo::adjust_common_token(deps, new_common_token),
+        MigrateMarket {
+            contract,
+            migrate_msg,
+        } => sudo::migrate_market(deps, contract, migrate_msg),
     }
 }
 
 mod sudo {
     use super::*;
+
+    use cosmwasm_std::WasmMsg;
+
+    use lendex_market::msg::MigrateMsg as MarketMigrateMsg;
 
     pub fn adjust_market_id(deps: DepsMut, new_market_id: u64) -> Result<Response, ContractError> {
         let mut cfg = CONFIG.load(deps.storage)?;
@@ -403,5 +411,19 @@ mod sudo {
         cfg.common_token = new_common_token;
         CONFIG.save(deps.storage, &cfg)?;
         Ok(Response::new())
+    }
+
+    pub fn migrate_market(
+        deps: DepsMut,
+        contract_addr: String,
+        migrate_msg: MarketMigrateMsg,
+    ) -> Result<Response, ContractError> {
+        let cfg = CONFIG.load(deps.storage)?;
+
+        Ok(Response::new().add_message(WasmMsg::Migrate {
+            contract_addr,
+            new_code_id: cfg.lendex_market_id,
+            msg: to_binary(&migrate_msg)?,
+        }))
     }
 }

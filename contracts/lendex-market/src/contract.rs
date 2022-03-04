@@ -2,14 +2,15 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     coin, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    MessageInfo, Reply, Response, StdResult, SubMsg, Timestamp, Uint128, WasmMsg,
+    MessageInfo, Reply, Response, StdError, StdResult, SubMsg, Timestamp, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw_utils::parse_reply_instantiate_data;
 
 use crate::error::ContractError;
 use crate::msg::{
-    ExecuteMsg, InstantiateMsg, QueryMsg, QueryTotalCreditLine, SudoMsg, TransferableAmountResponse,
+    ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, QueryTotalCreditLine, SudoMsg,
+    TransferableAmountResponse,
 };
 use crate::state::{Config, CONFIG, RESERVE, SECONDS_IN_YEAR};
 
@@ -905,4 +906,16 @@ mod sudo {
         CONFIG.save(deps.storage, &cfg)?;
         Ok(response)
     }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+    CONFIG.update::<_, StdError>(deps.storage, |mut cfg| {
+        if let Some(token_id) = msg.lendex_token_id {
+            cfg.token_id = token_id;
+        }
+        Ok(cfg)
+    })?;
+
+    Ok(Response::new())
 }

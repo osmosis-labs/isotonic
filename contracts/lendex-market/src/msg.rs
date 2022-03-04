@@ -97,6 +97,12 @@ pub enum SudoMsg {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 #[serde(rename_all = "snake_case")]
+pub struct MigrateMsg {
+    pub lendex_token_id: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[serde(rename_all = "snake_case")]
 pub enum QueryTotalCreditLine {
     TotalCreditLine { account: String },
 }
