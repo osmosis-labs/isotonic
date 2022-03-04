@@ -11,7 +11,7 @@ use super::ca_mock::{
     InstantiateMsg as CAInstantiateMsg,
 };
 use crate::msg::{
-    ExecuteMsg, InstantiateMsg, InterestResponse, QueryMsg, ReserveResponse,
+    ExecuteMsg, InstantiateMsg, InterestResponse, MigrateMsg, QueryMsg, ReserveResponse,
     TransferableAmountResponse,
 };
 use crate::state::Config;
@@ -26,18 +26,20 @@ fn contract_oracle() -> Box<dyn Contract<Empty>> {
     Box::new(contract)
 }
 
-fn contract_market() -> Box<dyn Contract<Empty>> {
+pub fn contract_market() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new(
         crate::contract::execute,
         crate::contract::instantiate,
         crate::contract::query,
     )
-    .with_reply(crate::contract::reply);
+    .with_sudo(crate::contract::sudo)
+    .with_reply(crate::contract::reply)
+    .with_migrate(crate::contract::migrate);
 
     Box::new(contract)
 }
 
-fn contract_token() -> Box<dyn Contract<Empty>> {
+pub fn contract_token() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new(
         lendex_token::contract::execute,
         lendex_token::contract::instantiate,
@@ -268,6 +270,10 @@ pub struct Suite {
 }
 
 impl Suite {
+    pub fn app(&mut self) -> &mut App {
+        &mut self.app
+    }
+
     pub fn advance_seconds(&mut self, seconds: u64) {
         self.app.update_block(|block| {
             block.time = block.time.plus_seconds(seconds);
@@ -482,5 +488,20 @@ impl Suite {
             .wrap()
             .query_wasm_smart(self.contract.clone(), &QueryMsg::Reserve {})?;
         Ok(response.reserve)
+    }
+
+    pub fn query_config(&self) -> AnyResult<Config> {
+        let response: Config = self
+            .app
+            .wrap()
+            .query_wasm_smart(self.contract.clone(), &QueryMsg::Configuration {})?;
+        Ok(response)
+    }
+
+    /// Migrates the contract, possibly changing some cfg values via MigrateMsg.
+    pub fn migrate(&mut self, new_code_id: u64, msg: &MigrateMsg) -> AnyResult<AppResponse> {
+        let owner = self.owner.clone();
+        self.app
+            .migrate_contract(owner, self.contract.clone(), msg, new_code_id)
     }
 }
