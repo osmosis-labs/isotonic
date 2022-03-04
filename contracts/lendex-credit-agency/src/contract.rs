@@ -384,8 +384,9 @@ pub fn sudo(deps: DepsMut, _env: Env, msg: SudoMsg) -> Result<Response, Contract
 
 mod sudo {
     use super::*;
+    use crate::state::{MarketState, MARKETS};
 
-    use cosmwasm_std::WasmMsg;
+    use cosmwasm_std::{Order, WasmMsg};
 
     use lendex_market::msg::MigrateMsg as MarketMigrateMsg;
 
@@ -413,12 +414,36 @@ mod sudo {
         Ok(Response::new())
     }
 
+    fn find_market(deps: Deps, market_addr: &Addr) -> bool {
+        let found = MARKETS
+            .range(deps.storage, None, None, Order::Ascending)
+            .find(|m| {
+                let market_state = if let Some((_, market_state)) = &m.as_ref().ok() {
+                    Some(market_state)
+                } else {
+                    None
+                };
+                match market_state {
+                    Some(MarketState::Ready(addr)) => market_addr == addr,
+                    _ => false,
+                }
+            });
+        found.is_some()
+    }
+
     pub fn migrate_market(
         deps: DepsMut,
         contract_addr: String,
         migrate_msg: MarketMigrateMsg,
     ) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
+        let contract = deps.api.addr_validate(&contract_addr)?;
+
+        if !find_market(deps.as_ref(), &contract) {
+            return Err(ContractError::MarketSearchError {
+                market: contract_addr,
+            });
+        }
 
         Ok(Response::new().add_message(WasmMsg::Migrate {
             contract_addr,
