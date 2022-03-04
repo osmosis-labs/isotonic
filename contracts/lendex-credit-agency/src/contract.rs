@@ -5,7 +5,7 @@ use cw2::set_contract_version;
 use cw_utils::parse_reply_instantiate_data;
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, SudoMsg};
 use crate::state::{Config, CONFIG, NEXT_REPLY_ID};
 
 // version info for migration info
@@ -365,5 +365,43 @@ mod reply {
         )?;
 
         Ok(Response::new().add_attribute(format!("market_{}", market_token), addr))
+    }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn sudo(deps: DepsMut, _env: Env, msg: SudoMsg) -> Result<Response, ContractError> {
+    use SudoMsg::*;
+    match msg {
+        AdjustMarketId { new_market_id } => sudo::adjust_market_id(deps, new_market_id),
+        AdjustTokenId { new_token_id } => sudo::adjust_token_id(deps, new_token_id),
+        AdjustCommonToken { new_common_token } => sudo::adjust_common_token(deps, new_common_token),
+    }
+}
+
+mod sudo {
+    use super::*;
+
+    pub fn adjust_market_id(deps: DepsMut, new_market_id: u64) -> Result<Response, ContractError> {
+        let mut cfg = CONFIG.load(deps.storage)?;
+        cfg.lendex_market_id = new_market_id;
+        CONFIG.save(deps.storage, &cfg)?;
+        Ok(Response::new())
+    }
+
+    pub fn adjust_token_id(deps: DepsMut, new_token_id: u64) -> Result<Response, ContractError> {
+        let mut cfg = CONFIG.load(deps.storage)?;
+        cfg.lendex_token_id = new_token_id;
+        CONFIG.save(deps.storage, &cfg)?;
+        Ok(Response::new())
+    }
+
+    pub fn adjust_common_token(
+        deps: DepsMut,
+        new_common_token: String,
+    ) -> Result<Response, ContractError> {
+        let mut cfg = CONFIG.load(deps.storage)?;
+        cfg.common_token = new_common_token;
+        CONFIG.save(deps.storage, &cfg)?;
+        Ok(Response::new())
     }
 }

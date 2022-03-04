@@ -81,6 +81,14 @@ pub enum QueryMsg {
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum SudoMsg {
+    AdjustMarketId { new_market_id: u64 },
+    AdjustTokenId { new_token_id: u64 },
+    AdjustCommonToken { new_common_token: String },
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct MarketResponse {
     pub market_token: String,
     pub market: Addr,
