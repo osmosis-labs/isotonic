@@ -269,6 +269,7 @@ mod exec {
 
         let reduced_credit_line = markets
             .iter()
+            .filter(|m| **m != market)
             .map(|market| -> Result<CreditLineValues, ContractError> {
                 let price_response: CreditLineResponse = deps.querier.query_wasm_smart(
                     market.clone(),
@@ -316,8 +317,12 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractErr
             to_binary(&query::list_markets(deps, start_after, limit)?)?
         }
         TotalCreditLine { account } => to_binary(&query::total_credit_line(deps, account)?)?,
-        ListEnteredMarkets { .. } => todo!(),
-        IsOnMarket { .. } => todo!(),
+        ListEnteredMarkets {
+            account,
+            start_after,
+            limit,
+        } => to_binary(&query::entered_markets(deps, account, start_after, limit)?)?,
+        IsOnMarket { account, market } => to_binary(&query::is_on_market(deps, account, market)?)?,
     };
 
     Ok(res)
@@ -414,7 +419,7 @@ mod query {
         Ok(total_credit_line.make_response(common_token))
     }
 
-    fn entered_markets(
+    pub fn entered_markets(
         deps: Deps,
         account: String,
         start_after: Option<String>,
@@ -441,7 +446,7 @@ mod query {
         Ok(ListEnteredMarketsResponse { markets })
     }
 
-    fn is_on_market(
+    pub fn is_on_market(
         deps: Deps,
         account: String,
         market: String,
