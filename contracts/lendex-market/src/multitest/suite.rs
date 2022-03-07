@@ -11,7 +11,7 @@ use super::ca_mock::{
     InstantiateMsg as CAInstantiateMsg,
 };
 use crate::msg::{
-    ExecuteMsg, InstantiateMsg, InterestResponse, MigrateMsg, QueryMsg, ReserveResponse,
+    ExecuteMsg, InstantiateMsg, InterestResponse, MigrateMsg, QueryMsg, ReserveResponse, SudoMsg,
     TransferableAmountResponse,
 };
 use crate::state::Config;
@@ -518,5 +518,61 @@ impl Suite {
         let owner = self.owner.clone();
         self.app
             .migrate_contract(owner, self.contract.clone(), msg, new_code_id)
+    }
+
+    /// Changes collateral ratio parmeter in config through sudo. Pass new ratio as percentage.
+    pub fn sudo_adjust_collateral_ratio(&mut self, new_ratio: u64) -> AnyResult<AppResponse> {
+        let contract = self.contract.clone();
+        self.app.wasm_sudo(
+            contract,
+            &SudoMsg::AdjustCollateralRatio {
+                new_ratio: Decimal::percent(new_ratio),
+            },
+        )
+    }
+
+    /// Changes reserve factor parmeter in config through sudo. Pass new ratio as percentage.
+    pub fn sudo_adjust_reserve_factor(&mut self, new_factor: u64) -> AnyResult<AppResponse> {
+        let contract = self.contract.clone();
+        self.app.wasm_sudo(
+            contract,
+            &SudoMsg::AdjustReserveFactor {
+                new_factor: Decimal::percent(new_factor),
+            },
+        )
+    }
+
+    pub fn sudo_adjust_price_oracle(&mut self, new_oracle: &str) -> AnyResult<AppResponse> {
+        let contract = self.contract.clone();
+        self.app.wasm_sudo(
+            contract,
+            &SudoMsg::AdjustPriceOracle {
+                new_oracle: new_oracle.to_owned(),
+            },
+        )
+    }
+
+    pub fn sudo_adjust_market_cap(
+        &mut self,
+        new_cap: impl Into<Option<Uint128>>,
+    ) -> AnyResult<AppResponse> {
+        let contract = self.contract.clone();
+        self.app.wasm_sudo(
+            contract,
+            &SudoMsg::AdjustMarketCap {
+                new_cap: new_cap.into(),
+            },
+        )
+    }
+
+    pub fn sudo_adjust_interest_rates(
+        &mut self,
+        new_interest_rates: Interest,
+    ) -> AnyResult<AppResponse> {
+        let contract = self.contract.clone();
+        self.app.wasm_sudo(
+            contract,
+            &SudoMsg::AdjustInterestRates { new_interest_rates },
+        )
     }
 }

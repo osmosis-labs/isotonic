@@ -6,5 +6,6 @@ mod deposit;
 mod interest;
 mod migration;
 mod reserve;
+mod sudo;
 pub mod suite;
 mod withdraw;
