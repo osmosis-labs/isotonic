@@ -267,9 +267,13 @@ mod exec {
             });
         }
 
+        // It can be removed before everything is checked, as if anything would fail, this removal
+        // would not be applied. And in `reduced_credit_line` we don't want this market to be
+        // there, so removing early.
+        markets.remove(&market);
+
         let reduced_credit_line = markets
             .iter()
-            .filter(|m| **m != market)
             .map(|market| -> Result<CreditLineValues, ContractError> {
                 let price_response: CreditLineResponse = deps.querier.query_wasm_smart(
                     market.clone(),
@@ -296,7 +300,6 @@ mod exec {
             });
         }
 
-        markets.remove(&market);
         ENTERED_MARKETS.save(deps.storage, &info.sender, &markets)?;
 
         Ok(Response::new()
