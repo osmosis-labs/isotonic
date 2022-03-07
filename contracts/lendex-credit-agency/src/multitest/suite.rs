@@ -1,9 +1,10 @@
 use anyhow::Result as AnyResult;
 
-use cosmwasm_std::{Addr, Coin, Decimal, Empty};
+use cosmwasm_std::{Addr, Coin, ContractInfoResponse, Decimal, Empty};
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
 use lendex_market::msg::{
-    ExecuteMsg as MarketExecuteMsg, QueryMsg as MarketQueryMsg, TokensBalanceResponse,
+    ExecuteMsg as MarketExecuteMsg, MigrateMsg as MarketMigrateMsg, QueryMsg as MarketQueryMsg,
+    TokensBalanceResponse,
 };
 use lendex_oracle::msg::ExecuteMsg as OracleExecuteMsg;
 use utils::credit_line::CreditLineResponse;
@@ -11,7 +12,7 @@ use utils::{interest::Interest, time::Duration};
 
 use crate::msg::{
     ExecuteMsg, InstantiateMsg, IsOnMarketResponse, ListEnteredMarketsResponse,
-    ListMarketsResponse, MarketConfig, MarketResponse, QueryMsg, SudoMsg
+    ListMarketsResponse, MarketConfig, MarketResponse, QueryMsg, SudoMsg,
 };
 use crate::state::Config;
 
@@ -37,7 +38,7 @@ fn contract_credit_agency() -> Box<dyn Contract<Empty>> {
     Box::new(contract)
 }
 
-fn contract_market() -> Box<dyn Contract<Empty>> {
+pub fn contract_market() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new(
         lendex_market::contract::execute,
         lendex_market::contract::instantiate,
@@ -184,6 +185,10 @@ pub struct Suite {
 }
 
 impl Suite {
+    pub fn app(&mut self) -> &mut App {
+        &mut self.app
+    }
+
     pub fn advance_seconds(&mut self, seconds: u64) {
         self.app.update_block(|block| {
             block.time = block.time.plus_seconds(seconds);
@@ -477,6 +482,18 @@ impl Suite {
         Ok(resp)
     }
 
+    pub fn query_contract_code_id(&mut self, contract_denom: &str) -> AnyResult<u64> {
+        use cosmwasm_std::{QueryRequest, WasmQuery};
+        let market = self.query_market(contract_denom)?;
+        let query_result: ContractInfoResponse =
+            self.app
+                .wrap()
+                .query(&QueryRequest::Wasm(WasmQuery::ContractInfo {
+                    contract_addr: market.market.to_string(),
+                }))?;
+        Ok(query_result.code_id)
+    }
+
     pub fn sudo_adjust_market_id(&mut self, new_market_id: u64) -> AnyResult<AppResponse> {
         let contract = self.contract.clone();
         self.app
@@ -495,6 +512,21 @@ impl Suite {
             contract,
             &SudoMsg::AdjustCommonToken {
                 new_common_token: new_common_token.to_owned(),
+            },
+        )
+    }
+
+    pub fn sudo_migrate_market(
+        &mut self,
+        market: &str,
+        migrate_msg: MarketMigrateMsg,
+    ) -> AnyResult<AppResponse> {
+        let contract = self.contract.clone();
+        self.app.wasm_sudo(
+            contract,
+            &SudoMsg::MigrateMarket {
+                contract: market.to_owned(),
+                migrate_msg,
             },
         )
     }
