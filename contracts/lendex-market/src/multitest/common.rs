@@ -9,8 +9,9 @@ fn adjust_common_token() {
     let new_token = "new_token";
     assert_ne!(old_common_token, new_token);
 
-    let ca = suite.ca();
-    suite.adjust_common_token(ca.as_str(), "new_token").unwrap();
+    suite
+        .adjust_common_token(suite.credit_agency().as_str(), new_token)
+        .unwrap();
     assert_eq!(new_token, suite.query_config().unwrap().common_token);
 }
 

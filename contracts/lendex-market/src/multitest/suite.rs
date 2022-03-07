@@ -274,7 +274,7 @@ impl Suite {
         &mut self.app
     }
 
-    pub fn ca(&self) -> String {
+    pub fn credit_agency(&self) -> String {
         self.ca_contract.to_string()
     }
 

@@ -91,6 +91,8 @@ pub enum SudoMsg {
     AdjustTokenId {
         new_token_id: u64,
     },
+    /// Sets common_token parameter in configuration and sends AdjustCommonToken
+    /// message to all affiliated markets
     AdjustCommonToken {
         new_common_token: String,
     },

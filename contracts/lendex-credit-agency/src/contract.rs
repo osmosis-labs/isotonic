@@ -386,9 +386,9 @@ mod sudo {
     use super::*;
     use crate::state::{MarketState, MARKETS};
 
-    use cosmwasm_std::{Order, WasmMsg};
+    use cosmwasm_std::{Order, SubMsg, WasmMsg};
 
-    use lendex_market::msg::MigrateMsg as MarketMigrateMsg;
+    use lendex_market::msg::{ExecuteMsg as MarketExecuteMsg, MigrateMsg as MarketMigrateMsg};
 
     pub fn adjust_market_id(deps: DepsMut, new_market_id: u64) -> Result<Response, ContractError> {
         let mut cfg = CONFIG.load(deps.storage)?;
@@ -409,9 +409,25 @@ mod sudo {
         new_common_token: String,
     ) -> Result<Response, ContractError> {
         let mut cfg = CONFIG.load(deps.storage)?;
-        cfg.common_token = new_common_token;
+        cfg.common_token = new_common_token.clone();
         CONFIG.save(deps.storage, &cfg)?;
-        Ok(Response::new())
+
+        let msg = to_binary(&MarketExecuteMsg::AdjustCommonToken {
+            new_token: new_common_token,
+        })?;
+        let messages = MARKETS
+            .range(deps.storage, None, None, Order::Ascending)
+            .filter_map(|m| match m {
+                Ok((_, MarketState::Ready(addr))) => Some(SubMsg::new(WasmMsg::Execute {
+                    contract_addr: addr.to_string(),
+                    msg: msg.clone(),
+                    funds: vec![],
+                })),
+                _ => None,
+            })
+            .collect::<Vec<SubMsg>>();
+
+        Ok(Response::new().add_submessages(messages))
     }
 
     fn find_market(deps: Deps, market_addr: &Addr) -> bool {
