@@ -172,6 +172,9 @@ pub fn execute(
                 liquidation_price,
             )
         }
+        AdjustCommonToken { new_token } => {
+            execute::adjust_common_token(deps, info.sender, new_token)
+        }
     }
 }
 
@@ -638,6 +641,24 @@ mod execute {
             .add_attribute("to", destination)
             .add_submessage(transfer_msg);
         Ok(response)
+    }
+
+    /// Handler for `ExecuteMsg::AdjustCommonToken`
+    pub fn adjust_common_token(
+        deps: DepsMut,
+        sender: Addr,
+        new_token: String,
+    ) -> Result<Response, ContractError> {
+        let mut cfg = CONFIG.load(deps.storage)?;
+
+        if sender != cfg.credit_agency {
+            return Err(ContractError::Unauthorized {});
+        }
+
+        cfg.common_token = new_token;
+
+        CONFIG.save(deps.storage, &cfg)?;
+        Ok(Response::new())
     }
 }
 

@@ -274,6 +274,10 @@ impl Suite {
         &mut self.app
     }
 
+    pub fn ca(&self) -> String {
+        self.ca_contract.to_string()
+    }
+
     pub fn advance_seconds(&mut self, seconds: u64) {
         self.app.update_block(|block| {
             block.time = block.time.plus_seconds(seconds);
@@ -337,6 +341,17 @@ impl Suite {
             self.contract.clone(),
             &ExecuteMsg::Repay {},
             &[funds],
+        )
+    }
+
+    pub fn adjust_common_token(&mut self, sender: &str, new_token: &str) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            Addr::unchecked(sender),
+            self.contract.clone(),
+            &ExecuteMsg::AdjustCommonToken {
+                new_token: new_token.to_owned(),
+            },
+            &[],
         )
     }
 
