@@ -417,16 +417,9 @@ mod sudo {
     fn find_market(deps: Deps, market_addr: &Addr) -> bool {
         let found = MARKETS
             .range(deps.storage, None, None, Order::Ascending)
-            .find(|m| {
-                let market_state = if let Some((_, market_state)) = &m.as_ref().ok() {
-                    Some(market_state)
-                } else {
-                    None
-                };
-                match market_state {
-                    Some(MarketState::Ready(addr)) => market_addr == addr,
-                    _ => false,
-                }
+            .find(|m| match m {
+                Ok((_, MarketState::Ready(addr))) => market_addr == addr,
+                _ => false,
             });
         found.is_some()
     }
