@@ -258,26 +258,79 @@ mod execute {
         use isotonic_token::msg::ExecuteMsg;
 
         let mut cfg = CONFIG.load(deps.storage)?;
-
-        let epochs_passed =
-            (env.block.time.seconds() - cfg.last_charged) / cfg.interest_charge_period;
+        let epochs_passed = epochs_passed(deps.as_ref(), env)?;
+        cfg.last_charged += epochs_passed * cfg.interest_charge_period;
+        CONFIG.save(deps.storage, &cfg)?;
 
         if epochs_passed == 0 {
             return Ok(vec![]);
         }
 
-        let charged_time = epochs_passed * cfg.interest_charge_period;
-        cfg.last_charged += charged_time;
-        CONFIG.save(deps.storage, &cfg)?;
+        if let Some(InterestUpdate {
+            reserve,
+            ltoken_ratio,
+            btoken_ratio,
+        }) = calculate_interest(deps.as_ref(), epochs_passed)?
+        {
+            RESERVE.save(deps.storage, &reserve)?;
 
-        let tokens_info = query::token_info(deps.as_ref(), &cfg)?;
+            let btoken_rebase = to_binary(&ExecuteMsg::Rebase {
+                ratio: btoken_ratio + Decimal::one(),
+            })?;
+            let bwrapped = SubMsg::new(WasmMsg::Execute {
+                contract_addr: cfg.btoken_contract.to_string(),
+                msg: btoken_rebase,
+                funds: vec![],
+            });
+
+            let ltoken_rebase = to_binary(&ExecuteMsg::Rebase {
+                ratio: ltoken_ratio + Decimal::one(),
+            })?;
+            let lwrapped = SubMsg::new(WasmMsg::Execute {
+                contract_addr: cfg.ltoken_contract.to_string(),
+                msg: ltoken_rebase,
+                funds: vec![],
+            });
+
+            Ok(vec![bwrapped, lwrapped])
+        } else {
+            Ok(vec![])
+        }
+    }
+
+    fn epochs_passed(deps: Deps, env: Env) -> Result<u64, ContractError> {
+        let cfg = CONFIG.load(deps.storage)?;
+
+        Ok((env.block.time.seconds() - cfg.last_charged) / cfg.interest_charge_period)
+    }
+
+    /// Values that should be updated when interest is charged for all pending charge periods
+    struct InterestUpdate {
+        /// The new RESERVE value
+        reserve: Uint128,
+        /// The ratio to rebase LTokens by
+        ltoken_ratio: Decimal,
+        /// The ratio to rebase BTokens by
+        btoken_ratio: Decimal,
+    }
+
+    /// Calculates new values after applying all pending interest charges
+    fn calculate_interest(
+        deps: Deps,
+        epochs_passed: u64,
+    ) -> Result<Option<InterestUpdate>, ContractError> {
+        let cfg = CONFIG.load(deps.storage)?;
+
+        let charged_time = epochs_passed * cfg.interest_charge_period;
+
+        let tokens_info = query::token_info(deps, &cfg)?;
 
         let supplied = tokens_info.ltoken.total_supply.display_amount();
         let borrowed = tokens_info.btoken.total_supply.display_amount();
 
         // safety - if there are no ltokens, don't charge interest (would panic later)
         if supplied == Uint128::zero() {
-            return Ok(vec![]);
+            return Ok(None);
         }
 
         let interest = query::interest(&cfg, &tokens_info)?;
@@ -290,16 +343,6 @@ mod execute {
         // Add to reserve only portion of money charged here
         let charged_interest = btoken_ratio * borrowed;
         let reserve = old_reserve + cfg.reserve_factor * charged_interest;
-        RESERVE.save(deps.storage, &reserve)?;
-
-        let btoken_rebase = to_binary(&ExecuteMsg::Rebase {
-            ratio: btoken_ratio + Decimal::one(),
-        })?;
-        let bwrapped = SubMsg::new(WasmMsg::Execute {
-            contract_addr: cfg.btoken_contract.to_string(),
-            msg: btoken_rebase,
-            funds: vec![],
-        });
 
         // remember to add old reserve balance into supplied tokens
         let base_asset_balance = supplied + old_reserve - borrowed;
@@ -309,16 +352,11 @@ mod execute {
         // lMul = b_supply() * ratio / l_supply
         let ltoken_ratio: Decimal = Decimal::from_ratio(borrowed * btoken_ratio, l_supply);
 
-        let ltoken_rebase = to_binary(&ExecuteMsg::Rebase {
-            ratio: ltoken_ratio + Decimal::one(),
-        })?;
-        let lwrapped = SubMsg::new(WasmMsg::Execute {
-            contract_addr: cfg.ltoken_contract.to_string(),
-            msg: ltoken_rebase,
-            funds: vec![],
-        });
-
-        Ok(vec![bwrapped, lwrapped])
+        Ok(Some(InterestUpdate {
+            reserve,
+            ltoken_ratio,
+            btoken_ratio,
+        }))
     }
 
     /// Validates funds sent with the message, that they contain only the base asset. Returns
