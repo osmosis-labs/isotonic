@@ -12,7 +12,7 @@ use super::ca_mock::{
 };
 use crate::msg::{
     ExecuteMsg, InstantiateMsg, InterestResponse, MigrateMsg, QueryMsg, ReserveResponse, SudoMsg,
-    TransferableAmountResponse,
+    TokensBalanceResponse, TransferableAmountResponse,
 };
 use crate::state::Config;
 
@@ -101,6 +101,11 @@ impl SuiteBuilder {
 
     pub fn with_market_token(mut self, denom: impl Into<String>) -> Self {
         self.market_token = denom.into();
+        self
+    }
+
+    pub fn with_charge_period(mut self, charge_period: u64) -> Self {
+        self.interest_charge_period = charge_period;
         self
     }
 
@@ -429,6 +434,17 @@ impl Suite {
         Ok(resp)
     }
 
+    /// Queries the tokens balance of the account
+    pub fn query_tokens_balance(&self, account: impl ToString) -> AnyResult<TokensBalanceResponse> {
+        let resp: TokensBalanceResponse = self.app.wrap().query_wasm_smart(
+            self.contract.clone(),
+            &QueryMsg::TokensBalance {
+                account: account.to_string(),
+            },
+        )?;
+        Ok(resp)
+    }
+
     /// Queries btoken contract for token info
     pub fn query_btoken_info(&self) -> AnyResult<isotonic_token::msg::TokenInfoResponse> {
         let btoken = self.btoken_contract.clone();
@@ -574,5 +590,15 @@ impl Suite {
             contract,
             &SudoMsg::AdjustInterestRates { new_interest_rates },
         )
+    }
+
+    pub fn assert_ltoken_balance(&self, account: impl ToString, amount: impl Into<Uint128>) {
+        let balance = self.query_tokens_balance(account).unwrap();
+        assert_eq!(balance.ltokens, amount.into());
+    }
+
+    pub fn assert_btoken_balance(&self, account: impl ToString, amount: impl Into<Uint128>) {
+        let balance = self.query_tokens_balance(account).unwrap();
+        assert_eq!(balance.btokens, amount.into());
     }
 }
