@@ -5,7 +5,7 @@ use cw2::set_contract_version;
 use cw_utils::parse_reply_instantiate_data;
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, SudoMsg};
 use crate::state::{Config, CONFIG, NEXT_REPLY_ID};
 
 // version info for migration info
@@ -365,5 +365,99 @@ mod reply {
         )?;
 
         Ok(Response::new().add_attribute(format!("market_{}", market_token), addr))
+    }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn sudo(deps: DepsMut, _env: Env, msg: SudoMsg) -> Result<Response, ContractError> {
+    use SudoMsg::*;
+    match msg {
+        AdjustMarketId { new_market_id } => sudo::adjust_market_id(deps, new_market_id),
+        AdjustTokenId { new_token_id } => sudo::adjust_token_id(deps, new_token_id),
+        AdjustCommonToken { new_common_token } => sudo::adjust_common_token(deps, new_common_token),
+        MigrateMarket {
+            contract,
+            migrate_msg,
+        } => sudo::migrate_market(deps, contract, migrate_msg),
+    }
+}
+
+mod sudo {
+    use super::*;
+    use crate::state::{MarketState, MARKETS};
+
+    use cosmwasm_std::{Order, SubMsg, WasmMsg};
+
+    use lendex_market::msg::{ExecuteMsg as MarketExecuteMsg, MigrateMsg as MarketMigrateMsg};
+
+    pub fn adjust_market_id(deps: DepsMut, new_market_id: u64) -> Result<Response, ContractError> {
+        let mut cfg = CONFIG.load(deps.storage)?;
+        cfg.lendex_market_id = new_market_id;
+        CONFIG.save(deps.storage, &cfg)?;
+        Ok(Response::new())
+    }
+
+    pub fn adjust_token_id(deps: DepsMut, new_token_id: u64) -> Result<Response, ContractError> {
+        let mut cfg = CONFIG.load(deps.storage)?;
+        cfg.lendex_token_id = new_token_id;
+        CONFIG.save(deps.storage, &cfg)?;
+        Ok(Response::new())
+    }
+
+    pub fn adjust_common_token(
+        deps: DepsMut,
+        new_common_token: String,
+    ) -> Result<Response, ContractError> {
+        let mut cfg = CONFIG.load(deps.storage)?;
+        cfg.common_token = new_common_token.clone();
+        CONFIG.save(deps.storage, &cfg)?;
+
+        let msg = to_binary(&MarketExecuteMsg::AdjustCommonToken {
+            new_token: new_common_token,
+        })?;
+        let messages = MARKETS
+            .range(deps.storage, None, None, Order::Ascending)
+            .filter_map(|m| match m {
+                Ok((_, MarketState::Ready(addr))) => Some(SubMsg::new(WasmMsg::Execute {
+                    contract_addr: addr.to_string(),
+                    msg: msg.clone(),
+                    funds: vec![],
+                })),
+                _ => None,
+            })
+            .collect::<Vec<SubMsg>>();
+
+        Ok(Response::new().add_submessages(messages))
+    }
+
+    fn find_market(deps: Deps, market_addr: &Addr) -> bool {
+        let found = MARKETS
+            .range(deps.storage, None, None, Order::Ascending)
+            .find(|m| match m {
+                Ok((_, MarketState::Ready(addr))) => market_addr == addr,
+                _ => false,
+            });
+        found.is_some()
+    }
+
+    pub fn migrate_market(
+        deps: DepsMut,
+        contract_addr: String,
+        migrate_msg: MarketMigrateMsg,
+    ) -> Result<Response, ContractError> {
+        let cfg = CONFIG.load(deps.storage)?;
+        let contract = deps.api.addr_validate(&contract_addr)?;
+
+        if !find_market(deps.as_ref(), &contract) {
+            return Err(ContractError::MarketSearchError {
+                market: contract_addr,
+            });
+        }
+
+        Ok(Response::new().add_message(WasmMsg::Migrate {
+            contract_addr,
+            new_code_id: cfg.lendex_market_id,
+            msg: to_binary(&migrate_msg)?,
+        }))
     }
 }

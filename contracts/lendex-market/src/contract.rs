@@ -2,14 +2,15 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     coin, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    MessageInfo, Reply, Response, StdResult, SubMsg, Timestamp, Uint128, WasmMsg,
+    MessageInfo, Reply, Response, StdError, StdResult, SubMsg, Timestamp, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw_utils::parse_reply_instantiate_data;
 
 use crate::error::ContractError;
 use crate::msg::{
-    ExecuteMsg, InstantiateMsg, QueryMsg, QueryTotalCreditLine, SudoMsg, TransferableAmountResponse,
+    ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, QueryTotalCreditLine, SudoMsg,
+    TransferableAmountResponse,
 };
 use crate::state::{Config, CONFIG, RESERVE, SECONDS_IN_YEAR};
 
@@ -170,6 +171,9 @@ pub fn execute(
                 amount,
                 liquidation_price,
             )
+        }
+        AdjustCommonToken { new_token } => {
+            execute::adjust_common_token(deps, info.sender, new_token)
         }
     }
 }
@@ -638,6 +642,24 @@ mod execute {
             .add_submessage(transfer_msg);
         Ok(response)
     }
+
+    /// Handler for `ExecuteMsg::AdjustCommonToken`
+    pub fn adjust_common_token(
+        deps: DepsMut,
+        sender: Addr,
+        new_token: String,
+    ) -> Result<Response, ContractError> {
+        let mut cfg = CONFIG.load(deps.storage)?;
+
+        if sender != cfg.credit_agency {
+            return Err(ContractError::Unauthorized {});
+        }
+
+        cfg.common_token = new_token;
+
+        CONFIG.save(deps.storage, &cfg)?;
+        Ok(Response::new())
+    }
 }
 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
@@ -905,4 +927,16 @@ mod sudo {
         CONFIG.save(deps.storage, &cfg)?;
         Ok(response)
     }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+    CONFIG.update::<_, StdError>(deps.storage, |mut cfg| {
+        if let Some(token_id) = msg.lendex_token_id {
+            cfg.token_id = token_id;
+        }
+        Ok(cfg)
+    })?;
+
+    Ok(Response::new())
 }

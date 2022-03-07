@@ -55,4 +55,7 @@ pub enum ContractError {
 
     #[error("{0}")]
     InvalidCommonTokenDenom(#[from] InvalidCommonTokenDenom),
+
+    #[error("{market}: Market either does not exist or is not active yet")]
+    MarketSearchError { market: String },
 }

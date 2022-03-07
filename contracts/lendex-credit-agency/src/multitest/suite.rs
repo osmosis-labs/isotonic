@@ -30,6 +30,7 @@ fn contract_credit_agency() -> Box<dyn Contract<Empty>> {
         crate::contract::instantiate,
         crate::contract::query,
     )
+    .with_sudo(crate::contract::sudo)
     .with_reply(crate::contract::reply);
 
     Box::new(contract)
@@ -41,7 +42,8 @@ fn contract_market() -> Box<dyn Contract<Empty>> {
         lendex_market::contract::instantiate,
         lendex_market::contract::query,
     )
-    .with_reply(lendex_market::contract::reply);
+    .with_reply(lendex_market::contract::reply)
+    .with_migrate(lendex_market::contract::migrate);
 
     Box::new(contract)
 }

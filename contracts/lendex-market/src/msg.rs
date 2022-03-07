@@ -42,15 +42,22 @@ pub enum ExecuteMsg {
     Deposit {},
     /// This requests to withdraw the amount of L Tokens. More specifically,
     /// the contract will burn amount L Tokens and return that to the lender in base asset.
-    Withdraw { amount: Uint128 },
+    Withdraw {
+        amount: Uint128,
+    },
     /// If sent tokens' denom matches market_token, burns tokens from sender's address
     Repay {},
     /// Dispatches two messages, one to mint amount of BToken for this sender,
     /// and the other to send amount base asset to the sender
-    Borrow { amount: Uint128 },
+    Borrow {
+        amount: Uint128,
+    },
     /// Helper to allow repay of debt on given account. Transfers and burns btokens.
     /// Sender must be a Credit Agency
-    RepayTo { account: String, amount: Uint128 },
+    RepayTo {
+        account: String,
+        amount: Uint128,
+    },
     /// Helper to allow transfering Ltokens from account source to account destination.
     /// Sender must be a Credit Agency
     TransferFrom {
@@ -58,6 +65,9 @@ pub enum ExecuteMsg {
         destination: String,
         amount: Coin,
         liquidation_price: Decimal,
+    },
+    AdjustCommonToken {
+        new_token: String,
     },
 }
 
@@ -93,6 +103,12 @@ pub enum SudoMsg {
     AdjustPriceOracle { new_oracle: String },
     AdjustMarketCap { new_cap: Option<Uint128> },
     AdjustInterestRates { new_interest_rates: Interest },
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[serde(rename_all = "snake_case")]
+pub struct MigrateMsg {
+    pub lendex_token_id: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
