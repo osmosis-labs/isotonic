@@ -11,7 +11,7 @@ use utils::{interest::Interest, time::Duration};
 
 use crate::msg::{
     ExecuteMsg, InstantiateMsg, IsOnMarketResponse, ListEnteredMarketsResponse,
-    ListMarketsResponse, MarketConfig, MarketResponse, QueryMsg,
+    ListMarketsResponse, MarketConfig, MarketResponse, QueryMsg, SudoMsg
 };
 use crate::state::Config;
 
@@ -67,6 +67,7 @@ pub struct SuiteBuilder {
     /// Initial funds to provide for testing
     funds: Vec<(Addr, Vec<Coin>)>,
     liquidation_price: Decimal,
+    common_token: String,
 }
 
 impl SuiteBuilder {
@@ -76,6 +77,7 @@ impl SuiteBuilder {
             reward_token: "reward".to_string(),
             funds: vec![],
             liquidation_price: Decimal::percent(92),
+            common_token: "common".to_owned(),
         }
     }
 
@@ -100,11 +102,16 @@ impl SuiteBuilder {
         self
     }
 
+    pub fn with_common_token(mut self, common_token: &str) -> Self {
+        self.common_token = common_token.to_owned();
+        self
+    }
+
     #[track_caller]
     pub fn build(self) -> Suite {
         let mut app = App::default();
         let owner = Addr::unchecked("owner");
-        let common_token = "common".to_owned();
+        let common_token = self.common_token;
 
         let oracle_id = app.store_code(contract_oracle());
         let oracle_contract = app
@@ -457,5 +464,38 @@ impl Suite {
             },
         )?;
         Ok(resp)
+    }
+
+    /// Queries configuration from market selected by denom
+    pub fn query_market_config(&self, denom: &str) -> AnyResult<lendex_market::state::Config> {
+        let market = self.query_market(denom)?;
+
+        let resp: lendex_market::state::Config = self
+            .app
+            .wrap()
+            .query_wasm_smart(market.market, &MarketQueryMsg::Configuration {})?;
+        Ok(resp)
+    }
+
+    pub fn sudo_adjust_market_id(&mut self, new_market_id: u64) -> AnyResult<AppResponse> {
+        let contract = self.contract.clone();
+        self.app
+            .wasm_sudo(contract, &SudoMsg::AdjustMarketId { new_market_id })
+    }
+
+    pub fn sudo_adjust_token_id(&mut self, new_token_id: u64) -> AnyResult<AppResponse> {
+        let contract = self.contract.clone();
+        self.app
+            .wasm_sudo(contract, &SudoMsg::AdjustTokenId { new_token_id })
+    }
+
+    pub fn sudo_adjust_common_token(&mut self, new_common_token: &str) -> AnyResult<AppResponse> {
+        let contract = self.contract.clone();
+        self.app.wasm_sudo(
+            contract,
+            &SudoMsg::AdjustCommonToken {
+                new_common_token: new_common_token.to_owned(),
+            },
+        )
     }
 }
