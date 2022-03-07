@@ -37,6 +37,13 @@ pub enum ExecuteMsg {
     EnterMarket {
         account: String,
     },
+    /// Exits market if:
+    /// * Sender have no BTokens in the market
+    /// * Sender have no LTokens in the market, or collateral provided by owned LTokens
+    ///   is not affecting liquidity of sender
+    ExitMarket {
+        market: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -80,6 +87,19 @@ pub enum QueryMsg {
     /// and returns sum of all of them.
     /// Returns CreditLineResponse
     TotalCreditLine { account: String },
+    /// Lists all markets which address entered. Pagination by market contract address. Mostly for
+    /// verification purposes, but may be useful to verify if there are some obsolete markets to
+    /// leave.
+    /// Returns `ListEnteredMarketsResponse`
+    ListEnteredMarkets {
+        account: String,
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+    /// Checks if account is a member of particular market. Useful to ensure if the account is
+    /// included in market before leaving it (to not waste tokens on obsolete call).
+    /// Returns `IsOnMarketResponse`
+    IsOnMarket { account: String, market: String },
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -111,4 +131,14 @@ pub struct MarketResponse {
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct ListMarketsResponse {
     pub markets: Vec<MarketResponse>,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct ListEnteredMarketsResponse {
+    pub markets: Vec<Addr>,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct IsOnMarketResponse {
+    pub participating: bool,
 }

@@ -10,7 +10,8 @@ use utils::credit_line::CreditLineResponse;
 use utils::{interest::Interest, time::Duration};
 
 use crate::msg::{
-    ExecuteMsg, InstantiateMsg, ListMarketsResponse, MarketConfig, MarketResponse, QueryMsg,
+    ExecuteMsg, InstantiateMsg, IsOnMarketResponse, ListEnteredMarketsResponse,
+    ListMarketsResponse, MarketConfig, MarketResponse, QueryMsg,
 };
 use crate::state::Config;
 
@@ -226,6 +227,28 @@ impl Suite {
         )
     }
 
+    pub fn enter_market(&mut self, market: &str, addr: &str) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            Addr::unchecked(market),
+            self.contract.clone(),
+            &ExecuteMsg::EnterMarket {
+                account: addr.to_owned(),
+            },
+            &[],
+        )
+    }
+
+    pub fn exit_market(&mut self, addr: &str, market: &str) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            Addr::unchecked(addr),
+            self.contract.clone(),
+            &ExecuteMsg::ExitMarket {
+                market: market.to_owned(),
+            },
+            &[],
+        )
+    }
+
     pub fn common_token(&self) -> &str {
         &self.common_token
     }
@@ -384,6 +407,40 @@ impl Suite {
             &MarketExecuteMsg::Repay {},
             &[tokens],
         )
+    }
+
+    pub fn list_entered_markets(
+        &self,
+        account: &str,
+        start_after: impl Into<Option<String>>,
+        limit: impl Into<Option<u32>>,
+    ) -> AnyResult<Vec<Addr>> {
+        let resp: ListEnteredMarketsResponse = self.app.wrap().query_wasm_smart(
+            Addr::unchecked(&self.contract),
+            &QueryMsg::ListEnteredMarkets {
+                account: account.to_owned(),
+                start_after: start_after.into(),
+                limit: limit.into(),
+            },
+        )?;
+
+        Ok(resp.markets)
+    }
+
+    pub fn list_all_entered_markets(&self, account: &str) -> AnyResult<Vec<Addr>> {
+        self.list_entered_markets(account, None, None)
+    }
+
+    pub fn is_on_market(&self, account: &str, market: &str) -> AnyResult<bool> {
+        let resp: IsOnMarketResponse = self.app.wrap().query_wasm_smart(
+            Addr::unchecked(&self.contract),
+            &QueryMsg::IsOnMarket {
+                account: account.to_owned(),
+                market: market.to_owned(),
+            },
+        )?;
+
+        Ok(resp.participating)
     }
 
     /// Queries l/btokens balance on market pointed by denom for given account

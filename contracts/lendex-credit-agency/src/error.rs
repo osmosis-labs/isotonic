@@ -1,4 +1,4 @@
-use cosmwasm_std::{StdError, Uint128};
+use cosmwasm_std::{Addr, Coin, StdError, Uint128};
 use utils::{credit_line::InvalidCommonTokenDenom, price::PriceError};
 
 use thiserror::Error;
@@ -58,4 +58,21 @@ pub enum ContractError {
 
     #[error("{market}: Market either does not exist or is not active yet")]
     MarketSearchError { market: String },
+
+    #[error("{address} is not on a market {market}")]
+    NotOnMarket { address: Addr, market: Addr },
+
+    #[error("{address} has dept on market {market} of {debt}")]
+    DebtOnMarket {
+        address: Addr,
+        market: Addr,
+        debt: Coin,
+    },
+
+    #[error("Not enough credit line left after operation, total dept: {debt}, total credit line: credit_line, total collateral: {collateral}")]
+    NotEnoughCollat {
+        debt: Uint128,
+        credit_line: Uint128,
+        collateral: Uint128,
+    },
 }

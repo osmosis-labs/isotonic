@@ -8,6 +8,8 @@ use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, SudoMsg};
 use crate::state::{Config, CONFIG, NEXT_REPLY_ID};
 
+use either::Either;
+
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:lendex-credit-agency";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -60,6 +62,10 @@ pub fn execute(
             let account = deps.api.addr_validate(&account)?;
             exec::enter_market(deps, info, account)
         }
+        ExitMarket { market } => {
+            let market = deps.api.addr_validate(&market)?;
+            exec::exit_market(deps, info, market)
+        }
     }
 }
 
@@ -67,7 +73,10 @@ mod exec {
     use super::*;
 
     use cosmwasm_std::{ensure_eq, StdError, SubMsg, WasmMsg};
-    use utils::price::{coin_times_price_rate, PriceRate};
+    use utils::{
+        credit_line::{CreditLineResponse, CreditLineValues},
+        price::{coin_times_price_rate, PriceRate},
+    };
 
     use crate::{
         msg::MarketConfig,
@@ -225,6 +234,79 @@ mod exec {
             .add_attribute("market", market)
             .add_attribute("account", account))
     }
+
+    pub fn exit_market(
+        deps: DepsMut,
+        info: MessageInfo,
+        market: Addr,
+    ) -> Result<Response, ContractError> {
+        let common_token = CONFIG.load(deps.storage)?.common_token;
+        let mut markets = ENTERED_MARKETS
+            .may_load(deps.storage, &info.sender)?
+            .unwrap_or_default();
+
+        if !markets.contains(&market) {
+            return Err(ContractError::NotOnMarket {
+                address: info.sender,
+                market: market.clone(),
+            });
+        }
+
+        let market_credit_line: CreditLineResponse = deps.querier.query_wasm_smart(
+            market.clone(),
+            &MarketQueryMsg::CreditLine {
+                account: info.sender.to_string(),
+            },
+        )?;
+
+        if !market_credit_line.debt.amount.is_zero() {
+            return Err(ContractError::DebtOnMarket {
+                address: info.sender,
+                market,
+                debt: market_credit_line.debt,
+            });
+        }
+
+        // It can be removed before everything is checked, as if anything would fail, this removal
+        // would not be applied. And in `reduced_credit_line` we don't want this market to be
+        // there, so removing early.
+        markets.remove(&market);
+
+        let reduced_credit_line = markets
+            .iter()
+            .map(|market| -> Result<CreditLineValues, ContractError> {
+                let price_response: CreditLineResponse = deps.querier.query_wasm_smart(
+                    market.clone(),
+                    &MarketQueryMsg::CreditLine {
+                        account: info.sender.to_string(),
+                    },
+                )?;
+                let price_response = price_response.validate(&common_token)?;
+                Ok(price_response)
+            })
+            .try_fold(
+                CreditLineValues::zero(),
+                |total, credit_line| match credit_line {
+                    Ok(cl) => Ok(total + cl),
+                    Err(err) => Err(err),
+                },
+            )?;
+
+        if reduced_credit_line.credit_line < reduced_credit_line.debt {
+            return Err(ContractError::NotEnoughCollat {
+                debt: reduced_credit_line.debt,
+                credit_line: reduced_credit_line.credit_line,
+                collateral: reduced_credit_line.collateral,
+            });
+        }
+
+        ENTERED_MARKETS.save(deps.storage, &info.sender, &markets)?;
+
+        Ok(Response::new()
+            .add_attribute("action", "exit_market")
+            .add_attribute("market", market)
+            .add_attribute("account", info.sender))
+    }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -238,6 +320,12 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractErr
             to_binary(&query::list_markets(deps, start_after, limit)?)?
         }
         TotalCreditLine { account } => to_binary(&query::total_credit_line(deps, account)?)?,
+        ListEnteredMarkets {
+            account,
+            start_after,
+            limit,
+        } => to_binary(&query::entered_markets(deps, account, start_after, limit)?)?,
+        IsOnMarket { account, market } => to_binary(&query::is_on_market(deps, account, market)?)?,
     };
 
     Ok(res)
@@ -250,7 +338,9 @@ mod query {
     use utils::credit_line::{CreditLineResponse, CreditLineValues};
 
     use crate::{
-        msg::{ListMarketsResponse, MarketResponse},
+        msg::{
+            IsOnMarketResponse, ListEnteredMarketsResponse, ListMarketsResponse, MarketResponse,
+        },
         state::{ENTERED_MARKETS, MARKETS},
     };
 
@@ -330,6 +420,49 @@ mod query {
             .iter()
             .sum();
         Ok(total_credit_line.make_response(common_token))
+    }
+
+    pub fn entered_markets(
+        deps: Deps,
+        account: String,
+        start_after: Option<String>,
+        limit: Option<u32>,
+    ) -> Result<ListEnteredMarketsResponse, ContractError> {
+        let account = Addr::unchecked(&account);
+        let markets = ENTERED_MARKETS
+            .may_load(deps.storage, &account)?
+            .unwrap_or_default()
+            .into_iter();
+
+        let markets = if let Some(start_after) = &start_after {
+            Either::Left(
+                markets
+                    .skip_while(move |market| market != start_after)
+                    .skip(1),
+            )
+        } else {
+            Either::Right(markets)
+        };
+
+        let markets = markets.take(limit.unwrap_or(u32::MAX) as usize).collect();
+
+        Ok(ListEnteredMarketsResponse { markets })
+    }
+
+    pub fn is_on_market(
+        deps: Deps,
+        account: String,
+        market: String,
+    ) -> Result<IsOnMarketResponse, ContractError> {
+        let account = Addr::unchecked(&account);
+        let market = Addr::unchecked(&market);
+        let markets = ENTERED_MARKETS
+            .may_load(deps.storage, &account)?
+            .unwrap_or_default();
+
+        Ok(IsOnMarketResponse {
+            participating: markets.contains(&market),
+        })
     }
 }
 
