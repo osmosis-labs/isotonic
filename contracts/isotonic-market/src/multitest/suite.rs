@@ -601,4 +601,14 @@ impl Suite {
         let balance = self.query_tokens_balance(account).unwrap();
         assert_eq!(balance.btokens, amount.into());
     }
+
+    pub fn assert_debt(&self, account: impl ToString, amount: u128) {
+        let crl = self.query_credit_line(account).unwrap();
+        assert_eq!(crl.debt.amount, amount.into());
+    }
+
+    pub fn assert_collateral(&self, account: impl ToString, amount: u128) {
+        let crl = self.query_credit_line(account).unwrap();
+        assert_eq!(crl.collateral.amount, amount.into());
+    }
 }

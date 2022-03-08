@@ -659,7 +659,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractErro
         PriceMarketLocalPerCommon {} => to_binary(&query::price_market_local_per_common(deps)?)?,
         CreditLine { account } => {
             let account = deps.api.addr_validate(&account)?;
-            to_binary(&query::credit_line(deps, account)?)?
+            to_binary(&query::credit_line(deps, env, account)?)?
         }
         Reserve {} => to_binary(&query::reserve(deps, env)?)?,
     };
@@ -811,10 +811,21 @@ mod query {
     }
 
     /// Handler for `QueryMsg::CreditLine`
-    pub fn credit_line(deps: Deps, account: Addr) -> Result<CreditLineResponse, ContractError> {
+    pub fn credit_line(
+        deps: Deps,
+        env: Env,
+        account: Addr,
+    ) -> Result<CreditLineResponse, ContractError> {
         let config = CONFIG.load(deps.storage)?;
-        let collateral = ltoken_balance(deps, &config, &account)?;
-        let debt = btoken_balance(deps, &config, &account)?;
+        let mut collateral = ltoken_balance(deps, &config, &account)?;
+        let mut debt = btoken_balance(deps, &config, &account)?;
+
+        // Simulate charging interest for any periods `charge_interest` wasn't called for yet
+        if let Some(update) = calculate_interest(deps, epochs_passed(&config, env)?)? {
+            collateral.amount += collateral.amount * update.ltoken_ratio;
+            debt.amount += debt.amount * update.btoken_ratio;
+        }
+
         if collateral.amount.is_zero() && debt.amount.is_zero() {
             return Ok(CreditLineValues::zero().make_response(config.common_token));
         }
