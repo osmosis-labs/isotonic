@@ -3,6 +3,8 @@ use cosmwasm_std::{coin, coins, Addr, Decimal};
 use super::suite::SuiteBuilder;
 use crate::error::ContractError;
 
+use utils::token::Token;
+
 #[test]
 fn enter_market() {
     // This test does not test full flow in which market would be entered on first market operation - it
@@ -83,10 +85,10 @@ fn enter_market_by_borrow() {
         .unwrap();
 
     suite
-        .oracle_set_price_market_per_common(denom1, Decimal::one())
+        .oracle_set_price_market_per_common(Token::Native(denom1.to_owned()), Decimal::one())
         .unwrap();
     suite
-        .oracle_set_price_market_per_common(denom2, Decimal::one())
+        .oracle_set_price_market_per_common(Token::Native(denom2.to_owned()), Decimal::one())
         .unwrap();
 
     // Creating some liquidity on actor1
@@ -191,10 +193,10 @@ fn cent_exit_market_with_borrowed_tokens() {
         .unwrap();
 
     suite
-        .oracle_set_price_market_per_common(denom1, Decimal::one())
+        .oracle_set_price_market_per_common(Token::Native(denom1.to_owned()), Decimal::one())
         .unwrap();
     suite
-        .oracle_set_price_market_per_common(denom2, Decimal::one())
+        .oracle_set_price_market_per_common(Token::Native(denom2.to_owned()), Decimal::one())
         .unwrap();
 
     suite
@@ -218,7 +220,7 @@ fn cent_exit_market_with_borrowed_tokens() {
         ContractError::DebtOnMarket {
             address: Addr::unchecked(actor1),
             market: market2.clone(),
-            debt: coin(200, suite.common_token()),
+            debt: coin(200, &suite.common_token().clone().native().unwrap()),
         },
         err.downcast().unwrap()
     );
@@ -259,10 +261,10 @@ fn cent_exit_market_with_not_enough_liquidity() {
         .unwrap();
 
     suite
-        .oracle_set_price_market_per_common(denom1, Decimal::one())
+        .oracle_set_price_market_per_common(Token::Native(denom1.to_owned()), Decimal::one())
         .unwrap();
     suite
-        .oracle_set_price_market_per_common(denom2, Decimal::one())
+        .oracle_set_price_market_per_common(Token::Native(denom2.to_owned()), Decimal::one())
         .unwrap();
 
     suite
@@ -332,13 +334,13 @@ fn exit_market_with_ltokens() {
         .unwrap();
 
     suite
-        .oracle_set_price_market_per_common(denom1, Decimal::one())
+        .oracle_set_price_market_per_common(Token::Native(denom1.to_owned()), Decimal::one())
         .unwrap();
     suite
-        .oracle_set_price_market_per_common(denom2, Decimal::one())
+        .oracle_set_price_market_per_common(Token::Native(denom2.to_owned()), Decimal::one())
         .unwrap();
     suite
-        .oracle_set_price_market_per_common(denom3, Decimal::one())
+        .oracle_set_price_market_per_common(Token::Native(denom3.to_owned()), Decimal::one())
         .unwrap();
 
     suite

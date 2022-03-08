@@ -1,0 +1,41 @@
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+/// Universal token type which is either a native token, or cw20 token
+#[derive(
+    Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema, PartialOrd, Ord, Hash,
+)]
+pub enum Token {
+    /// Native token of given name
+    Native(String),
+    /// Cw20 token with its cw20 contract address
+    Cw20(String),
+}
+
+impl Token {
+    /// Return native token name or `None`
+    pub fn native(self) -> Option<String> {
+        match self {
+            Token::Native(token) => Some(token),
+            _ => None,
+        }
+    }
+
+    /// Returns cw20 token address or `None`
+    pub fn cw20(self) -> Option<String> {
+        match self {
+            Token::Cw20(addr) => Some(addr),
+            _ => None,
+        }
+    }
+
+    /// Checks is token is native
+    pub fn is_native(&self) -> bool {
+        matches!(self, Token::Native(_))
+    }
+
+    /// Checks is token is cw20
+    pub fn is_cw20(&self) -> bool {
+        matches!(self, Token::Cw20(_))
+    }
+}

@@ -42,9 +42,14 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::SetPrice { sell, buy, rate } => {
-            exec::set_price(deps, env, info, &sell, &buy, rate)
-        }
+        ExecuteMsg::SetPrice { sell, buy, rate } => exec::set_price(
+            deps,
+            env,
+            info,
+            &sell.native().ok_or(ContractError::Cw20TokensNotSupported)?,
+            &buy.native().ok_or(ContractError::Cw20TokensNotSupported)?,
+            rate,
+        ),
     }
 }
 
@@ -54,7 +59,12 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractErro
 
     let res = match msg {
         Configuration {} => to_binary(&CONFIG.load(deps.storage)?)?,
-        Price { sell, buy } => to_binary(&query::price(deps, env, &sell, &buy)?)?,
+        Price { sell, buy } => to_binary(&query::price(
+            deps,
+            env,
+            &sell.native().ok_or(ContractError::Cw20TokensNotSupported)?,
+            &buy.native().ok_or(ContractError::Cw20TokensNotSupported)?,
+        )?)?,
     };
 
     Ok(res)
@@ -120,6 +130,7 @@ mod tests {
 
     use crate::msg::PriceResponse;
     use utils::time::Duration;
+    use utils::token::Token;
 
     use super::*;
 
@@ -144,8 +155,8 @@ mod tests {
             mock_env(),
             mock_info(setter, &[]),
             ExecuteMsg::SetPrice {
-                sell: sell.to_string(),
-                buy: buy.to_string(),
+                sell: Token::Native(sell.to_string()),
+                buy: Token::Native(buy.to_string()),
                 rate,
             },
         )
@@ -161,8 +172,8 @@ mod tests {
             deps,
             env,
             QueryMsg::Price {
-                sell: sell.to_string(),
-                buy: buy.to_string(),
+                sell: Token::Native(sell.to_string()),
+                buy: Token::Native(buy.to_string()),
             },
         )?;
         Ok(from_slice(&raw)?)

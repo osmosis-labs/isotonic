@@ -5,6 +5,7 @@ use isotonic_token::error::ContractError as TokenContractError;
 
 use cosmwasm_std::{coin, coins, Decimal, Uint128};
 use utils::credit_line::{CreditLineResponse, CreditLineValues};
+use utils::token::Token;
 
 const YEAR_IN_SECONDS: u64 = 31_556_736;
 
@@ -31,7 +32,7 @@ fn send_more_then_one_denom() {
             liquidator,
             debtor,
             &[coin(100, denom), coin(100, other_denom)],
-            denom.to_owned(),
+            Token::Native(denom.to_owned()),
         )
         .unwrap_err();
     assert_eq!(
@@ -59,7 +60,7 @@ fn account_doesnt_have_debt_bigger_then_credit_line() {
         .unwrap();
 
     suite
-        .oracle_set_price_market_per_common(denom, Decimal::percent(100))
+        .oracle_set_price_market_per_common(Token::Native(denom.to_owned()), Decimal::percent(100))
         .unwrap();
 
     suite
@@ -74,7 +75,7 @@ fn account_doesnt_have_debt_bigger_then_credit_line() {
             credit_line: Uint128::new(400),
             debt: Uint128::zero()
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone().native().unwrap())
     );
 
     // debt must be higher then credit line, so 400 debt with 400 credit line won't allow liquidation
@@ -90,7 +91,12 @@ fn account_doesnt_have_debt_bigger_then_credit_line() {
         } if debt.amount == Uint128::new(400)));
 
     let err = suite
-        .liquidate(liquidator, debtor, &coins(400, denom), denom.to_owned())
+        .liquidate(
+            liquidator,
+            debtor,
+            &coins(400, denom),
+            Token::Native(denom.to_owned()),
+        )
         .unwrap_err();
     assert_eq!(
         ContractError::LiquidationNotAllowed {},
@@ -117,7 +123,7 @@ fn liquidating_whole_debt() {
         .unwrap();
 
     suite
-        .oracle_set_price_market_per_common(denom, Decimal::percent(100))
+        .oracle_set_price_market_per_common(Token::Native(denom.to_owned()), Decimal::percent(100))
         .unwrap();
 
     suite
@@ -132,7 +138,7 @@ fn liquidating_whole_debt() {
             credit_line: Uint128::new(400),
             debt: Uint128::zero()
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone().native().unwrap())
     );
 
     // debt must be higher then credit line, but debtor can borrow at most 400 tokens
@@ -165,11 +171,16 @@ fn liquidating_whole_debt() {
             credit_line: Uint128::new(460),
             debt: Uint128::new(474)
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone().native().unwrap())
     );
 
     suite
-        .liquidate(liquidator, debtor, &coins(474, denom), denom.to_owned())
+        .liquidate(
+            liquidator,
+            debtor,
+            &coins(474, denom),
+            Token::Native(denom.to_owned()),
+        )
         .unwrap();
 
     // Liquidation price is 0.92
@@ -183,7 +194,7 @@ fn liquidating_whole_debt() {
             credit_line: Uint128::new(48),
             debt: Uint128::new(1) // FIXME: Rounding issue
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone().native().unwrap())
     );
 
     let total_credit_line = suite.query_total_credit_line(liquidator).unwrap();
@@ -195,7 +206,7 @@ fn liquidating_whole_debt() {
             credit_line: Uint128::new(411),
             debt: Uint128::zero()
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone().native().unwrap())
     );
 }
 
@@ -219,7 +230,7 @@ fn receive_reward_in_different_denom_fails_if_theres_no_reward_market() {
         .unwrap();
 
     suite
-        .oracle_set_price_market_per_common(denom, Decimal::percent(100))
+        .oracle_set_price_market_per_common(Token::Native(denom.to_owned()), Decimal::percent(100))
         .unwrap();
 
     suite
@@ -233,7 +244,10 @@ fn receive_reward_in_different_denom_fails_if_theres_no_reward_market() {
     suite.advance_seconds(YEAR_IN_SECONDS);
 
     suite
-        .oracle_set_price_market_per_common(reward_denom, Decimal::percent(150))
+        .oracle_set_price_market_per_common(
+            Token::Native(reward_denom.to_owned()),
+            Decimal::percent(150),
+        )
         .unwrap();
 
     // Repay some tokens to trigger interest rate charges
@@ -246,7 +260,7 @@ fn receive_reward_in_different_denom_fails_if_theres_no_reward_market() {
             liquidator,
             debtor,
             &coins(474, denom),
-            reward_denom.to_owned(),
+            Token::Native(reward_denom.to_owned()),
         )
         .unwrap_err();
     assert_eq!(
@@ -287,10 +301,13 @@ fn receive_reward_different_denom_fails_if_debtor_has_not_enough_reward_tokens()
         .unwrap();
 
     suite
-        .oracle_set_price_market_per_common(denom, Decimal::percent(100))
+        .oracle_set_price_market_per_common(Token::Native(denom.to_owned()), Decimal::percent(100))
         .unwrap();
     suite
-        .oracle_set_price_market_per_common(reward_denom, Decimal::percent(25))
+        .oracle_set_price_market_per_common(
+            Token::Native(reward_denom.to_owned()),
+            Decimal::percent(25),
+        )
         .unwrap();
 
     suite
@@ -303,10 +320,13 @@ fn receive_reward_different_denom_fails_if_debtor_has_not_enough_reward_tokens()
     suite.advance_seconds(YEAR_IN_SECONDS);
 
     suite
-        .oracle_set_price_market_per_common(denom, Decimal::percent(100))
+        .oracle_set_price_market_per_common(Token::Native(denom.to_owned()), Decimal::percent(100))
         .unwrap();
     suite
-        .oracle_set_price_market_per_common(reward_denom, Decimal::percent(150))
+        .oracle_set_price_market_per_common(
+            Token::Native(reward_denom.to_owned()),
+            Decimal::percent(150),
+        )
         .unwrap();
 
     // Repay some tokens to trigger interest rate charges
@@ -327,7 +347,7 @@ fn receive_reward_different_denom_fails_if_debtor_has_not_enough_reward_tokens()
             credit_line: Uint128::new(831),
             debt: Uint128::new(855)
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone().native().unwrap())
     );
 
     let err = suite
@@ -335,7 +355,7 @@ fn receive_reward_different_denom_fails_if_debtor_has_not_enough_reward_tokens()
             liquidator,
             debtor,
             &coins(100, denom),
-            reward_denom.to_owned(),
+            Token::Native(reward_denom.to_owned()),
         )
         .unwrap_err();
     // Transferable amount is available balance / collateral ratio
@@ -388,10 +408,10 @@ fn receive_reward_in_different_denoms_no_interest_rates() {
         .unwrap();
 
     suite
-        .oracle_set_price_market_per_common(atom, Decimal::percent(400))
+        .oracle_set_price_market_per_common(Token::Native(atom.to_owned()), Decimal::percent(400))
         .unwrap();
     suite
-        .oracle_set_price_market_per_common(ust, Decimal::percent(10))
+        .oracle_set_price_market_per_common(Token::Native(ust.to_owned()), Decimal::percent(10))
         .unwrap();
 
     // debtor deposits 4000 ust
@@ -415,11 +435,11 @@ fn receive_reward_in_different_denoms_no_interest_rates() {
             credit_line: Uint128::new(8000), // 16000 collateral * 0.5 collateral price
             debt: Uint128::new(7500)         // 75_000 * 0.1
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone().native().unwrap())
     );
 
     suite
-        .oracle_set_price_market_per_common(atom, Decimal::percent(300))
+        .oracle_set_price_market_per_common(Token::Native(atom.to_owned()), Decimal::percent(300))
         .unwrap();
     let total_credit_line = suite.query_total_credit_line(debtor).unwrap();
     assert_eq!(
@@ -429,12 +449,17 @@ fn receive_reward_in_different_denoms_no_interest_rates() {
             credit_line: Uint128::new(6000), // 12000 collateral * 0.5 collateral price
             debt: Uint128::new(7500)         // 75_000 * 0.1
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone().native().unwrap())
     );
 
     // successful liquidation of 6000 tokens
     suite
-        .liquidate(liquidator, debtor, &coins(60_000, ust), atom.to_owned())
+        .liquidate(
+            liquidator,
+            debtor,
+            &coins(60_000, ust),
+            Token::Native(atom.to_owned()),
+        )
         .unwrap();
 
     // Liquidation price is 0.92
@@ -450,7 +475,7 @@ fn receive_reward_in_different_denoms_no_interest_rates() {
             // 7500 - (60_000 * 0.1)
             debt: Uint128::new(1500),
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone().native().unwrap())
     );
     let balance = suite.query_tokens_balance(ust, debtor).unwrap();
     assert_eq!(balance.btokens, Uint128::new(15000)); // 1500 / 0.1 price
@@ -530,10 +555,10 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
         .unwrap();
 
     suite
-        .oracle_set_price_market_per_common(atom, Decimal::percent(400))
+        .oracle_set_price_market_per_common(Token::Native(atom.to_owned()), Decimal::percent(400))
         .unwrap();
     suite
-        .oracle_set_price_market_per_common(ust, Decimal::percent(10))
+        .oracle_set_price_market_per_common(Token::Native(ust.to_owned()), Decimal::percent(10))
         .unwrap();
 
     // investments from the others
@@ -567,14 +592,14 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
             credit_line: Uint128::new(8000), // 16000 collateral * 0.5 collateral price
             debt: Uint128::new(7500)         // 75_000 * 0.1
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone().native().unwrap())
     );
 
     suite.advance_seconds(YEAR_IN_SECONDS / 2);
 
     // change ATOM price to 3.0 per common denom
     suite
-        .oracle_set_price_market_per_common(atom, Decimal::percent(300))
+        .oracle_set_price_market_per_common(Token::Native(atom.to_owned()), Decimal::percent(300))
         .unwrap();
 
     // current interest rates
@@ -588,7 +613,12 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
 
     // successful liquidation of 6000 tokens
     suite
-        .liquidate(liquidator, debtor, &coins(60_000, ust), atom.to_owned())
+        .liquidate(
+            liquidator,
+            debtor,
+            &coins(60_000, ust),
+            Token::Native(atom.to_owned()),
+        )
         .unwrap();
 
     // Liquidation price is 0.92
@@ -616,6 +646,6 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
             // 8375 - (60_000 * 0.1)
             debt: Uint128::new(2325),
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone().native().unwrap())
     );
 }

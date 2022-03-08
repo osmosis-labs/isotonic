@@ -15,6 +15,8 @@ use crate::msg::{
 };
 use crate::state::{Config, CONFIG, RESERVE};
 
+use utils::token::Token;
+
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:isotonic-market";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -68,13 +70,19 @@ pub fn instantiate(
         symbol: msg.symbol,
         decimals: msg.decimals,
         token_id: msg.token_id,
-        market_token: msg.market_token,
+        market_token: msg
+            .market_token
+            .native()
+            .ok_or(ContractError::Cw20TokensNotSupported)?,
         market_cap: msg.market_cap,
         rates: msg.interest_rate.validate()?,
         interest_charge_period: msg.interest_charge_period,
         last_charged: env.block.time.seconds()
             - env.block.time.seconds() % msg.interest_charge_period,
-        common_token: msg.common_token,
+        common_token: msg
+            .common_token
+            .native()
+            .ok_or(ContractError::Cw20TokensNotSupported)?,
         collateral_ratio: msg.collateral_ratio,
         price_oracle: msg.price_oracle,
         credit_agency: info.sender.clone(),
@@ -173,9 +181,13 @@ pub fn execute(
                 liquidation_price,
             )
         }
-        AdjustCommonToken { new_token } => {
-            execute::adjust_common_token(deps, info.sender, new_token)
-        }
+        AdjustCommonToken { new_token } => execute::adjust_common_token(
+            deps,
+            info.sender,
+            new_token
+                .native()
+                .ok_or(ContractError::Cw20TokensNotSupported)?,
+        ),
     }
 }
 
@@ -799,8 +811,8 @@ mod query {
             let price_response: PriceResponse = deps.querier.query_wasm_smart(
                 config.price_oracle.clone(),
                 &OracleQueryMsg::Price {
-                    sell: config.market_token.clone(),
-                    buy: config.common_token.clone(),
+                    sell: Token::Native(config.market_token.clone()),
+                    buy: Token::Native(config.common_token.clone()),
                 },
             )?;
             Ok(PriceRate {

@@ -39,7 +39,10 @@ pub fn instantiate(
     TOKEN_INFO.save(deps.storage, &token_info)?;
 
     let distribution = Distribution {
-        denom: msg.distributed_token,
+        denom: msg
+            .distributed_token
+            .native()
+            .ok_or(ContractError::Cw20TokensNotSupported)?,
         points_per_token: Uint128::zero(),
         points_leftover: Uint128::zero(),
         distributed_total: Uint128::zero(),
@@ -567,6 +570,7 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
 
     use super::*;
+    use utils::token::Token;
 
     #[test]
     fn rebase_works() {
@@ -577,7 +581,7 @@ mod tests {
             symbol: "CASH".to_string(),
             decimals: 9,
             controller: controller.to_string(),
-            distributed_token: String::new(),
+            distributed_token: Token::Native(String::new()),
         };
         let info = mock_info("creator", &[]);
         let env = mock_env();
@@ -612,7 +616,7 @@ mod tests {
             symbol: "CASH".to_string(),
             decimals: 9,
             controller: controller.to_string(),
-            distributed_token: String::new(),
+            distributed_token: Token::Native(String::new()),
         };
         let info = mock_info("creator", &[]);
         let env = mock_env();

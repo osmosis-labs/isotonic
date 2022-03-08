@@ -75,4 +75,7 @@ pub enum ContractError {
         credit_line: Uint128,
         collateral: Uint128,
     },
+
+    #[error("Cw20 tokens are not supported yet")]
+    Cw20TokensNotSupported,
 }

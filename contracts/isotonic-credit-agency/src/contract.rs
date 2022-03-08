@@ -9,6 +9,7 @@ use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, SudoMsg};
 use crate::state::{Config, CONFIG, NEXT_REPLY_ID};
 
 use either::Either;
+use utils::token::Token;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:isotonic-credit-agency";
@@ -27,8 +28,14 @@ pub fn instantiate(
         gov_contract: deps.api.addr_validate(&msg.gov_contract)?,
         isotonic_market_id: msg.isotonic_market_id,
         isotonic_token_id: msg.isotonic_token_id,
-        reward_token: msg.reward_token,
-        common_token: msg.common_token,
+        reward_token: msg
+            .reward_token
+            .native()
+            .ok_or(ContractError::Cw20TokensNotSupported)?,
+        common_token: msg
+            .common_token
+            .native()
+            .ok_or(ContractError::Cw20TokensNotSupported)?,
         liquidation_price: msg.liquidation_price,
     };
     CONFIG.save(deps.storage, &cfg)?;
@@ -56,7 +63,14 @@ pub fn execute(
             collateral_denom,
         } => {
             let account = deps.api.addr_validate(&account)?;
-            exec::liquidate(deps, info, account, collateral_denom)
+            exec::liquidate(
+                deps,
+                info,
+                account,
+                collateral_denom
+                    .native()
+                    .ok_or(ContractError::Cw20TokensNotSupported)?,
+            )
         }
         EnterMarket { account } => {
             let account = deps.api.addr_validate(&account)?;
@@ -90,6 +104,11 @@ mod exec {
         info: MessageInfo,
         market_cfg: MarketConfig,
     ) -> Result<Response, ContractError> {
+        let market_token = market_cfg
+            .market_token
+            .native()
+            .ok_or(ContractError::Cw20TokensNotSupported)?;
+
         let cfg = CONFIG.load(deps.storage)?;
         ensure_eq!(
             info.sender,
@@ -103,36 +122,32 @@ mod exec {
             return Err(ContractError::MarketCfgCollateralFailure {});
         }
 
-        if let Some(state) = MARKETS.may_load(deps.storage, &market_cfg.market_token)? {
+        if let Some(state) = MARKETS.may_load(deps.storage, &market_token)? {
             use MarketState::*;
 
             let err = match state {
-                Instantiating => ContractError::MarketCreating(market_cfg.market_token),
-                Ready(_) => ContractError::MarketAlreadyExists(market_cfg.market_token),
+                Instantiating => ContractError::MarketCreating(market_token),
+                Ready(_) => ContractError::MarketAlreadyExists(market_token),
             };
             return Err(err);
         }
-        MARKETS.save(
-            deps.storage,
-            &market_cfg.market_token,
-            &MarketState::Instantiating,
-        )?;
+        MARKETS.save(deps.storage, &market_token, &MarketState::Instantiating)?;
 
         let reply_id =
             NEXT_REPLY_ID.update(deps.storage, |id| -> Result<_, StdError> { Ok(id + 1) })?;
-        REPLY_IDS.save(deps.storage, reply_id, &market_cfg.market_token)?;
+        REPLY_IDS.save(deps.storage, reply_id, &market_token)?;
 
         let market_msg = isotonic_market::msg::InstantiateMsg {
             name: market_cfg.name,
             symbol: market_cfg.symbol,
             decimals: market_cfg.decimals,
             token_id: cfg.isotonic_token_id,
-            market_token: market_cfg.market_token.clone(),
+            market_token: Token::Native(market_token.clone()),
             market_cap: market_cfg.market_cap,
             interest_rate: market_cfg.interest_rate,
-            distributed_token: cfg.reward_token,
+            distributed_token: Token::Native(cfg.reward_token),
             interest_charge_period: market_cfg.interest_charge_period,
-            common_token: cfg.common_token,
+            common_token: Token::Native(cfg.common_token),
             collateral_ratio: market_cfg.collateral_ratio,
             price_oracle: market_cfg.price_oracle,
             reserve_factor: market_cfg.reserve_factor,
@@ -142,7 +157,7 @@ mod exec {
             code_id: cfg.isotonic_market_id,
             msg: to_binary(&market_msg)?,
             funds: vec![],
-            label: format!("market_contract_{}", market_cfg.market_token),
+            label: format!("market_contract_{}", market_token),
         };
 
         Ok(Response::new()
@@ -315,10 +330,19 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractErr
 
     let res = match msg {
         Configuration {} => to_binary(&CONFIG.load(deps.storage)?)?,
-        Market { market_token } => to_binary(&query::market(deps, market_token)?)?,
-        ListMarkets { start_after, limit } => {
-            to_binary(&query::list_markets(deps, start_after, limit)?)?
-        }
+        Market { market_token } => to_binary(&query::market(
+            deps,
+            market_token
+                .native()
+                .ok_or(ContractError::Cw20TokensNotSupported)?,
+        )?)?,
+        ListMarkets { start_after, limit } => to_binary(&query::list_markets(
+            deps,
+            start_after
+                .map(|sa| sa.native().ok_or(ContractError::Cw20TokensNotSupported))
+                .transpose()?,
+            limit,
+        )?)?,
         TotalCreditLine { account } => to_binary(&query::total_credit_line(deps, account)?)?,
         ListEnteredMarkets {
             account,
@@ -356,7 +380,7 @@ mod query {
             .ok_or_else(|| ContractError::MarketCreating(market_token.clone()))?;
 
         Ok(MarketResponse {
-            market_token,
+            market_token: Token::Native(market_token),
             market: addr,
         })
     }
@@ -381,7 +405,7 @@ mod query {
                 let (market_token, market) = m?;
 
                 let result = market.to_addr().map(|addr| MarketResponse {
-                    market_token,
+                    market_token: Token::Native(market_token),
                     market: addr,
                 });
 
@@ -507,7 +531,12 @@ pub fn sudo(deps: DepsMut, _env: Env, msg: SudoMsg) -> Result<Response, Contract
     match msg {
         AdjustMarketId { new_market_id } => sudo::adjust_market_id(deps, new_market_id),
         AdjustTokenId { new_token_id } => sudo::adjust_token_id(deps, new_token_id),
-        AdjustCommonToken { new_common_token } => sudo::adjust_common_token(deps, new_common_token),
+        AdjustCommonToken { new_common_token } => sudo::adjust_common_token(
+            deps,
+            new_common_token
+                .native()
+                .ok_or(ContractError::Cw20TokensNotSupported)?,
+        ),
         MigrateMarket {
             contract,
             migrate_msg,
@@ -546,7 +575,7 @@ mod sudo {
         CONFIG.save(deps.storage, &cfg)?;
 
         let msg = to_binary(&MarketExecuteMsg::AdjustCommonToken {
-            new_token: new_common_token,
+            new_token: Token::Native(new_common_token),
         })?;
         let messages = MARKETS
             .range(deps.storage, None, None, Order::Ascending)

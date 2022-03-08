@@ -63,4 +63,7 @@ pub enum ContractError {
         ltoken_supply: Uint128,
         cap: Uint128,
     },
+
+    #[error("Cw20 tokens are not supported yet")]
+    Cw20TokensNotSupported,
 }

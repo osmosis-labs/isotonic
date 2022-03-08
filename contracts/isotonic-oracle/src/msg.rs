@@ -3,6 +3,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use utils::time::Duration;
+use utils::token::Token;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -16,8 +17,8 @@ pub enum ExecuteMsg {
     /// Provide a new exchange rate for a pair of denoms.
     /// Only the oracle address (set on instantiation) can do this.
     SetPrice {
-        sell: String,
-        buy: String,
+        sell: Token,
+        buy: Token,
         rate: Decimal,
     },
 }
@@ -28,7 +29,7 @@ pub enum QueryMsg {
     /// Returns current configuration
     Configuration {},
     /// Queries the exchange rate between two denoms
-    Price { sell: String, buy: String },
+    Price { sell: Token, buy: Token },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
