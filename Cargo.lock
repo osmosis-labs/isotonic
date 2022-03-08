@@ -374,6 +374,81 @@ dependencies = [
 ]
 
 [[package]]
+name = "isotonic-credit-agency"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw2",
+ "either",
+ "isotonic-market",
+ "isotonic-oracle",
+ "isotonic-token",
+ "schemars",
+ "serde",
+ "thiserror",
+ "utils",
+]
+
+[[package]]
+name = "isotonic-market"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw2",
+ "cw20",
+ "isotonic-oracle",
+ "isotonic-token",
+ "schemars",
+ "serde",
+ "thiserror",
+ "utils",
+]
+
+[[package]]
+name = "isotonic-oracle"
+version = "0.4.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw-storage-plus",
+ "cw2",
+ "schemars",
+ "serde",
+ "thiserror",
+ "utils",
+]
+
+[[package]]
+name = "isotonic-token"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "cw2",
+ "cw20",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "itertools"
 version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -398,81 +473,6 @@ dependencies = [
  "ecdsa",
  "elliptic-curve",
  "sha2",
-]
-
-[[package]]
-name = "lendex-credit-agency"
-version = "0.4.0"
-dependencies = [
- "anyhow",
- "cosmwasm-schema",
- "cosmwasm-std",
- "cosmwasm-storage",
- "cw-multi-test",
- "cw-storage-plus",
- "cw-utils",
- "cw2",
- "either",
- "lendex-market",
- "lendex-oracle",
- "lendex-token",
- "schemars",
- "serde",
- "thiserror",
- "utils",
-]
-
-[[package]]
-name = "lendex-market"
-version = "0.4.0"
-dependencies = [
- "anyhow",
- "cosmwasm-schema",
- "cosmwasm-std",
- "cosmwasm-storage",
- "cw-multi-test",
- "cw-storage-plus",
- "cw-utils",
- "cw2",
- "cw20",
- "lendex-oracle",
- "lendex-token",
- "schemars",
- "serde",
- "thiserror",
- "utils",
-]
-
-[[package]]
-name = "lendex-oracle"
-version = "0.4.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cosmwasm-storage",
- "cw-storage-plus",
- "cw2",
- "schemars",
- "serde",
- "thiserror",
- "utils",
-]
-
-[[package]]
-name = "lendex-token"
-version = "0.4.0"
-dependencies = [
- "anyhow",
- "cosmwasm-schema",
- "cosmwasm-std",
- "cosmwasm-storage",
- "cw-multi-test",
- "cw-storage-plus",
- "cw2",
- "cw20",
- "schemars",
- "serde",
- "thiserror",
 ]
 
 [[package]]
