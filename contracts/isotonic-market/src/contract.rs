@@ -13,7 +13,7 @@ use crate::msg::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, QueryTotalCreditLine, SudoMsg,
     TransferableAmountResponse,
 };
-use crate::state::{Config, CONFIG, RESERVE, SECONDS_IN_YEAR};
+use crate::state::{Config, CONFIG, RESERVE};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:isotonic-market";
@@ -137,69 +137,6 @@ fn token_instantiate_reply(
     Ok(response)
 }
 
-/// Calculates new values after applying all pending interest charges
-fn calculate_interest(
-    deps: Deps,
-    epochs_passed: u64,
-) -> Result<Option<InterestUpdate>, ContractError> {
-    if epochs_passed == 0 {
-        return Ok(None);
-    }
-
-    let cfg = CONFIG.load(deps.storage)?;
-
-    let charged_time = epochs_passed * cfg.interest_charge_period;
-
-    let tokens_info = query::token_info(deps, &cfg)?;
-
-    let supplied = tokens_info.ltoken.total_supply.display_amount();
-    let borrowed = tokens_info.btoken.total_supply.display_amount();
-
-    // safety - if there are no ltokens, don't charge interest (would panic later)
-    if supplied == Uint128::zero() {
-        return Ok(None);
-    }
-
-    let interest = query::interest(&cfg, &tokens_info)?;
-
-    // bMul = calculate_interest() * epochs_passed * epoch_length / SECONDS_IN_YEAR
-    let btoken_ratio: Decimal =
-        interest.interest * Decimal::from_ratio(charged_time as u128, SECONDS_IN_YEAR);
-
-    let old_reserve = RESERVE.load(deps.storage)?;
-    // Add to reserve only portion of money charged here
-    let charged_interest = btoken_ratio * borrowed;
-    let reserve = old_reserve + cfg.reserve_factor * charged_interest;
-
-    // remember to add old reserve balance into supplied tokens
-    let base_asset_balance = supplied + old_reserve - borrowed;
-
-    let l_supply = borrowed + base_asset_balance - reserve;
-
-    // lMul = b_supply() * ratio / l_supply
-    let ltoken_ratio: Decimal = Decimal::from_ratio(borrowed * btoken_ratio, l_supply);
-
-    Ok(Some(InterestUpdate {
-        reserve,
-        ltoken_ratio,
-        btoken_ratio,
-    }))
-}
-
-fn epochs_passed(cfg: &Config, env: Env) -> Result<u64, ContractError> {
-    Ok((env.block.time.seconds() - cfg.last_charged) / cfg.interest_charge_period)
-}
-
-/// Values that should be updated when interest is charged for all pending charge periods
-struct InterestUpdate {
-    /// The new RESERVE value
-    reserve: Uint128,
-    /// The ratio to rebase LTokens by
-    ltoken_ratio: Decimal,
-    /// The ratio to rebase BTokens by
-    btoken_ratio: Decimal,
-}
-
 /// Execution entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
@@ -308,7 +245,10 @@ mod cr_utils {
 }
 
 mod execute {
-    use crate::msg::CreditAgencyExecuteMsg;
+    use crate::{
+        interest::{calculate_interest, epochs_passed, InterestUpdate},
+        msg::CreditAgencyExecuteMsg,
+    };
 
     use super::*;
 
@@ -732,10 +672,11 @@ mod query {
     use cosmwasm_std::{coin, Coin, Decimal, Uint128};
     use cw20::BalanceResponse;
     use isotonic_oracle::msg::{PriceResponse, QueryMsg as OracleQueryMsg};
-    use isotonic_token::msg::{QueryMsg as TokenQueryMsg, TokenInfoResponse};
+    use isotonic_token::msg::QueryMsg as TokenQueryMsg;
     use utils::credit_line::{CreditLineResponse, CreditLineValues};
     use utils::price::{coin_times_price_rate, PriceRate};
 
+    use crate::interest::{token_supply, utilisation};
     use crate::msg::{InterestResponse, ReserveResponse, TokensBalanceResponse};
     use crate::state::TokensInfo;
 
@@ -780,6 +721,8 @@ mod query {
         env: Env,
         account: String,
     ) -> Result<TokensBalanceResponse, ContractError> {
+        use crate::interest::{calculate_interest, epochs_passed};
+
         let config = CONFIG.load(deps.storage)?;
 
         let mut ltokens = ltoken_balance(deps, &config, account.clone())?.amount;
@@ -813,15 +756,7 @@ mod query {
     }
 
     pub fn token_info(deps: Deps, config: &Config) -> Result<TokensInfo, ContractError> {
-        let ltoken_contract = &config.ltoken_contract;
-        let ltoken: TokenInfoResponse = deps
-            .querier
-            .query_wasm_smart(ltoken_contract, &TokenQueryMsg::TokenInfo {})?;
-        let btoken_contract = &config.btoken_contract;
-        let btoken: TokenInfoResponse = deps
-            .querier
-            .query_wasm_smart(btoken_contract, &TokenQueryMsg::TokenInfo {})?;
-        Ok(TokensInfo { ltoken, btoken })
+        token_supply(deps, config)
     }
 
     /// Handler for `QueryMsg::Interest`
@@ -829,14 +764,7 @@ mod query {
         config: &Config,
         tokens_info: &TokensInfo,
     ) -> Result<InterestResponse, ContractError> {
-        let utilisation = if tokens_info.ltoken.total_supply.is_zero() {
-            Decimal::zero()
-        } else {
-            Decimal::from_ratio(
-                tokens_info.btoken.total_supply.display_amount(),
-                tokens_info.ltoken.total_supply.display_amount(),
-            )
-        };
+        let utilisation = utilisation(tokens_info);
 
         let interest = config.rates.calculate_interest_rate(utilisation);
 
