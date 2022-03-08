@@ -1,6 +1,6 @@
 [package]
 name = "isotonic-market"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["Jakub Bogucki <jakub@confio.gmbh>"]
 edition = "2018"
 description = "Implementation of Market contract"
@@ -20,12 +20,12 @@ cw-storage-plus = "0.12.1"
 cw-utils = "0.12.1"
 cw2 = "0.12.1"
 cw20 = "0.12.1"
-isotonic-oracle = { path = "../isotonic-oracle", version = "0.4.0", features = ["library"] }
-isotonic-token = { path = "../isotonic-token", version = "0.4.0", features = ["library"] }
+isotonic-oracle = { path = "../isotonic-oracle", version = "0.5.0", features = ["library"] }
+isotonic-token = { path = "../isotonic-token", version = "0.5.0", features = ["library"] }
 schemars = "0.8.3"
 serde = { version = "1.0.127", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.26" }
-utils = { version = "0.4.0", path = "../../packages/utils" }
+utils = { version = "0.5.0", path = "../../packages/utils" }
 
 [dev-dependencies]
 anyhow = "1"
