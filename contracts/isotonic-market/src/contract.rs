@@ -646,7 +646,7 @@ mod execute {
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
     use QueryMsg::*;
     let res = match msg {
-        Configuration {} => to_binary(&CONFIG.load(deps.storage)?)?,
+        Configuration {} => to_binary(&query::config(deps, env)?)?, //&CONFIG.load(deps.storage)?
         TokensBalance { account } => to_binary(&query::tokens_balance(deps, env, account)?)?,
         TransferableAmount { token, account } => {
             let token = deps.api.addr_validate(&token)?;
@@ -713,6 +713,16 @@ mod query {
                 .u128(),
             config.market_token.clone(),
         ))
+    }
+
+    /// Handler for `QueryMsg::Config`
+    pub fn config(deps: Deps, env: Env) -> Result<Config, ContractError> {
+        let mut config = CONFIG.load(deps.storage)?;
+
+        let unhandled_charge_period = epochs_passed(&config, env)?;
+        config.last_charged += unhandled_charge_period * config.interest_charge_period;
+
+        Ok(config)
     }
 
     /// Handler for `QueryMsg::TokensBalance`
