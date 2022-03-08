@@ -7,6 +7,7 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use cw_utils::parse_reply_instantiate_data;
 
+use crate::contract::query::token_info;
 use crate::error::ContractError;
 use crate::msg::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, QueryTotalCreditLine, SudoMsg,
@@ -136,6 +137,69 @@ fn token_instantiate_reply(
     Ok(response)
 }
 
+/// Calculates new values after applying all pending interest charges
+fn calculate_interest(
+    deps: Deps,
+    epochs_passed: u64,
+) -> Result<Option<InterestUpdate>, ContractError> {
+    if epochs_passed == 0 {
+        return Ok(None);
+    }
+
+    let cfg = CONFIG.load(deps.storage)?;
+
+    let charged_time = epochs_passed * cfg.interest_charge_period;
+
+    let tokens_info = query::token_info(deps, &cfg)?;
+
+    let supplied = tokens_info.ltoken.total_supply.display_amount();
+    let borrowed = tokens_info.btoken.total_supply.display_amount();
+
+    // safety - if there are no ltokens, don't charge interest (would panic later)
+    if supplied == Uint128::zero() {
+        return Ok(None);
+    }
+
+    let interest = query::interest(&cfg, &tokens_info)?;
+
+    // bMul = calculate_interest() * epochs_passed * epoch_length / SECONDS_IN_YEAR
+    let btoken_ratio: Decimal =
+        interest.interest * Decimal::from_ratio(charged_time as u128, SECONDS_IN_YEAR);
+
+    let old_reserve = RESERVE.load(deps.storage)?;
+    // Add to reserve only portion of money charged here
+    let charged_interest = btoken_ratio * borrowed;
+    let reserve = old_reserve + cfg.reserve_factor * charged_interest;
+
+    // remember to add old reserve balance into supplied tokens
+    let base_asset_balance = supplied + old_reserve - borrowed;
+
+    let l_supply = borrowed + base_asset_balance - reserve;
+
+    // lMul = b_supply() * ratio / l_supply
+    let ltoken_ratio: Decimal = Decimal::from_ratio(borrowed * btoken_ratio, l_supply);
+
+    Ok(Some(InterestUpdate {
+        reserve,
+        ltoken_ratio,
+        btoken_ratio,
+    }))
+}
+
+fn epochs_passed(cfg: &Config, env: Env) -> Result<u64, ContractError> {
+    Ok((env.block.time.seconds() - cfg.last_charged) / cfg.interest_charge_period)
+}
+
+/// Values that should be updated when interest is charged for all pending charge periods
+struct InterestUpdate {
+    /// The new RESERVE value
+    reserve: Uint128,
+    /// The ratio to rebase LTokens by
+    ltoken_ratio: Decimal,
+    /// The ratio to rebase BTokens by
+    btoken_ratio: Decimal,
+}
+
 /// Execution entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
@@ -258,7 +322,7 @@ mod execute {
         use isotonic_token::msg::ExecuteMsg;
 
         let mut cfg = CONFIG.load(deps.storage)?;
-        let epochs_passed = epochs_passed(deps.as_ref(), env)?;
+        let epochs_passed = epochs_passed(&cfg, env)?;
         cfg.last_charged += epochs_passed * cfg.interest_charge_period;
         CONFIG.save(deps.storage, &cfg)?;
 
@@ -296,67 +360,6 @@ mod execute {
         } else {
             Ok(vec![])
         }
-    }
-
-    fn epochs_passed(deps: Deps, env: Env) -> Result<u64, ContractError> {
-        let cfg = CONFIG.load(deps.storage)?;
-
-        Ok((env.block.time.seconds() - cfg.last_charged) / cfg.interest_charge_period)
-    }
-
-    /// Values that should be updated when interest is charged for all pending charge periods
-    struct InterestUpdate {
-        /// The new RESERVE value
-        reserve: Uint128,
-        /// The ratio to rebase LTokens by
-        ltoken_ratio: Decimal,
-        /// The ratio to rebase BTokens by
-        btoken_ratio: Decimal,
-    }
-
-    /// Calculates new values after applying all pending interest charges
-    fn calculate_interest(
-        deps: Deps,
-        epochs_passed: u64,
-    ) -> Result<Option<InterestUpdate>, ContractError> {
-        let cfg = CONFIG.load(deps.storage)?;
-
-        let charged_time = epochs_passed * cfg.interest_charge_period;
-
-        let tokens_info = query::token_info(deps, &cfg)?;
-
-        let supplied = tokens_info.ltoken.total_supply.display_amount();
-        let borrowed = tokens_info.btoken.total_supply.display_amount();
-
-        // safety - if there are no ltokens, don't charge interest (would panic later)
-        if supplied == Uint128::zero() {
-            return Ok(None);
-        }
-
-        let interest = query::interest(&cfg, &tokens_info)?;
-
-        // bMul = calculate_interest() * epochs_passed * epoch_length / SECONDS_IN_YEAR
-        let btoken_ratio: Decimal =
-            interest.interest * Decimal::from_ratio(charged_time as u128, SECONDS_IN_YEAR);
-
-        let old_reserve = RESERVE.load(deps.storage)?;
-        // Add to reserve only portion of money charged here
-        let charged_interest = btoken_ratio * borrowed;
-        let reserve = old_reserve + cfg.reserve_factor * charged_interest;
-
-        // remember to add old reserve balance into supplied tokens
-        let base_asset_balance = supplied + old_reserve - borrowed;
-
-        let l_supply = borrowed + base_asset_balance - reserve;
-
-        // lMul = b_supply() * ratio / l_supply
-        let ltoken_ratio: Decimal = Decimal::from_ratio(borrowed * btoken_ratio, l_supply);
-
-        Ok(Some(InterestUpdate {
-            reserve,
-            ltoken_ratio,
-            btoken_ratio,
-        }))
     }
 
     /// Validates funds sent with the message, that they contain only the base asset. Returns
@@ -700,16 +703,19 @@ mod execute {
     }
 }
 
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
     use QueryMsg::*;
     let res = match msg {
         Configuration {} => to_binary(&CONFIG.load(deps.storage)?)?,
-        TokensBalance { account } => to_binary(&query::tokens_balance(deps, account)?)?,
+        TokensBalance { account } => to_binary(&query::tokens_balance(deps, env, account)?)?,
         TransferableAmount { token, account } => {
             let token = deps.api.addr_validate(&token)?;
             to_binary(&query::transferable_amount(deps, token, account)?)?
         }
-        Interest {} => to_binary(&query::calculate_interest(deps)?)?,
+        Interest {} => {
+            let cfg = CONFIG.load(deps.storage)?;
+            to_binary(&query::interest(&cfg, &token_info(deps, &cfg)?)?)?
+        }
         PriceMarketLocalPerCommon {} => to_binary(&query::price_market_local_per_common(deps)?)?,
         CreditLine { account } => {
             let account = deps.api.addr_validate(&account)?;
@@ -771,13 +777,20 @@ mod query {
     /// Handler for `QueryMsg::TokensBalance`
     pub fn tokens_balance(
         deps: Deps,
+        env: Env,
         account: String,
     ) -> Result<TokensBalanceResponse, ContractError> {
         let config = CONFIG.load(deps.storage)?;
-        Ok(TokensBalanceResponse {
-            ltokens: ltoken_balance(deps, &config, account.clone())?.amount,
-            btokens: btoken_balance(deps, &config, account)?.amount,
-        })
+
+        let mut ltokens = ltoken_balance(deps, &config, account.clone())?.amount;
+        let mut btokens = btoken_balance(deps, &config, account)?.amount;
+
+        if let Some(update) = calculate_interest(deps, epochs_passed(&config, env)?)? {
+            ltokens += ltokens * update.ltoken_ratio;
+            btokens += btokens * update.btoken_ratio;
+        }
+
+        Ok(TokensBalanceResponse { ltokens, btokens })
     }
 
     /// Handler for `QueryMsg::TransferableAmount`
@@ -797,11 +810,6 @@ mod query {
         } else {
             Err(ContractError::UnrecognisedToken(token.to_string()))
         }
-    }
-
-    pub fn calculate_interest(deps: Deps) -> Result<InterestResponse, ContractError> {
-        let config = CONFIG.load(deps.storage)?;
-        interest(&config, &token_info(deps, &config)?)
     }
 
     pub fn token_info(deps: Deps, config: &Config) -> Result<TokensInfo, ContractError> {

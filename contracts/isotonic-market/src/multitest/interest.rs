@@ -3,7 +3,7 @@ use super::suite::SuiteBuilder;
 use cosmwasm_std::{coin, Coin, Decimal, Timestamp};
 use isotonic_token::DisplayAmount;
 
-use crate::msg::{InterestResponse, TokensBalanceResponse};
+use crate::msg::InterestResponse;
 use crate::state::SECONDS_IN_YEAR;
 
 #[test]
@@ -289,14 +289,6 @@ fn query_balance_with_uncharged_interest() {
     suite.assert_btoken_balance("borrower", 500u128);
 
     suite.advance_seconds((SECONDS_IN_YEAR) as u64);
-
-    assert_eq!(
-        suite.query_tokens_balance("lender").unwrap(),
-        TokensBalanceResponse {
-            ltokens: 2000u128.into(),
-            btokens: 0u128.into(),
-        }
-    );
 
     suite.assert_ltoken_balance("lender", 2075u128);
     suite.assert_btoken_balance("borrower", 575u128);
