@@ -646,7 +646,7 @@ mod execute {
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
     use QueryMsg::*;
     let res = match msg {
-        Configuration {} => to_binary(&query::config(deps, env)?)?, //&CONFIG.load(deps.storage)?
+        Configuration {} => to_binary(&query::config(deps, env)?)?,
         TokensBalance { account } => to_binary(&query::tokens_balance(deps, env, account)?)?,
         TransferableAmount { token, account } => {
             let token = deps.api.addr_validate(&token)?;
