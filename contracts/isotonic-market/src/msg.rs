@@ -80,7 +80,7 @@ pub enum QueryMsg {
     TokensBalance { account: String },
     /// Returns TransferableAmountResponse
     TransferableAmount {
-        /// Lendex contract address that calls "CanTransfer"
+        /// Isotonic contract address that calls "CanTransfer"
         token: String,
         /// Address that wishes to transfer
         account: String,

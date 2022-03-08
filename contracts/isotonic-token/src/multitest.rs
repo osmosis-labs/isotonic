@@ -13,7 +13,7 @@ use suite::{Suite, SuiteBuilder};
 #[test]
 fn fresh_queries() {
     let suite = SuiteBuilder::new()
-        .with_name("Lendex")
+        .with_name("Isotonic")
         .with_symbol("LDX")
         .with_decimals(9)
         .with_distributed_token("Reward")
@@ -25,7 +25,7 @@ fn fresh_queries() {
     assert_eq!(
         suite.query_token_info().unwrap(),
         TokenInfoResponse {
-            name: "Lendex".to_owned(),
+            name: "Isotonic".to_owned(),
             symbol: "LDX".to_owned(),
             decimals: 9,
             total_supply: DisplayAmount::zero(),

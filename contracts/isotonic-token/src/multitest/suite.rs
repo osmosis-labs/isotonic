@@ -24,11 +24,11 @@ fn contract_token() -> Box<dyn Contract<Empty>> {
 /// Builder for test suite
 #[derive(Debug)]
 pub struct SuiteBuilder {
-    /// Lendex token name
+    /// Isotonic token name
     name: String,
-    /// Lendex token symbol
+    /// Isotonic token symbol
     symbol: String,
-    /// Lendex token precision
+    /// Isotonic token precision
     decimals: u8,
     /// Amount of tokens controller would allow to transfer
     transferable: HashMap<String, Uint128>,
@@ -117,7 +117,7 @@ impl SuiteBuilder {
                     distributed_token: self.distributed_token,
                 },
                 &[],
-                "Lendex",
+                "Isotonic",
                 None,
             )
             .unwrap();

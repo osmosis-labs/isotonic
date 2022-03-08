@@ -3,7 +3,7 @@ name = "isotonic-oracle"
 version = "0.4.0"
 authors = ["Tomasz Kurcz <tom@confio.gmbh>"]
 edition = "2018"
-description = "The Lendex Price Oracle"
+description = "The Isotonic Price Oracle"
 repository = "https://github.com/confio/isotonic"
 
 [lib]

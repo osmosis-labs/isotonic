@@ -3,7 +3,7 @@ name = "isotonic-credit-agency"
 version = "0.4.0"
 authors = ["Tomasz Kurcz <tom@confio.gmbh>"]
 edition = "2018"
-description = "Lendex Credit Agency smart contract"
+description = "Isotonic Credit Agency smart contract"
 repository = "https://github.com/confio/isotonic"
 
 [lib]

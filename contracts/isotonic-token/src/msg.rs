@@ -76,7 +76,7 @@ pub enum ExecuteMsg {
 #[serde(rename_all = "snake_case")]
 pub enum ControllerQuery {
     TransferableAmount {
-        /// Lendex contract address that calls "CanTransfer"
+        /// Isotonic contract address that calls "CanTransfer"
         token: String,
         /// Address that wishes to transfer
         account: String,

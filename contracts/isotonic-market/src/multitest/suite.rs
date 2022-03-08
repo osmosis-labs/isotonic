@@ -52,11 +52,11 @@ pub fn contract_token() -> Box<dyn Contract<Empty>> {
 /// Builder for test suite
 #[derive(Debug)]
 pub struct SuiteBuilder {
-    /// Lendex token name
+    /// Isotonic token name
     name: String,
-    /// Lendex token symbol
+    /// Isotonic token symbol
     symbol: String,
-    /// Lendex token precision
+    /// Isotonic token precision
     decimals: u8,
     /// Native denom for the base asset
     market_token: String,
