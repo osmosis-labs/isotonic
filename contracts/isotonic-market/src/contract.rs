@@ -661,7 +661,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractErro
             let account = deps.api.addr_validate(&account)?;
             to_binary(&query::credit_line(deps, account)?)?
         }
-        Reserve {} => to_binary(&query::reserve(deps)?)?,
+        Reserve {} => to_binary(&query::reserve(deps, env)?)?,
     };
     Ok(res)
 }
@@ -676,7 +676,7 @@ mod query {
     use utils::credit_line::{CreditLineResponse, CreditLineValues};
     use utils::price::{coin_times_price_rate, PriceRate};
 
-    use crate::interest::{token_supply, utilisation};
+    use crate::interest::{calculate_interest, epochs_passed, token_supply, utilisation};
     use crate::msg::{InterestResponse, ReserveResponse, TokensBalanceResponse};
     use crate::state::TokensInfo;
 
@@ -721,8 +721,6 @@ mod query {
         env: Env,
         account: String,
     ) -> Result<TokensBalanceResponse, ContractError> {
-        use crate::interest::{calculate_interest, epochs_passed};
-
         let config = CONFIG.load(deps.storage)?;
 
         let mut ltokens = ltoken_balance(deps, &config, account.clone())?.amount;
@@ -820,8 +818,13 @@ mod query {
     }
 
     /// Handler for `QueryMsg::Reserve`
-    pub fn reserve(deps: Deps) -> Result<ReserveResponse, ContractError> {
-        let reserve = RESERVE.load(deps.storage)?;
+    pub fn reserve(deps: Deps, env: Env) -> Result<ReserveResponse, ContractError> {
+        let config = CONFIG.load(deps.storage)?;
+
+        let reserve = calculate_interest(deps, epochs_passed(&config, env)?)?
+            .map(|update| update.reserve)
+            .unwrap_or(RESERVE.load(deps.storage)?);
+
         Ok(ReserveResponse { reserve })
     }
 }
