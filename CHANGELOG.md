@@ -2,7 +2,32 @@
 
 ## [Unreleased](https://github.com/confio/isotonic/tree/HEAD)
 
-[Full Changelog](https://github.com/confio/isotonic/compare/v0.4.0...HEAD)
+[Full Changelog](https://github.com/confio/isotonic/compare/v0.5.0...HEAD)
+
+## [v0.5.0](https://github.com/confio/isotonic/tree/v0.5.0) (2022-03-08)
+
+[Full Changelog](https://github.com/confio/isotonic/compare/v0.4.0...v0.5.0)
+
+**Closed issues:**
+
+- Market: Add multitests for sudo messages [\#93](https://github.com/confio/isotonic/issues/93)
+- Rename to Isotonic [\#80](https://github.com/confio/isotonic/issues/80)
+- Add separate message for charging interest without repay [\#57](https://github.com/confio/isotonic/issues/57)
+- Allow governance to adjust credit agency [\#49](https://github.com/confio/isotonic/issues/49)
+- Allow governance to adjust markets [\#48](https://github.com/confio/isotonic/issues/48)
+- Update READMEs [\#36](https://github.com/confio/isotonic/issues/36)
+- Optimize: Exit Markets  [\#25](https://github.com/confio/isotonic/issues/25)
+- Optimize: Explicitly Enter markets [\#24](https://github.com/confio/isotonic/issues/24)
+
+**Merged pull requests:**
+
+- Rename repository to isotonic [\#105](https://github.com/confio/isotonic/pull/105) ([ueco-jb](https://github.com/ueco-jb))
+- Add multitests for sudo messages [\#99](https://github.com/confio/isotonic/pull/99) ([ueco-jb](https://github.com/ueco-jb))
+- Exitin markets [\#97](https://github.com/confio/isotonic/pull/97) ([hashedone](https://github.com/hashedone))
+- Allow governance to adjust credit agency [\#96](https://github.com/confio/isotonic/pull/96) ([ueco-jb](https://github.com/ueco-jb))
+- Update READMEs [\#94](https://github.com/confio/isotonic/pull/94) ([uint](https://github.com/uint))
+- Optimization: Entering markets [\#91](https://github.com/confio/isotonic/pull/91) ([uint](https://github.com/uint))
+- Allow governance to adjust markets [\#90](https://github.com/confio/isotonic/pull/90) ([ueco-jb](https://github.com/ueco-jb))
 
 ## [v0.4.0](https://github.com/confio/isotonic/tree/v0.4.0) (2022-03-02)
 
