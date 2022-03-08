@@ -3,10 +3,10 @@ workflows:
   version: 2
   test:
     jobs:
-      - contract_lendex_credit_agency
-      - contract_lendex_market
-      - contract_lendex_oracle
-      - contract_lendex_token
+      - contract_isotonic_credit_agency
+      - contract_isotonic_market
+      - contract_isotonic_oracle
+      - contract_isotonic_token
       - package_utils
   build:
     jobs:
@@ -28,10 +28,10 @@ workflows:
              ignore: /.*/
 
 jobs:
-  contract_lendex_credit_agency:
+  contract_isotonic_credit_agency:
     docker:
       - image: rust:1.57.0
-    working_directory: ~/project/contracts/lendex-credit-agency
+    working_directory: ~/project/contracts/isotonic-credit-agency
     steps:
       - checkout:
           path: ~/project
@@ -40,7 +40,7 @@ jobs:
           command: rustc --version; cargo --version; rustup --version
       - restore_cache:
           keys:
-            - cargocache-lendex-credit-agency-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+            - cargocache-isotonic-credit-agency-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
       - run:
           name: Unit Tests
           environment:
@@ -53,12 +53,12 @@ jobs:
           paths:
             - /usr/local/cargo/registry
             - target
-          key: cargocache-lendex-credit-agency-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+          key: cargocache-isotonic-credit-agency-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
 
-  contract_lendex_market:
+  contract_isotonic_market:
     docker:
       - image: rust:1.57.0
-    working_directory: ~/project/contracts/lendex-market
+    working_directory: ~/project/contracts/isotonic-market
     steps:
       - checkout:
           path: ~/project
@@ -67,7 +67,7 @@ jobs:
           command: rustc --version; cargo --version; rustup --version
       - restore_cache:
           keys:
-            - cargocache-lendex-market-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+            - cargocache-isotonic-market-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
       - run:
           name: Unit Tests
           environment:
@@ -80,12 +80,12 @@ jobs:
           paths:
             - /usr/local/cargo/registry
             - target
-          key: cargocache-lendex-market-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+          key: cargocache-isotonic-market-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
 
-  contract_lendex_oracle:
+  contract_isotonic_oracle:
     docker:
       - image: rust:1.57.0
-    working_directory: ~/project/contracts/lendex-oracle
+    working_directory: ~/project/contracts/isotonic-oracle
     steps:
       - checkout:
           path: ~/project
@@ -94,7 +94,7 @@ jobs:
           command: rustc --version; cargo --version; rustup --version
       - restore_cache:
           keys:
-            - cargocache-lendex-oracle-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+            - cargocache-isotonic-oracle-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
       - run:
           name: Unit Tests
           environment:
@@ -107,12 +107,12 @@ jobs:
           paths:
             - /usr/local/cargo/registry
             - target
-          key: cargocache-lendex-oracle-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+          key: cargocache-isotonic-oracle-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
 
-  contract_lendex_token:
+  contract_isotonic_token:
     docker:
       - image: rust:1.57.0
-    working_directory: ~/project/contracts/lendex-token
+    working_directory: ~/project/contracts/isotonic-token
     steps:
       - checkout:
           path: ~/project
@@ -121,7 +121,7 @@ jobs:
           command: rustc --version; cargo --version; rustup --version
       - restore_cache:
           keys:
-            - cargocache-lendex-token-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+            - cargocache-isotonic-token-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
       - run:
           name: Unit Tests
           environment:
@@ -134,7 +134,7 @@ jobs:
           paths:
             - /usr/local/cargo/registry
             - target
-          key: cargocache-lendex-token-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+          key: cargocache-isotonic-token-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
 
   package_utils:
     docker:

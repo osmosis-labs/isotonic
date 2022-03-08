@@ -305,7 +305,10 @@ impl Suite {
         let resp: isotonic_market::state::Config = self
             .app
             .wrap()
-            .query_wasm_smart(res.market, &isotonic_market::msg::QueryMsg::Configuration {})
+            .query_wasm_smart(
+                res.market,
+                &isotonic_market::msg::QueryMsg::Configuration {},
+            )
             .unwrap();
         assert_eq!(resp.market_token, asset);
     }
