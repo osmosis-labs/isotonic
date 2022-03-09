@@ -26,6 +26,7 @@ fn adjust_reserve_factor() {
     let borrower = "borrower";
     let market_token = "atom";
     let mut suite = SuiteBuilder::new()
+        .with_charge_period((SECONDS_IN_YEAR) as u64)
         .with_funds(lender, &[coin(4000, market_token)])
         .with_funds(borrower, &[coin(2300, market_token)])
         .with_interest(4, 20)
@@ -66,8 +67,7 @@ fn adjust_reserve_factor() {
         suite.query_config().unwrap().reserve_factor
     );
 
-    // TODO: Rounding error
-    assert_eq!(suite.query_reserve().unwrap(), Uint128::new(95));
+    assert_eq!(suite.query_reserve().unwrap(), Uint128::new(96));
 }
 
 #[test]
@@ -101,6 +101,7 @@ fn adjust_interest_rates() {
     let borrower = "borrower";
     let market_token = "atom";
     let mut suite = SuiteBuilder::new()
+        .with_charge_period((SECONDS_IN_YEAR) as u64)
         .with_funds(lender, &[coin(4000, market_token)])
         .with_funds(borrower, &[coin(2300, market_token)])
         .with_interest(4, 20)
@@ -152,6 +153,6 @@ fn adjust_interest_rates() {
     // TODO: Rounding issue
     assert_eq!(
         suite.query_ltoken_info().unwrap().total_supply,
-        DisplayAmount::raw(3297u128)
+        DisplayAmount::raw(3299u128)
     );
 }

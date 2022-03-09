@@ -11,6 +11,7 @@ fn after_full_year() {
     let borrower = "borrower";
     let market_token = "atom";
     let mut suite = SuiteBuilder::new()
+        .with_charge_period((SECONDS_IN_YEAR) as u64)
         .with_funds(lender, &[coin(4000, market_token)])
         .with_funds(borrower, &[coin(2300, market_token)])
         .with_interest(4, 20)
@@ -49,14 +50,12 @@ fn after_full_year() {
         .deposit(lender, &[Coin::new(1000, market_token)])
         .unwrap();
 
-    // TODO: rounding error
     assert_eq!(
         suite.query_ltoken_info().unwrap().total_supply,
-        DisplayAmount::raw(3323u128)
+        DisplayAmount::raw(3325u128)
     );
 
-    // TODO: Rounding error
-    assert_eq!(suite.query_reserve().unwrap(), Uint128::new(31));
+    assert_eq!(suite.query_reserve().unwrap(), Uint128::new(32));
 }
 
 #[test]
@@ -65,6 +64,7 @@ fn after_half_year() {
     let borrower = "borrower";
     let market_token = "atom";
     let mut suite = SuiteBuilder::new()
+        .with_charge_period((SECONDS_IN_YEAR / 2) as u64)
         .with_funds(lender, &[coin(5000, market_token)])
         .with_funds(borrower, &[coin(500, market_token)])
         .with_interest(4, 20)
@@ -118,6 +118,7 @@ fn charged_couple_times() {
     let borrower = "borrower";
     let market_token = "atom";
     let mut suite = SuiteBuilder::new()
+        .with_charge_period((SECONDS_IN_YEAR / 4) as u64)
         .with_funds(lender, &[coin(5000, market_token)])
         .with_funds(borrower, &[coin(500, market_token)])
         .with_interest(4, 20)
@@ -166,30 +167,30 @@ fn charged_couple_times() {
 
     suite.borrow(borrower, 800).unwrap();
 
-    suite.advance_seconds((SECONDS_IN_YEAR / 3) as u64);
+    suite.advance_seconds((SECONDS_IN_YEAR / 4) as u64);
 
     // Deposit some tokens
     // interests are 17.4%(4% base + 20% slope * 67% utilization)
     // supplied (ltokens) = 3047
     // borrwed (btokens) = 2047 (1200 * 1.04 + 1000)
-    // bMul (btoken_ratio) = 5.8% after 7 months
-    // charged interets = 5.8% * 2047 = 118.7 ~= 118
-    // reserve = 15% * charged interests = 7 + (15% * 118) = 24
+    // bMul (btoken_ratio) = 4.35% after 6 months
+    // charged interets = 4.35% * 2047 = 89.0445 ~= 89
+    // reserve = 15% * charged interests = 7 + (15% * 89) = 20
     // liquid assets =  3047 + 7 (old reserve) - 2047 (borrowed) = 1007
-    // ltokens supplied = 2047 + 1007 - 24 = 3030
-    // lMul (ltoken_ratio) = borrowed * bMul / lMul = 2047 * 0.058 / 3030 ~= 0.039
-    // that means ltokens 3047 * 1.039 = 3165
-    // deposit 1000 -> 4165 left btokens
+    // ltokens supplied = 2047 + 1007 - 20 = 3034
+    // lMul (ltoken_ratio) = borrowed * bMul / lMul = 2047 * 0.0435 / 3034 ~= 0.029
+    // that means ltokens 3047 * 1.029 = 3136
+    // deposit 1000 -> 4136 left btokens
     suite
         .deposit(lender, &[Coin::new(1000, market_token)])
         .unwrap();
 
     assert_eq!(
         suite.query_ltoken_info().unwrap().total_supply,
-        DisplayAmount::raw(4165u128)
+        DisplayAmount::raw(4136u128)
     );
 
-    assert_eq!(suite.query_reserve().unwrap(), Uint128::new(24));
+    assert_eq!(suite.query_reserve().unwrap(), Uint128::new(20));
 }
 
 #[test]
