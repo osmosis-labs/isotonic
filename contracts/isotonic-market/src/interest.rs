@@ -1,4 +1,4 @@
-use cosmwasm_std::{Decimal, Deps, Env, Uint128};
+use cosmwasm_std::{Decimal, Deps, Env, Fraction, Uint128};
 use isotonic_token::msg::TokenInfoResponse;
 
 use crate::{
@@ -31,8 +31,6 @@ pub fn calculate_interest(
 
     let cfg = CONFIG.load(deps.storage)?;
 
-    let charged_time = epochs_passed * cfg.interest_charge_period;
-
     let tokens_info = token_supply(deps, &cfg)?;
 
     let supplied = tokens_info.ltoken.total_supply.display_amount();
@@ -44,10 +42,18 @@ pub fn calculate_interest(
     }
 
     let interest = cfg.rates.calculate_interest_rate(utilisation(&tokens_info));
+    // The interest rate per charge period
+    let scaled_interest_rate = Decimal::from_ratio(
+        Uint128::from(cfg.interest_charge_period) * interest.numerator(),
+        Uint128::from(SECONDS_IN_YEAR) * interest.denominator(),
+    );
 
-    // bMul = calculate_interest() * epochs_passed * epoch_length / SECONDS_IN_YEAR
-    let btoken_ratio: Decimal =
-        interest * Decimal::from_ratio(charged_time as u128, SECONDS_IN_YEAR);
+    // The (heavily adapted) compound interest formula: https://en.wikipedia.org/wiki/Compound_interest
+    // btoken_ratio = (1 + scaled_interest_rate) ^ epochs_passed
+    let btoken_ratio = std::iter::repeat(Decimal::one() + scaled_interest_rate)
+        .take(epochs_passed as usize)
+        .fold(Decimal::one(), std::ops::Mul::mul);
+    let btoken_ratio = btoken_ratio - Decimal::one();
 
     let old_reserve = RESERVE.load(deps.storage)?;
     // Add to reserve only portion of money charged here
