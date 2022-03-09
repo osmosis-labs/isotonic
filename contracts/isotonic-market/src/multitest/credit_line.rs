@@ -1,3 +1,5 @@
+use crate::state::SECONDS_IN_YEAR;
+
 use super::suite::SuiteBuilder;
 
 use cosmwasm_std::{coin, Decimal, StdError, Uint128};
@@ -236,4 +238,39 @@ fn deposits_and_borrows_tokens_market_common_matches_denoms() {
         }
         .make_response(suite.common_token())
     );
+}
+
+#[test]
+fn query_credit_line_with_uncharged_interest() {
+    let lender = "lender";
+    let borrower = "borrower";
+    let market_token = "atom";
+    let mut suite = SuiteBuilder::new()
+        .with_funds(lender, &[coin(5000, market_token)])
+        .with_funds(borrower, &[coin(500, market_token)])
+        .with_charge_period((SECONDS_IN_YEAR) as u64)
+        .with_interest(10, 0)
+        .with_reserve_factor(0)
+        .with_market_token(market_token)
+        .build();
+
+    // Set arbitrary market/common exchange ratio and credit lines (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+    suite.set_high_credit_line(borrower).unwrap();
+    suite.set_high_credit_line(lender).unwrap();
+
+    suite.deposit(lender, &[coin(2000, market_token)]).unwrap();
+
+    suite.borrow(borrower, 1000).unwrap();
+
+    suite.assert_debt("borrower", 1000);
+    suite.assert_collateral("lender", 2000);
+
+    suite.advance_seconds((SECONDS_IN_YEAR) as u64);
+
+    // we want to make sure the queries return the amount with interest charged
+    // even if there was no call to `charge_interest`
+
+    suite.assert_debt("borrower", 1100);
+    suite.assert_collateral("lender", 2100);
 }

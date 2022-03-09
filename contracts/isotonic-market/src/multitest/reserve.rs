@@ -191,3 +191,35 @@ fn charged_couple_times() {
 
     assert_eq!(suite.query_reserve().unwrap(), Uint128::new(24));
 }
+
+#[test]
+fn query_reserve_with_uncharged_interest() {
+    let lender = "lender";
+    let borrower = "borrower";
+    let market_token = "atom";
+    let mut suite = SuiteBuilder::new()
+        .with_funds(lender, &[coin(5000, market_token)])
+        .with_funds(borrower, &[coin(500, market_token)])
+        .with_charge_period((SECONDS_IN_YEAR) as u64)
+        .with_interest(10, 0)
+        .with_reserve_factor(15)
+        .with_market_token(market_token)
+        .build();
+
+    // Set arbitrary market/common exchange ratio and credit lines (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+    suite.set_high_credit_line(borrower).unwrap();
+    suite.set_high_credit_line(lender).unwrap();
+
+    suite
+        .deposit(lender, &[Coin::new(2000, market_token)])
+        .unwrap();
+
+    suite.borrow(borrower, 1000).unwrap();
+
+    assert_eq!(Uint128::zero(), suite.query_reserve().unwrap());
+
+    suite.advance_seconds((SECONDS_IN_YEAR) as u64);
+
+    assert_eq!(15, suite.query_reserve().unwrap().u128());
+}

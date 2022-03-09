@@ -249,3 +249,82 @@ fn charge_interest_deposit() {
         DisplayAmount::raw(1u128)
     );
 }
+
+#[test]
+fn query_balance_with_uncharged_interest() {
+    // We want to make sure if we query for balance with interest that hasn't been charged yet,
+    // the query will display the value with interest included.
+
+    let lender = "lender";
+    let borrower = "borrower";
+    let market_token = "atom";
+    let mut suite = SuiteBuilder::new()
+        .with_charge_period((SECONDS_IN_YEAR) as u64)
+        .with_funds(lender, &[coin(2000, market_token)])
+        .with_funds(borrower, &[coin(500, market_token)])
+        .with_interest(10, 20)
+        .with_market_token(market_token)
+        .build();
+
+    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+    suite.set_high_credit_line(borrower).unwrap();
+
+    suite
+        .deposit(lender, &[Coin::new(2000, market_token)])
+        .unwrap();
+    suite.borrow(borrower, 500).unwrap();
+
+    let resp = suite.query_interest().unwrap();
+    assert_eq!(
+        InterestResponse {
+            utilisation: Decimal::percent(25),
+            interest: Decimal::percent(15),
+            charge_period: Timestamp::from_seconds((SECONDS_IN_YEAR) as u64),
+        },
+        resp
+    );
+
+    suite.assert_ltoken_balance("lender", 2000u128);
+    suite.assert_btoken_balance("borrower", 500u128);
+
+    suite.advance_seconds((SECONDS_IN_YEAR) as u64);
+
+    suite.assert_ltoken_balance("lender", 2075u128);
+    suite.assert_btoken_balance("borrower", 575u128);
+}
+
+#[test]
+fn query_last_charged_with_uncharged_interest() {
+    let lender = "lender";
+    let borrower = "borrower";
+    let market_token = "atom";
+    let mut suite = SuiteBuilder::new()
+        .with_funds(lender, &[coin(5000, market_token)])
+        .with_funds(borrower, &[coin(500, market_token)])
+        .with_charge_period((SECONDS_IN_YEAR) as u64)
+        .with_interest(10, 0)
+        .with_reserve_factor(15)
+        .with_market_token(market_token)
+        .build();
+
+    // Set arbitrary market/common exchange ratio and credit lines (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+    suite.set_high_credit_line(borrower).unwrap();
+    suite.set_high_credit_line(lender).unwrap();
+
+    suite
+        .deposit(lender, &[Coin::new(2000, market_token)])
+        .unwrap();
+
+    suite.borrow(borrower, 1000).unwrap();
+
+    let next_epoch = suite.query_config().unwrap().last_charged + (SECONDS_IN_YEAR) as u64;
+
+    suite.advance_seconds((SECONDS_IN_YEAR) as u64 + 123);
+
+    // we want to make sure the query returns the timestamp as if interest was already charged for this epoch
+    // even if there was no call to `charge_interest`
+
+    assert_eq!(next_epoch, suite.query_config().unwrap().last_charged);
+}
