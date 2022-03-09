@@ -1,4 +1,4 @@
-use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
+use cosmwasm_std::{Decimal, Timestamp, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -64,7 +64,7 @@ pub enum ExecuteMsg {
     TransferFrom {
         source: String,
         destination: String,
-        amount: Coin,
+        amount: Uint128,
         liquidation_price: Decimal,
     },
     AdjustCommonToken {
