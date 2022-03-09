@@ -230,7 +230,6 @@ fn charge_interest_deposit() {
         .deposit(lender, &[Coin::new(1000, market_token)])
         .unwrap();
 
-    // TODO: rounding error
     assert_eq!(
         suite.query_ltoken_info().unwrap().total_supply,
         DisplayAmount::raw(4617u128)
