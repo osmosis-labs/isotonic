@@ -516,7 +516,7 @@ impl Suite {
         self.app.wasm_sudo(
             contract,
             &SudoMsg::AdjustCommonToken {
-                new_common_token: new_common_token.to_owned(),
+                new_common_token: Token::Native(new_common_token.to_owned()),
             },
         )
     }
