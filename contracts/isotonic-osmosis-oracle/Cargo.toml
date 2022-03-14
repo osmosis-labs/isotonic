@@ -1,9 +1,9 @@
 [package]
-name = "isotonic-oracle"
+name = "isotonic-osmosis-oracle"
 version = "0.5.0"
 authors = ["Tomasz Kurcz <tom@confio.gmbh>"]
 edition = "2018"
-description = "The Isotonic Price Oracle"
+description = "The Isotonic Price Oracle based on the Osmosis DEX"
 repository = "https://github.com/confio/isotonic"
 
 [lib]
@@ -18,10 +18,11 @@ cosmwasm-std = { version = "1.0.0-beta6" }
 cosmwasm-storage = { version = "1.0.0-beta6" }
 cw-storage-plus = "0.13.0"
 cw2 = "0.13.0"
+osmo-bindings = "0.1.0"
 schemars = "0.8.3"
 serde = { version = "1.0.127", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.26" }
 utils = { version = "0.5.0", path = "../../packages/utils" }
 
 [dev-dependencies]
-cosmwasm-schema = { version = "1.0.0-beta6" }
+cosmwasm-schema = { version = "1.0.0-beta6"}
