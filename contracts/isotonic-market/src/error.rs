@@ -1,4 +1,4 @@
-use cosmwasm_std::{StdError, Uint128};
+use cosmwasm_std::{OverflowError, StdError, Uint128};
 use thiserror::Error;
 use utils::interest::InterestError;
 
@@ -12,6 +12,9 @@ pub enum ContractError {
 
     #[error("{0}")]
     Price(#[from] PriceError),
+
+    #[error("{0}")]
+    Overflow(#[from] OverflowError),
 
     #[error("Unauthorized")]
     Unauthorized {},

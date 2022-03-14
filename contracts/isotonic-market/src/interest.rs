@@ -31,13 +31,16 @@ pub fn calculate_interest(
         annual_rate: Decimal,
         charge_period: u64,
         epochs_passed: u64,
-    ) -> Decimal {
+    ) -> Result<Decimal, ContractError> {
         // The interest rate per charge period
         let scaled_interest_rate = Decimal::from_ratio(
             Uint128::from(charge_period) * annual_rate.numerator(),
             Uint128::from(SECONDS_IN_YEAR) * annual_rate.denominator(),
         );
-        (Decimal::one() + scaled_interest_rate).pow(epochs_passed as usize) - Decimal::one()
+        Ok(
+            (Decimal::one() + scaled_interest_rate).checked_pow(epochs_passed as u32)?
+                - Decimal::one(),
+        )
     }
 
     if epochs_passed == 0 {
@@ -58,7 +61,7 @@ pub fn calculate_interest(
 
     let interest = cfg.rates.calculate_interest_rate(utilisation(&tokens_info));
     let btoken_ratio =
-        compounded_interest_rate(interest, cfg.interest_charge_period, epochs_passed);
+        compounded_interest_rate(interest, cfg.interest_charge_period, epochs_passed)?;
 
     let old_reserve = RESERVE.load(deps.storage)?;
     // Add to reserve only portion of money charged here
