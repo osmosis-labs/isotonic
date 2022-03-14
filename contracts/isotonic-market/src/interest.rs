@@ -28,14 +28,14 @@ pub fn calculate_interest(
 ) -> Result<Option<InterestUpdate>, ContractError> {
     // Adapted from the compound interest formula: https://en.wikipedia.org/wiki/Compound_interest
     fn compounded_interest_rate(
-        annual_rate: Decimal,
+        interest_rate: Decimal,
         charge_period: u64,
         epochs_passed: u64,
     ) -> Result<Decimal, ContractError> {
         // The interest rate per charge period
         let scaled_interest_rate = Decimal::from_ratio(
-            Uint128::from(charge_period) * annual_rate.numerator(),
-            Uint128::from(SECONDS_IN_YEAR) * annual_rate.denominator(),
+            Uint128::from(charge_period) * interest_rate.numerator(),
+            Uint128::from(SECONDS_IN_YEAR) * interest_rate.denominator(),
         );
         Ok(
             (Decimal::one() + scaled_interest_rate).checked_pow(epochs_passed as u32)?
