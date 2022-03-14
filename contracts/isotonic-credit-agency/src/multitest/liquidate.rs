@@ -1,5 +1,5 @@
 use super::suite::SuiteBuilder;
-use crate::error::ContractError;
+use crate::{error::ContractError, msg::MarketConfig};
 
 use isotonic_token::error::ContractError as TokenContractError;
 
@@ -161,7 +161,7 @@ fn liquidating_whole_debt() {
     assert_eq!(
         total_credit_line,
         CreditLineValues {
-            collateral: Uint128::new(575),
+            collateral: Uint128::new(576),
             credit_line: Uint128::new(460),
             debt: Uint128::new(474)
         }
@@ -179,7 +179,7 @@ fn liquidating_whole_debt() {
         total_credit_line,
         CreditLineValues {
             // 575 - 515 = 60
-            collateral: Uint128::new(60),
+            collateral: Uint128::new(61),
             credit_line: Uint128::new(48),
             debt: Uint128::new(1) // FIXME: Rounding issue
         }
@@ -323,8 +323,8 @@ fn receive_reward_different_denom_fails_if_debtor_has_not_enough_reward_tokens()
     assert_eq!(
         total_credit_line,
         CreditLineValues {
-            collateral: Uint128::new(1038),
-            credit_line: Uint128::new(830),
+            collateral: Uint128::new(1039),
+            credit_line: Uint128::new(831),
             debt: Uint128::new(855)
         }
         .make_response(suite.common_token())
@@ -487,26 +487,45 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
         .with_liquidation_price(Decimal::percent(92))
         .build();
 
-    // create market atom osmo
     suite
-        .create_market_quick(
+        .create_market(
             "gov",
-            "atom",
-            atom,
-            Decimal::percent(50),                        // collateral price
-            (Decimal::percent(3), Decimal::percent(20)), // interest rates (base, slope)
-            None,
+            MarketConfig {
+                name: "atom".to_string(),
+                symbol: "atom".to_string(),
+                decimals: 9,
+                market_token: "OSMO".to_string(),
+                market_cap: None,
+                interest_rate: utils::interest::Interest::Linear {
+                    base: Decimal::percent(3),
+                    slope: Decimal::percent(20),
+                },
+                interest_charge_period: YEAR_IN_SECONDS / 2,
+                collateral_ratio: Decimal::percent(50),
+                price_oracle: suite.oracle_contract.to_string(),
+                reserve_factor: Decimal::percent(0),
+            },
         )
         .unwrap();
-    // create ust market eth
+
     suite
-        .create_market_quick(
+        .create_market(
             "gov",
-            "ust",
-            ust,
-            Decimal::percent(60),                        // collateral price
-            (Decimal::percent(3), Decimal::percent(20)), // interest rates (base, slope)
-            None,
+            MarketConfig {
+                name: "ust".to_string(),
+                symbol: "ust".to_string(),
+                decimals: 9,
+                market_token: "ETH".to_string(),
+                market_cap: None,
+                interest_rate: utils::interest::Interest::Linear {
+                    base: Decimal::percent(3),
+                    slope: Decimal::percent(20),
+                },
+                interest_charge_period: YEAR_IN_SECONDS / 2,
+                collateral_ratio: Decimal::percent(60),
+                price_oracle: suite.oracle_contract.to_string(),
+                reserve_factor: Decimal::percent(0),
+            },
         )
         .unwrap();
 

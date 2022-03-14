@@ -6,6 +6,7 @@ use isotonic_market::msg::{
     ExecuteMsg as MarketExecuteMsg, MigrateMsg as MarketMigrateMsg, QueryMsg as MarketQueryMsg,
     TokensBalanceResponse,
 };
+use isotonic_market::state::SECONDS_IN_YEAR;
 use isotonic_oracle::msg::ExecuteMsg as OracleExecuteMsg;
 use utils::credit_line::CreditLineResponse;
 use utils::{interest::Interest, time::Duration};
@@ -181,7 +182,7 @@ pub struct Suite {
     /// Common token
     common_token: String,
     /// Address of isotonic price oracle
-    oracle_contract: Addr,
+    pub oracle_contract: Addr,
 }
 
 impl Suite {
@@ -229,7 +230,7 @@ impl Suite {
                         slope: Decimal::percent(20),
                     },
                 },
-                interest_charge_period: 300, // seconds
+                interest_charge_period: SECONDS_IN_YEAR as u64, // seconds
                 collateral_ratio: collateral_ratio
                     .into()
                     .unwrap_or_else(|| Decimal::percent(50)),
