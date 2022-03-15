@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_binary, Binary, Env, MessageInfo, Response};
+use cosmwasm_std::{to_binary, Binary, Env, MessageInfo};
 use cw2::set_contract_version;
-use osmo_bindings::OsmosisQuery;
+use osmo_bindings::{OsmosisMsg, OsmosisQuery};
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
@@ -12,6 +12,7 @@ use crate::state::{Config, CONFIG};
 const CONTRACT_NAME: &str = "crates.io:isotonic-oracle";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+type Response = cosmwasm_std::Response<OsmosisMsg>;
 type Deps<'a> = cosmwasm_std::Deps<'a, OsmosisQuery>;
 type DepsMut<'a> = cosmwasm_std::DepsMut<'a, OsmosisQuery>;
 
