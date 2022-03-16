@@ -44,11 +44,11 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::AddPool {
+        ExecuteMsg::RegisterPool {
             pool_id,
             denom1,
             denom2,
-        } => exec::add_pool(deps, info, pool_id, &denom1, &denom2),
+        } => exec::register_pool(deps, info, pool_id, &denom1, &denom2),
     }
 }
 
@@ -71,7 +71,7 @@ mod exec {
     use super::*;
 
     /// Handler for `ExecuteMsg::SetPrice`
-    pub fn add_pool(
+    pub fn register_pool(
         deps: DepsMut,
         info: MessageInfo,
         pool_id: u64,
@@ -130,5 +130,129 @@ mod query {
                 }))?;
 
         Ok(PriceResponse { rate: price.price })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::state::POOLS;
+
+    use super::*;
+
+    use cosmwasm_std::{
+        testing::{mock_env, mock_info},
+        Order, Storage,
+    };
+
+    mod helpers {
+        use std::collections::HashMap;
+
+        use super::*;
+
+        use cosmwasm_std::{
+            testing::{MockApi, MockQuerier, MockStorage},
+            OwnedDeps,
+        };
+
+        pub fn mock_dependencies() -> OwnedDeps<MockStorage, MockApi, MockQuerier, OsmosisQuery> {
+            OwnedDeps {
+                storage: MockStorage::default(),
+                api: MockApi::default(),
+                querier: MockQuerier::default(),
+                custom_query_type: std::marker::PhantomData,
+            }
+        }
+
+        pub fn instantiate_contract(deps: DepsMut, admin: &str) {
+            instantiate(
+                deps,
+                mock_env(),
+                mock_info(admin, &[]),
+                InstantiateMsg {
+                    controller: "admin".to_string(),
+                },
+            )
+            .unwrap();
+        }
+
+        pub fn list_pools(deps: Deps) -> HashMap<(String, String), u64> {
+            POOLS
+                .range(deps.storage, None, None, Order::Ascending)
+                .collect::<Result<_, _>>()
+                .unwrap()
+        }
+    }
+
+    #[test]
+    fn register_pool() {
+        let mut deps = helpers::mock_dependencies();
+        helpers::instantiate_contract(deps.as_mut(), "admin");
+
+        assert!(helpers::list_pools(deps.as_ref()).is_empty());
+
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("admin", &[]),
+            ExecuteMsg::RegisterPool {
+                pool_id: 2,
+                denom1: "ATOM".to_string(),
+                denom2: "OSMO".to_string(),
+            },
+        )
+        .unwrap();
+
+        let pools = helpers::list_pools(deps.as_ref());
+        assert_eq!(pools.len(), 1);
+        assert_eq!(
+            pools.get(&("ATOM".to_string(), "OSMO".to_string())),
+            Some(&2)
+        );
+    }
+
+    #[test]
+    fn register_pool_reorders_denoms() {
+        let mut deps = helpers::mock_dependencies();
+        helpers::instantiate_contract(deps.as_mut(), "admin");
+
+        assert!(helpers::list_pools(deps.as_ref()).is_empty());
+
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("admin", &[]),
+            ExecuteMsg::RegisterPool {
+                pool_id: 2,
+                denom1: "OSMO".to_string(),
+                denom2: "ATOM".to_string(),
+            },
+        )
+        .unwrap();
+
+        let pools = helpers::list_pools(deps.as_ref());
+        assert_eq!(pools.len(), 1);
+        assert_eq!(
+            pools.get(&("ATOM".to_string(), "OSMO".to_string())),
+            Some(&2)
+        );
+    }
+
+    #[test]
+    fn register_pool_unauthorized() {
+        let mut deps = helpers::mock_dependencies();
+        helpers::instantiate_contract(deps.as_mut(), "admin");
+
+        let res = execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("eve", &[]),
+            ExecuteMsg::RegisterPool {
+                pool_id: 2,
+                denom1: "OSMO".to_string(),
+                denom2: "ATOM".to_string(),
+            },
+        );
+
+        assert_eq!(Err(ContractError::Unauthorized {}), res);
     }
 }

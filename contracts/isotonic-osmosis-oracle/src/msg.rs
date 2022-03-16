@@ -11,7 +11,7 @@ pub struct InstantiateMsg {
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     /// Add an Osmosis liquidity pool to the list. Only callable by the controller
-    AddPool {
+    RegisterPool {
         pool_id: u64,
         denom1: String,
         denom2: String,
