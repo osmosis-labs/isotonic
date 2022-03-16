@@ -70,7 +70,6 @@ mod exec {
 
     use super::*;
 
-    /// Handler for `ExecuteMsg::SetPrice`
     pub fn register_pool(
         deps: DepsMut,
         info: MessageInfo,
