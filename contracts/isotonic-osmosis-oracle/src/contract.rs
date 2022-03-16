@@ -126,7 +126,7 @@ mod query {
                         denom_in: sell,
                         denom_out: buy,
                     },
-                    with_swap_fee: true,
+                    with_swap_fee: false,
                 }))?;
 
         Ok(PriceResponse { rate: price.price })
@@ -141,13 +141,13 @@ mod tests {
 
     use cosmwasm_std::{
         testing::{mock_env, mock_info},
-        Order, Storage,
+        Order,
     };
 
     mod helpers {
-        use std::collections::HashMap;
-
         use super::*;
+
+        use std::collections::HashMap;
 
         use cosmwasm_std::{
             testing::{MockApi, MockQuerier, MockStorage},
