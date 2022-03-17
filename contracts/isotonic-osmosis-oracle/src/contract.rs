@@ -9,7 +9,7 @@ use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::state::{Config, CONFIG};
 
 // version info for migration info
-const CONTRACT_NAME: &str = "crates.io:isotonic-oracle";
+const CONTRACT_NAME: &str = "crates.io:isotonic-osmosis-oracle";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 type Response = cosmwasm_std::Response<OsmosisMsg>;
@@ -43,8 +43,9 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
+    use ExecuteMsg::*;
     match msg {
-        ExecuteMsg::RegisterPool {
+        RegisterPool {
             pool_id,
             denom1,
             denom2,
