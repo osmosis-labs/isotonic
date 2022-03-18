@@ -496,8 +496,7 @@ impl Suite {
             Addr::unchecked(account.to_string()),
             self.ca_contract.clone(),
             &CAExecuteMsg::SetCreditLine {
-                credit_line: credit_line
-                    .make_response(self.common_token().clone().native().unwrap()),
+                credit_line: credit_line.make_response(self.common_token().clone()),
             },
             &[],
         )

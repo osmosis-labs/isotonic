@@ -13,6 +13,14 @@ pub enum Token {
 }
 
 impl Token {
+    pub fn new_native(denom: &str) -> Self {
+        Self::Native(denom.to_owned())
+    }
+
+    pub fn new_cw20(denom: &str) -> Self {
+        Self::Cw20(denom.to_owned())
+    }
+
     /// Return native token name or `None`
     pub fn native(self) -> Option<String> {
         match self {

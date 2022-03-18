@@ -180,7 +180,7 @@ mod exec {
         let cfg = CONFIG.load(deps.storage)?;
         // assert that given account actually has more debt then credit
         let total_credit_line = query::total_credit_line(deps.as_ref(), account.to_string())?;
-        let total_credit_line = total_credit_line.validate(&cfg.common_token)?;
+        let total_credit_line = total_credit_line.validate(&Token::Native(cfg.common_token))?;
         if total_credit_line.debt <= total_credit_line.credit_line {
             return Err(ContractError::LiquidationNotAllowed {});
         }
@@ -296,7 +296,8 @@ mod exec {
                         account: info.sender.to_string(),
                     },
                 )?;
-                let price_response = price_response.validate(&common_token)?;
+                let price_response =
+                    price_response.validate(&Token::Native(common_token.clone()))?;
                 Ok(price_response)
             })
             .try_fold(
@@ -437,13 +438,14 @@ mod query {
                         account: account.clone(),
                     },
                 )?;
-                let price_response = price_response.validate(&common_token)?;
+                let price_response =
+                    price_response.validate(&Token::Native(common_token.clone()))?;
                 Ok(price_response)
             })
             .collect::<Result<Vec<CreditLineValues>, ContractError>>()?
             .iter()
             .sum();
-        Ok(total_credit_line.make_response(common_token))
+        Ok(total_credit_line.make_response(Token::Native(common_token)))
     }
 
     pub fn entered_markets(

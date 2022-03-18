@@ -75,7 +75,7 @@ fn account_doesnt_have_debt_bigger_then_credit_line() {
             credit_line: Uint128::new(400),
             debt: Uint128::zero()
         }
-        .make_response(suite.common_token().clone().native().unwrap())
+        .make_response(suite.common_token().clone())
     );
 
     // debt must be higher then credit line, so 400 debt with 400 credit line won't allow liquidation
@@ -138,7 +138,7 @@ fn liquidating_whole_debt() {
             credit_line: Uint128::new(400),
             debt: Uint128::zero()
         }
-        .make_response(suite.common_token().clone().native().unwrap())
+        .make_response(suite.common_token().clone())
     );
 
     // debt must be higher then credit line, but debtor can borrow at most 400 tokens
@@ -171,7 +171,7 @@ fn liquidating_whole_debt() {
             credit_line: Uint128::new(460),
             debt: Uint128::new(474)
         }
-        .make_response(suite.common_token().clone().native().unwrap())
+        .make_response(suite.common_token().clone())
     );
 
     suite
@@ -194,7 +194,7 @@ fn liquidating_whole_debt() {
             credit_line: Uint128::new(48),
             debt: Uint128::new(1) // FIXME: Rounding issue
         }
-        .make_response(suite.common_token().clone().native().unwrap())
+        .make_response(suite.common_token().clone())
     );
 
     let total_credit_line = suite.query_total_credit_line(liquidator).unwrap();
@@ -206,7 +206,7 @@ fn liquidating_whole_debt() {
             credit_line: Uint128::new(411),
             debt: Uint128::zero()
         }
-        .make_response(suite.common_token().clone().native().unwrap())
+        .make_response(suite.common_token().clone())
     );
 }
 
@@ -347,7 +347,7 @@ fn receive_reward_different_denom_fails_if_debtor_has_not_enough_reward_tokens()
             credit_line: Uint128::new(831),
             debt: Uint128::new(855)
         }
-        .make_response(suite.common_token().clone().native().unwrap())
+        .make_response(suite.common_token().clone())
     );
 
     let err = suite
@@ -435,7 +435,7 @@ fn receive_reward_in_different_denoms_no_interest_rates() {
             credit_line: Uint128::new(8000), // 16000 collateral * 0.5 collateral price
             debt: Uint128::new(7500)         // 75_000 * 0.1
         }
-        .make_response(suite.common_token().clone().native().unwrap())
+        .make_response(suite.common_token().clone())
     );
 
     suite
@@ -449,7 +449,7 @@ fn receive_reward_in_different_denoms_no_interest_rates() {
             credit_line: Uint128::new(6000), // 12000 collateral * 0.5 collateral price
             debt: Uint128::new(7500)         // 75_000 * 0.1
         }
-        .make_response(suite.common_token().clone().native().unwrap())
+        .make_response(suite.common_token().clone())
     );
 
     // successful liquidation of 6000 tokens
@@ -475,7 +475,7 @@ fn receive_reward_in_different_denoms_no_interest_rates() {
             // 7500 - (60_000 * 0.1)
             debt: Uint128::new(1500),
         }
-        .make_response(suite.common_token().clone().native().unwrap())
+        .make_response(suite.common_token().clone())
     );
     let balance = suite.query_tokens_balance(ust, debtor).unwrap();
     assert_eq!(balance.btokens, Uint128::new(15000)); // 1500 / 0.1 price
@@ -592,7 +592,7 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
             credit_line: Uint128::new(8000), // 16000 collateral * 0.5 collateral price
             debt: Uint128::new(7500)         // 75_000 * 0.1
         }
-        .make_response(suite.common_token().clone().native().unwrap())
+        .make_response(suite.common_token().clone())
     );
 
     suite.advance_seconds(YEAR_IN_SECONDS / 2);
@@ -646,6 +646,6 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
             // 8375 - (60_000 * 0.1)
             debt: Uint128::new(2325),
         }
-        .make_response(suite.common_token().clone().native().unwrap())
+        .make_response(suite.common_token().clone())
     );
 }

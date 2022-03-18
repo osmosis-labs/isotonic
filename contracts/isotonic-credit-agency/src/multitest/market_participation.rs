@@ -3,6 +3,7 @@ use cosmwasm_std::{coin, coins, Addr, Decimal};
 use super::suite::SuiteBuilder;
 use crate::error::ContractError;
 
+use utils::coin::Coin;
 use utils::token::Token;
 
 #[test]
@@ -220,7 +221,7 @@ fn cent_exit_market_with_borrowed_tokens() {
         ContractError::DebtOnMarket {
             address: Addr::unchecked(actor1),
             market: market2.clone(),
-            debt: coin(200, &suite.common_token().clone().native().unwrap()),
+            debt: Coin::new(200, suite.common_token().clone()),
         },
         err.downcast().unwrap()
     );

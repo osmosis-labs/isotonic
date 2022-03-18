@@ -225,7 +225,7 @@ mod cr_utils {
             &config.credit_agency,
             &QueryTotalCreditLine::TotalCreditLine { account },
         )?;
-        let credit = credit.validate(&config.common_token)?;
+        let credit = credit.validate(&Token::Native(config.common_token.clone()))?;
 
         // Available credit for that account amongst all markets
         let available_common = credit.credit_line.saturating_sub(credit.debt);
@@ -839,7 +839,7 @@ mod query {
         }
 
         if collateral.amount.is_zero() && debt.amount.is_zero() {
-            return Ok(CreditLineValues::zero().make_response(config.common_token));
+            return Ok(CreditLineValues::zero().make_response(Token::Native(config.common_token)));
         }
 
         let price_ratio = price_market_local_per_common(deps)?;
@@ -847,7 +847,7 @@ mod query {
         let debt = coin_times_price_rate(&debt, &price_ratio)?.amount;
         let credit_line = collateral.amount * config.collateral_ratio;
         Ok(CreditLineValues::new(collateral.amount, credit_line, debt)
-            .make_response(config.common_token))
+            .make_response(Token::Native(config.common_token)))
     }
 
     /// Handler for `QueryMsg::Reserve`
