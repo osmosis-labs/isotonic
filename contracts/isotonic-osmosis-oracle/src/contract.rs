@@ -90,7 +90,8 @@ mod exec {
 
         Ok(Response::new()
             .add_attribute("action", "set_price")
-            .add_attribute("sender", info.sender))
+            .add_attribute("sender", info.sender)
+            .add_attribute("controller", cfg.controller))
     }
 }
 
