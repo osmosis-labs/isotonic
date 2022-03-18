@@ -13,8 +13,5 @@ pub enum ContractError {
     Unauthorized {},
 
     #[error("There is no info about the prices for this trading pair")]
-    NoInfo {},
-
-    #[error("The prices for this trading pair are outdated")]
-    OutdatedOracle {},
+    NoInfo { denom1: String, denom2: String },
 }

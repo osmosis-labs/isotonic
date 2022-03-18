@@ -7,6 +7,7 @@ use osmo_bindings::{OsmosisMsg, OsmosisQuery};
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::state::{Config, CONFIG};
+use crate::utils::sorted_tuple;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:isotonic-osmosis-oracle";
@@ -35,7 +36,6 @@ pub fn instantiate(
         .add_attribute("owner", info.sender))
 }
 
-/// Execution entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
@@ -81,12 +81,7 @@ mod exec {
         let cfg = CONFIG.load(deps.storage)?;
         ensure_eq!(info.sender, cfg.controller, ContractError::Unauthorized {});
 
-        let denoms = if denom1 < denom2 {
-            (denom1, denom2)
-        } else {
-            (denom2, denom1)
-        };
-        POOLS.save(deps.storage, denoms, &pool_id)?;
+        POOLS.save(deps.storage, sorted_tuple(denom1, denom2), &pool_id)?;
 
         Ok(Response::new()
             .add_attribute("action", "set_price")
@@ -109,15 +104,12 @@ mod query {
         sell: String,
         buy: String,
     ) -> Result<PriceResponse, ContractError> {
-        let denoms = if sell < buy {
-            (sell.as_str(), buy.as_str())
-        } else {
-            (buy.as_str(), sell.as_str())
-        };
-
         let pool_id = POOLS
-            .may_load(deps.storage, denoms)?
-            .ok_or(ContractError::NoInfo {})?;
+            .may_load(deps.storage, sorted_tuple(&sell, &buy))?
+            .ok_or_else(|| ContractError::NoInfo {
+                denom1: sell.clone(),
+                denom2: buy.clone(),
+            })?;
 
         let price: SpotPriceResponse =
             deps.querier

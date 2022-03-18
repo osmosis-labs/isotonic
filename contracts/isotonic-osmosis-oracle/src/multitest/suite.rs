@@ -7,6 +7,8 @@ use derivative::Derivative;
 use osmo_bindings::{OsmosisMsg, OsmosisQuery};
 use osmo_bindings_test::{OsmosisApp, Pool};
 
+use crate::msg::*;
+
 fn contract_osmosis_oracle() -> Box<dyn Contract<OsmosisMsg, OsmosisQuery>> {
     let contract = ContractWrapper::new(
         crate::contract::execute,
@@ -102,7 +104,7 @@ impl Suite {
     pub fn query_price(&self, sell: &str, buy: &str) -> StdResult<Decimal> {
         let resp: crate::msg::PriceResponse = self.app.wrap().query_wasm_smart(
             self.osmosis_oracle.clone(),
-            &crate::msg::QueryMsg::Price {
+            &QueryMsg::Price {
                 sell: sell.to_string(),
                 buy: buy.to_string(),
             },

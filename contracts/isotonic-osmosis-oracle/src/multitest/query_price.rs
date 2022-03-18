@@ -19,6 +19,10 @@ fn query_unknown_price() {
     let suite = SuiteBuilder::new().build();
 
     let err = suite.query_price("ATOM", "OSMO").unwrap_err();
-    let expected_err_msg = ContractError::NoInfo {}.to_string();
+    let expected_err_msg = ContractError::NoInfo {
+        denom1: "ATOM".to_string(),
+        denom2: "OSMO".to_string(),
+    }
+    .to_string();
     assert!(err.to_string().contains(&expected_err_msg));
 }
