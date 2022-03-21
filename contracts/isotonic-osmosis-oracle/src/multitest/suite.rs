@@ -102,7 +102,7 @@ pub struct Suite {
 
 impl Suite {
     pub fn query_price(&self, sell: &str, buy: &str) -> StdResult<Decimal> {
-        let resp: crate::msg::PriceResponse = self.app.wrap().query_wasm_smart(
+        let resp: PriceResponse = self.app.wrap().query_wasm_smart(
             self.osmosis_oracle.clone(),
             &QueryMsg::Price {
                 sell: sell.to_string(),
