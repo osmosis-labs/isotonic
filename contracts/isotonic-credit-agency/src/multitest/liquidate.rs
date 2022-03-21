@@ -519,7 +519,7 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
                 name: "atom".to_string(),
                 symbol: "atom".to_string(),
                 decimals: 9,
-                market_token: "OSMO".to_string(),
+                market_token: Token::new_native("OSMO"),
                 market_cap: None,
                 interest_rate: utils::interest::Interest::Linear {
                     base: Decimal::percent(3),
@@ -540,7 +540,7 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
                 name: "ust".to_string(),
                 symbol: "ust".to_string(),
                 decimals: 9,
-                market_token: "ETH".to_string(),
+                market_token: Token::new_native("ETH"),
                 market_cap: None,
                 interest_rate: utils::interest::Interest::Linear {
                     base: Decimal::percent(3),
