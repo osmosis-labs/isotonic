@@ -14,11 +14,11 @@ backtraces = ["cosmwasm-std/backtraces"]
 library = []
 
 [dependencies]
-cosmwasm-std = { version = "1.0.0-beta5" }
-cosmwasm-storage = { version = "1.0.0-beta5" }
-cw-storage-plus = "0.12.1"
-cw-utils = "0.12.1"
-cw2 = "0.12.1"
+cosmwasm-std = { version = "1.0.0-beta6" }
+cosmwasm-storage = { version = "1.0.0-beta6" }
+cw-storage-plus = "0.13.0"
+cw-utils = "0.13.0"
+cw2 = "0.13.0"
 isotonic-market = { path = "../isotonic-market", version = "0.5.0", features = ["library"] }
 isotonic-oracle = { path = "../isotonic-oracle", version = "0.5.0", features = ["library"] }
 isotonic-token = { path = "../isotonic-token", version = "0.5.0", features = ["library"] }
@@ -30,5 +30,5 @@ either = "1.6"
 
 [dev-dependencies]
 anyhow = "1"
-cosmwasm-schema = { version = "1.0.0-beta5" }
-cw-multi-test = "0.12.1"
+cosmwasm-schema = { version = "1.0.0-beta6" }
+cw-multi-test = "0.13.0"
