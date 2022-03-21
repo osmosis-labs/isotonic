@@ -2,6 +2,7 @@ use cosmwasm_std::{Addr, Decimal, Uint128};
 use isotonic_market::msg::MigrateMsg as MarketMigrateMsg;
 
 use utils::interest::Interest;
+use utils::token::Token;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -16,9 +17,9 @@ pub struct InstantiateMsg {
     pub isotonic_token_id: u64,
     /// Token denom which would be distributed as reward token to isotonic token holders.
     /// This is `distributed_token` in the market contract.
-    pub reward_token: String,
+    pub reward_token: Token,
     /// Common Token denom (same for all markets)
-    pub common_token: String,
+    pub common_token: Token,
     /// Price for collateral in exchange for paying debt during liquidation
     pub liquidation_price: Decimal,
 }
@@ -30,7 +31,7 @@ pub enum ExecuteMsg {
     /// Tries to perform liquidation on passed account using collateral's denom
     Liquidate {
         account: String,
-        collateral_denom: String,
+        collateral_denom: Token,
     },
     /// Ensures a given account has entered a market. Meant to be called by a specific
     /// market contract - so the sender of the msg would be the market
@@ -55,7 +56,7 @@ pub struct MarketConfig {
     /// Decimals for sub-tokens `L` and `B`
     pub decimals: u8,
     /// Native denom for the market token
-    pub market_token: String,
+    pub market_token: Token,
     /// An optional cap on total number of tokens deposited into the market
     pub market_cap: Option<Uint128>,
     /// Interest rate curve
@@ -76,11 +77,11 @@ pub enum QueryMsg {
     /// Returns current configuration
     Configuration {},
     /// Queries a market address by market token
-    Market { market_token: String },
+    Market { market_token: Token },
     /// List all base assets and the addresses of markets handling them.
     /// Pagination by base asset
     ListMarkets {
-        start_after: Option<String>,
+        start_after: Option<Token>,
         limit: Option<u32>,
     },
     /// Queries all markets for credit lines for particular account
@@ -114,7 +115,7 @@ pub enum SudoMsg {
     /// Sets common_token parameter in configuration and sends AdjustCommonToken
     /// message to all affiliated markets
     AdjustCommonToken {
-        new_common_token: String,
+        new_common_token: Token,
     },
     MigrateMarket {
         contract: String,
@@ -124,7 +125,7 @@ pub enum SudoMsg {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct MarketResponse {
-    pub market_token: String,
+    pub market_token: Token,
     pub market: Addr,
 }
 

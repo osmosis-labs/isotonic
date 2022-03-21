@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 pub use cw20::Cw20ReceiveMsg;
 
 use crate::display_amount::DisplayAmount;
+use utils::token::Token;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -18,7 +19,7 @@ pub struct InstantiateMsg {
     /// enable transfer
     pub controller: String,
     /// Token which will be distributed via this contract by cw2222 interface
-    pub distributed_token: String,
+    pub distributed_token: Token,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

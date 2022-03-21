@@ -1,7 +1,9 @@
 use std::iter::Sum;
 use std::ops::Add;
 
-use cosmwasm_std::{coin, Coin, Uint128};
+use crate::coin::Coin;
+use crate::token::Token;
+use cosmwasm_std::Uint128;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -21,7 +23,7 @@ pub struct CreditLineResponse {
 impl CreditLineResponse {
     pub fn validate(
         &self,
-        expected_denom: &str,
+        expected_denom: &Token,
     ) -> Result<CreditLineValues, InvalidCommonTokenDenom> {
         for actual in [
             &self.collateral.denom,
@@ -30,8 +32,8 @@ impl CreditLineResponse {
         ] {
             if actual != expected_denom {
                 return Err(InvalidCommonTokenDenom {
-                    expected: expected_denom.to_string(),
-                    actual: actual.to_string(),
+                    expected: expected_denom.clone(),
+                    actual: actual.clone(),
                 });
             }
         }
@@ -76,13 +78,11 @@ impl CreditLineValues {
         }
     }
 
-    pub fn make_response(self, denom: impl Into<String>) -> CreditLineResponse {
-        let denom = denom.into();
-
+    pub fn make_response(self, denom: Token) -> CreditLineResponse {
         CreditLineResponse {
-            collateral: coin(self.collateral.u128(), denom.clone()),
-            credit_line: coin(self.credit_line.u128(), denom.clone()),
-            debt: coin(self.debt.u128(), denom),
+            collateral: Coin::new(self.collateral.u128(), denom.clone()),
+            credit_line: Coin::new(self.credit_line.u128(), denom.clone()),
+            debt: Coin::new(self.debt.u128(), denom),
         }
     }
 }
@@ -114,10 +114,12 @@ impl<'a> Sum<&'a Self> for CreditLineValues {
 
 /// Used for when CreditLineResponse validation fails
 #[derive(Error, Debug, PartialEq)]
-#[error("Received invalid common token from another contract, expected: {expected}, got: {actual}")]
+#[error(
+    "Received invalid common token from another contract, expected: {expected:?}, got: {actual:?}"
+)]
 pub struct InvalidCommonTokenDenom {
-    pub expected: String,
-    pub actual: String,
+    pub expected: Token,
+    pub actual: Token,
 }
 
 #[cfg(test)]
@@ -154,9 +156,9 @@ mod tests {
     #[test]
     fn credit_line_response_validation() {
         let resp = CreditLineResponse {
-            collateral: coin(50, "BTC"),
-            credit_line: coin(40, "BTC"),
-            debt: coin(20, "BTC"),
+            collateral: Coin::new_native(50, "BTC"),
+            credit_line: Coin::new_native(40, "BTC"),
+            debt: Coin::new_native(20, "BTC"),
         };
         assert_eq!(
             Ok(CreditLineValues {
@@ -164,26 +166,26 @@ mod tests {
                 credit_line: Uint128::from(40u128),
                 debt: Uint128::from(20u128)
             }),
-            resp.validate("BTC")
+            resp.validate(&Token::new_native("BTC"))
         );
         assert_eq!(
             Err(InvalidCommonTokenDenom {
-                expected: "OSMO".to_string(),
-                actual: "BTC".to_string()
+                expected: Token::new_native("OSMO"),
+                actual: Token::new_native("BTC")
             }),
-            resp.validate("OSMO")
+            resp.validate(&Token::new_native("OSMO"))
         );
     }
 
     #[test]
     fn credit_line_inconsistent_response_validation() {
         let resp = CreditLineResponse {
-            collateral: coin(50, "BTC"),
-            credit_line: coin(40, "OSMO"),
-            debt: coin(20, "BTC"),
+            collateral: Coin::new_native(50, "BTC"),
+            credit_line: Coin::new_native(40, "OSMO"),
+            debt: Coin::new_native(20, "BTC"),
         };
-        assert!(resp.validate("OSMO").is_err());
-        assert!(resp.validate("BTC").is_err());
-        assert!(resp.validate("ATOM").is_err());
+        assert!(resp.validate(&Token::new_native("OSMO")).is_err());
+        assert!(resp.validate(&Token::new_native("BTC")).is_err());
+        assert!(resp.validate(&Token::new_native("ATOM")).is_err());
     }
 }

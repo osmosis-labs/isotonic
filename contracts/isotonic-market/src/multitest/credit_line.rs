@@ -40,7 +40,7 @@ fn zero_credit_line() {
     let credit_line = suite.query_credit_line(lender).unwrap();
     assert_eq!(
         credit_line,
-        CreditLineValues::zero().make_response(suite.common_token())
+        CreditLineValues::zero().make_response(suite.common_token().clone())
     );
 }
 
@@ -83,7 +83,7 @@ fn borrower_borrows_tokens() {
             // 1000 borrowed * 2.0 oracle's price
             debt: Uint128::new(2000),
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone())
     );
 }
 
@@ -121,7 +121,7 @@ fn lender_deposits_tokens() {
             // no debt because of lack of btokens
             debt: Uint128::zero(),
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone())
     );
 }
 
@@ -172,7 +172,7 @@ fn deposits_and_borrows_tokens() {
             // no debt because of lack of btokens
             debt: Uint128::zero(),
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone())
     );
     let credit_line = suite.query_credit_line(borrower).unwrap();
     assert_eq!(
@@ -185,7 +185,7 @@ fn deposits_and_borrows_tokens() {
             // 1000 borrowed * 2.0 oracle's price
             debt: Uint128::new(2000),
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone())
     );
 }
 
@@ -223,7 +223,7 @@ fn deposits_and_borrows_tokens_market_common_matches_denoms() {
             // no debt because of lack of btokens
             debt: Uint128::zero(),
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone())
     );
     let credit_line = suite.query_credit_line(borrower).unwrap();
     assert_eq!(
@@ -236,7 +236,7 @@ fn deposits_and_borrows_tokens_market_common_matches_denoms() {
             // 1000 borrowed * 1.0 oracle's price
             debt: Uint128::new(1000),
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone())
     );
 }
 

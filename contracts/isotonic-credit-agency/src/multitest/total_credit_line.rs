@@ -2,6 +2,7 @@ use super::suite::SuiteBuilder;
 
 use cosmwasm_std::{coin, Decimal, Uint128};
 use utils::credit_line::CreditLineValues;
+use utils::token::Token;
 
 #[test]
 fn lender_on_one_market() {
@@ -19,7 +20,10 @@ fn lender_on_one_market() {
     // Sets sell/buy rate between market denom/common denom as 2.0,
     // which means selling 1000 market denom will result in 2000 common denom
     suite
-        .oracle_set_price_market_per_common(market_denom, Decimal::percent(200))
+        .oracle_set_price_market_per_common(
+            Token::Native(market_denom.to_owned()),
+            Decimal::percent(200),
+        )
         .unwrap();
 
     suite
@@ -35,7 +39,7 @@ fn lender_on_one_market() {
             credit_line: Uint128::new(1000),
             debt: Uint128::zero()
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone())
     );
 }
 
@@ -70,15 +74,24 @@ fn lender_on_three_markets() {
     // Sets sell/buy rate between market denom/common denom as 2.0,
     // selling 1000 OSMO denom gives 2000 common denom
     suite
-        .oracle_set_price_market_per_common(first_denom, Decimal::percent(200))
+        .oracle_set_price_market_per_common(
+            Token::Native(first_denom.to_owned()),
+            Decimal::percent(200),
+        )
         .unwrap();
     // here - selling 500 ETH denom gives 250 common denom
     suite
-        .oracle_set_price_market_per_common(second_denom, Decimal::percent(50))
+        .oracle_set_price_market_per_common(
+            Token::Native(second_denom.to_owned()),
+            Decimal::percent(50),
+        )
         .unwrap();
     // here - selling 7 BTC denom gives 7000 common denom
     suite
-        .oracle_set_price_market_per_common(third_denom, Decimal::percent(100_000))
+        .oracle_set_price_market_per_common(
+            Token::Native(third_denom.to_owned()),
+            Decimal::percent(100_000),
+        )
         .unwrap();
 
     suite
@@ -104,7 +117,7 @@ fn lender_on_three_markets() {
             credit_line: Uint128::new(4625),
             debt: Uint128::zero()
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone())
     );
 }
 
@@ -134,11 +147,17 @@ fn lender_on_two_markets_with_two_borrowers() {
     // Sets sell/buy rate between market denom/common denom as 2.0,
     // selling 1000 market denom gives 2000 common denom
     suite
-        .oracle_set_price_market_per_common(first_denom, Decimal::percent(200))
+        .oracle_set_price_market_per_common(
+            Token::Native(first_denom.to_owned()),
+            Decimal::percent(200),
+        )
         .unwrap();
     // here - selling 500 ETH denom gives 250 common denom
     suite
-        .oracle_set_price_market_per_common(second_denom, Decimal::percent(50))
+        .oracle_set_price_market_per_common(
+            Token::Native(second_denom.to_owned()),
+            Decimal::percent(50),
+        )
         .unwrap();
 
     // Lender deposits all his money
@@ -176,7 +195,7 @@ fn lender_on_two_markets_with_two_borrowers() {
             credit_line: Uint128::new(225),
             debt: Uint128::zero()
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone())
     );
 
     let total_credit_line = suite.query_total_credit_line(borrower_one).unwrap();
@@ -190,7 +209,7 @@ fn lender_on_two_markets_with_two_borrowers() {
             // 500 borrowed * 0.5 oracle's price (second denom)
             debt: Uint128::new(250)
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone())
     );
 
     let total_credit_line = suite.query_total_credit_line(borrower_two).unwrap();
@@ -204,7 +223,7 @@ fn lender_on_two_markets_with_two_borrowers() {
             // 100 borrowed * 2.0 oracle's price (first denom)
             debt: Uint128::new(200)
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone())
     );
 }
 
@@ -234,11 +253,17 @@ fn two_lenders_with_borrower_on_two_markets() {
     // Sets sell/buy rate between market denom/common denom as 1.5,
     // selling 500 market denom gives 750 common denom
     suite
-        .oracle_set_price_market_per_common(first_denom, Decimal::percent(150))
+        .oracle_set_price_market_per_common(
+            Token::Native(first_denom.to_owned()),
+            Decimal::percent(150),
+        )
         .unwrap();
     // here - selling 300 ETH denom gives 150 common denom
     suite
-        .oracle_set_price_market_per_common(second_denom, Decimal::percent(50))
+        .oracle_set_price_market_per_common(
+            Token::Native(second_denom.to_owned()),
+            Decimal::percent(50),
+        )
         .unwrap();
 
     // Lenders deposits all his money
@@ -270,7 +295,7 @@ fn two_lenders_with_borrower_on_two_markets() {
             credit_line: Uint128::new(375),
             debt: Uint128::zero()
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone())
     );
 
     let total_credit_line = suite.query_total_credit_line(lender_two).unwrap();
@@ -283,7 +308,7 @@ fn two_lenders_with_borrower_on_two_markets() {
             credit_line: Uint128::new(75),
             debt: Uint128::zero()
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone())
     );
 
     let total_credit_line = suite.query_total_credit_line(borrower).unwrap();
@@ -297,6 +322,6 @@ fn two_lenders_with_borrower_on_two_markets() {
             // 500 borrowed * 1.5 oracle's price + 300 borrowed * 0.5 oracle's price
             debt: Uint128::new(900)
         }
-        .make_response(suite.common_token())
+        .make_response(suite.common_token().clone())
     );
 }

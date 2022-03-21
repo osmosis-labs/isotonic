@@ -11,6 +11,8 @@ use anyhow::{anyhow, Result as AnyResult};
 use cosmwasm_std::{Addr, Binary, Coin, Decimal, Empty, Uint128};
 use cw_multi_test::{App, AppResponse, BasicAppBuilder, Contract, ContractWrapper, Executor};
 
+use utils::token::Token;
+
 fn contract_token() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new(
         crate::contract::execute,
@@ -114,7 +116,7 @@ impl SuiteBuilder {
                     symbol: self.symbol,
                     decimals: self.decimals,
                     controller: controller.to_string(),
-                    distributed_token: self.distributed_token,
+                    distributed_token: Token::Native(self.distributed_token),
                 },
                 &[],
                 "Isotonic",

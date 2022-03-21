@@ -4,7 +4,9 @@ use cosmwasm_std::{Addr, Coin, Decimal, Empty, StdResult, Uint128};
 use cw20::BalanceResponse;
 use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
 use utils::credit_line::{CreditLineResponse, CreditLineValues};
-use utils::{interest::Interest, time::Duration};
+use utils::interest::Interest;
+use utils::time::Duration;
+use utils::token::Token;
 
 use super::ca_mock::{
     contract as contract_credit_agency, ExecuteMsg as CAExecuteMsg,
@@ -154,8 +156,8 @@ impl SuiteBuilder {
         let mut app = App::default();
         let owner = Addr::unchecked("owner");
 
-        let market_token = self.market_token;
-        let common_token = self.common_token;
+        let market_token = Token::Native(self.market_token);
+        let common_token = Token::Native(self.common_token);
 
         let oracle_id = app.store_code(contract_oracle());
         let oracle_contract = app
@@ -202,7 +204,7 @@ impl SuiteBuilder {
                         base: self.interest_base,
                         slope: self.interest_slope,
                     },
-                    distributed_token: "osmo".to_owned(),
+                    distributed_token: Token::Native("osmo".to_owned()),
                     interest_charge_period: self.interest_charge_period,
                     common_token: common_token.clone(),
                     collateral_ratio: self.collateral_ratio,
@@ -265,9 +267,9 @@ pub struct Suite {
     /// Address of BToken contract
     btoken_contract: Addr,
     /// The market's token denom deposited and lended by the contract
-    market_token: String,
+    market_token: Token,
     /// Credit agency token's common denom (with other markets)
-    common_token: String,
+    common_token: Token,
     /// Credit Agency contract address
     ca_contract: Addr,
     /// Oracle contract address
@@ -301,7 +303,7 @@ impl Suite {
     }
 
     /// The denom of the common token
-    pub fn common_token(&self) -> &str {
+    pub fn common_token(&self) -> &Token {
         &self.common_token
     }
 
@@ -354,7 +356,7 @@ impl Suite {
             Addr::unchecked(sender),
             self.contract.clone(),
             &ExecuteMsg::AdjustCommonToken {
-                new_token: new_token.to_owned(),
+                new_token: Token::Native(new_token.to_owned()),
             },
             &[],
         )
@@ -365,7 +367,7 @@ impl Suite {
         let amount = self
             .app
             .wrap()
-            .query_balance(owner, &self.market_token)?
+            .query_balance(owner, &self.market_token.clone().native().unwrap())?
             .amount;
         Ok(amount.into())
     }
@@ -494,7 +496,7 @@ impl Suite {
             Addr::unchecked(account.to_string()),
             self.ca_contract.clone(),
             &CAExecuteMsg::SetCreditLine {
-                credit_line: credit_line.make_response(self.common_token()),
+                credit_line: credit_line.make_response(self.common_token().clone()),
             },
             &[],
         )

@@ -1,3 +1,5 @@
+use utils::token::Token;
+
 use super::suite::SuiteBuilder;
 
 #[test]
@@ -8,7 +10,7 @@ fn query_market() {
         .create_market_quick("gov", "osmo", "OSMO", None, None, None)
         .unwrap();
     let res = suite.query_market("OSMO").unwrap();
-    assert_eq!(res.market_token, "OSMO");
+    assert_eq!(res.market_token.native().unwrap(), "OSMO");
 }
 
 #[test]
@@ -43,7 +45,14 @@ fn list_markets() {
         .collect();
     list.sort();
 
-    assert_eq!(list, ["ATOM", "BTC", "OSMO"]);
+    assert_eq!(
+        list,
+        [
+            Token::Native("ATOM".to_owned()),
+            Token::Native("BTC".to_owned()),
+            Token::Native("OSMO".to_owned())
+        ]
+    );
 }
 
 #[test]
@@ -54,10 +63,10 @@ fn list_markets_empty_list() {
     assert_eq!(res.markets, []);
 }
 
-fn generate_denoms(prefix: &str, start: u32, end: u32) -> Vec<String> {
+fn generate_denoms(prefix: &str, start: u32, end: u32) -> Vec<Token> {
     (start..end)
         .into_iter()
-        .map(|i| format!("{}{:02}", prefix, i))
+        .map(|i| Token::Native(format!("{}{:02}", prefix, i)))
         .collect()
 }
 

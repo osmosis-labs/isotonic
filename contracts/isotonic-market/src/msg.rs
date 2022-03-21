@@ -1,8 +1,9 @@
-use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
+use cosmwasm_std::{Decimal, Timestamp, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use utils::interest::Interest;
+use utils::token::Token;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -14,18 +15,18 @@ pub struct InstantiateMsg {
     pub decimals: u8,
     /// CodeId used to create sub-tokens `L` and `B`
     pub token_id: u64,
-    /// Native denom for the market tokene
-    pub market_token: String,
+    /// Market token
+    pub market_token: Token,
     /// An optional cap on total number of tokens deposited into the market
     pub market_cap: Option<Uint128>,
     /// Interest rate curve
     pub interest_rate: Interest,
     /// Token which would be distributed via created isotonic contracts
-    pub distributed_token: String,
+    pub distributed_token: Token,
     /// Define interest's charged period (in seconds)
     pub interest_charge_period: u64,
     /// Common Token denom that comes from Credit Agency (same for all markets)
-    pub common_token: String,
+    pub common_token: Token,
     /// Ratio of how much tokens can be borrowed for one unit, 0 <= x < 1
     pub collateral_ratio: Decimal,
     /// Address of contract to query for price
@@ -63,11 +64,11 @@ pub enum ExecuteMsg {
     TransferFrom {
         source: String,
         destination: String,
-        amount: Coin,
+        amount: Uint128,
         liquidation_price: Decimal,
     },
     AdjustCommonToken {
-        new_token: String,
+        new_token: Token,
     },
 }
 

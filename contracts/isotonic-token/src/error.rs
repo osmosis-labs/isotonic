@@ -20,6 +20,9 @@ pub enum ContractError {
 
     #[error("No token holders, noone to distribute tokens to")]
     NoHoldersToDistributeTo {},
+
+    #[error("Cw20 tokens are not supported yet")]
+    Cw20TokensNotSupported,
 }
 
 impl ContractError {

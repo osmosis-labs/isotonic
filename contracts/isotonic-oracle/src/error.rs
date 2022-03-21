@@ -14,4 +14,7 @@ pub enum ContractError {
 
     #[error("The prices for this trading pair are outdated")]
     OutdatedOracle {},
+
+    #[error("Cw20 tokens are not supported yet")]
+    Cw20TokensNotSupported,
 }

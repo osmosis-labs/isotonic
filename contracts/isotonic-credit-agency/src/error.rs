@@ -1,4 +1,5 @@
-use cosmwasm_std::{Addr, Coin, StdError, Uint128};
+use cosmwasm_std::{Addr, StdError, Uint128};
+use utils::coin::Coin;
 use utils::{credit_line::InvalidCommonTokenDenom, price::PriceError};
 
 use thiserror::Error;
@@ -62,7 +63,7 @@ pub enum ContractError {
     #[error("{address} is not on a market {market}")]
     NotOnMarket { address: Addr, market: Addr },
 
-    #[error("{address} has dept on market {market} of {debt}")]
+    #[error("{address} has dept on market {market} of {debt:?}")]
     DebtOnMarket {
         address: Addr,
         market: Addr,
@@ -75,4 +76,7 @@ pub enum ContractError {
         credit_line: Uint128,
         collateral: Uint128,
     },
+
+    #[error("Cw20 tokens are not supported yet")]
+    Cw20TokensNotSupported,
 }

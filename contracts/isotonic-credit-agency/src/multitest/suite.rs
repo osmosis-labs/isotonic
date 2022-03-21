@@ -9,7 +9,9 @@ use isotonic_market::msg::{
 use isotonic_market::state::SECONDS_IN_YEAR;
 use isotonic_oracle::msg::ExecuteMsg as OracleExecuteMsg;
 use utils::credit_line::CreditLineResponse;
-use utils::{interest::Interest, time::Duration};
+use utils::interest::Interest;
+use utils::time::Duration;
+use utils::token::Token;
 
 use crate::msg::{
     ExecuteMsg, InstantiateMsg, IsOnMarketResponse, ListEnteredMarketsResponse,
@@ -141,8 +143,8 @@ impl SuiteBuilder {
                     gov_contract: self.gov_contract,
                     isotonic_market_id,
                     isotonic_token_id,
-                    reward_token: self.reward_token,
-                    common_token: common_token.clone(),
+                    reward_token: Token::Native(self.reward_token),
+                    common_token: Token::Native(common_token.clone()),
                     liquidation_price: self.liquidation_price,
                 },
                 &[],
@@ -165,7 +167,7 @@ impl SuiteBuilder {
             app,
             owner,
             contract,
-            common_token,
+            common_token: Token::Native(common_token),
             oracle_contract,
         }
     }
@@ -180,7 +182,7 @@ pub struct Suite {
     /// Address of the Credit Agency contract
     contract: Addr,
     /// Common token
-    common_token: String,
+    common_token: Token,
     /// Address of isotonic price oracle
     pub oracle_contract: Addr,
 }
@@ -221,7 +223,7 @@ impl Suite {
                 name: isotonic_token.to_string(),
                 symbol: isotonic_token.to_string(),
                 decimals: 9,
-                market_token: market_token.to_string(),
+                market_token: Token::Native(market_token.to_string()),
                 market_cap: None,
                 interest_rate: match interest_rates.into() {
                     Some((base, slope)) => Interest::Linear { base, slope },
@@ -262,7 +264,7 @@ impl Suite {
         )
     }
 
-    pub fn common_token(&self) -> &str {
+    pub fn common_token(&self) -> &Token {
         &self.common_token
     }
 
@@ -280,7 +282,7 @@ impl Suite {
         let resp: MarketResponse = self.app.wrap().query_wasm_smart(
             self.contract.clone(),
             &QueryMsg::Market {
-                market_token: asset.to_string(),
+                market_token: Token::Native(asset.to_string()),
             },
         )?;
         Ok(resp)
@@ -299,7 +301,7 @@ impl Suite {
 
     pub fn assert_market(&self, asset: &str) {
         let res = self.query_market(asset).unwrap();
-        assert_eq!(res.market_token, asset);
+        assert_eq!(res.market_token.native().unwrap(), asset);
 
         // We query the supposed market contract address to make extra sure
         // it was instantiated properly and exists.
@@ -322,7 +324,7 @@ impl Suite {
     /// Queries the Credit Agency contract for a list of markets with pagination
     pub fn list_markets_with_pagination(
         &self,
-        start_after: impl Into<Option<String>>,
+        start_after: impl Into<Option<Token>>,
         limit: impl Into<Option<u32>>,
     ) -> AnyResult<ListMarketsResponse> {
         let resp: ListMarketsResponse = self.app.wrap().query_wasm_smart(
@@ -338,18 +340,17 @@ impl Suite {
     /// Sets sell/buy price (rate) between market_token and common_token
     pub fn oracle_set_price_market_per_common(
         &mut self,
-        market: &str,
+        market: Token,
         rate: Decimal,
     ) -> AnyResult<AppResponse> {
         let owner = self.owner.clone();
-        let sell = market.to_owned();
 
         self.app.execute_contract(
             owner,
             self.oracle_contract.clone(),
             &OracleExecuteMsg::SetPrice {
                 buy: self.common_token.clone(),
-                sell,
+                sell: market,
                 rate,
             },
             &[],
@@ -395,7 +396,7 @@ impl Suite {
         sender: &str,
         account: &str,
         tokens: &[Coin],
-        collateral_denom: String,
+        collateral_denom: Token,
     ) -> AnyResult<AppResponse> {
         let ca = self.contract.clone();
 
@@ -515,7 +516,7 @@ impl Suite {
         self.app.wasm_sudo(
             contract,
             &SudoMsg::AdjustCommonToken {
-                new_common_token: new_common_token.to_owned(),
+                new_common_token: Token::Native(new_common_token.to_owned()),
             },
         )
     }
