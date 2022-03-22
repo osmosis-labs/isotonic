@@ -1,0 +1,24 @@
+{
+  "name": "isotonic-integration-tests",
+  "description": "Work in progress attempt at creating chain with node",
+  "private": true,
+  "author": "Jakub Bogucki <jakub@confio.com>",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/confio/isotonic"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "devDependencies": {
+    "@cosmjs/amino": "^0.28.0-rc2",
+    "@cosmjs/cosmwasm-stargate": "^0.28.0-rc2",
+    "@cosmjs/crypto": "^0.28.0-rc2",
+    "@cosmjs/encoding": "^0.28.0-rc2",
+    "@cosmjs/proto-signing": "^0.28.0-rc2",
+    "@cosmjs/stargate": "^0.28.0-rc2",
+    "@cosmjs/utils": "^0.28.0-rc2"
+  }
+}
