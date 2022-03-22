@@ -9,6 +9,7 @@ workflows:
       - contract_isotonic_osmosis_oracle
       - contract_isotonic_token
       - package_utils
+      - e2e_testing
   build:
     jobs:
       - lint
@@ -347,3 +348,40 @@ jobs:
               -n "$TITLE" -b "$BODY" \
               -replace \
               "$TAG" ./schemas/
+
+  e2e_testing:
+    machine:
+      image: ubuntu-2004:202107-02
+    steps:
+      - checkout
+      - run:
+          name: Spin up the network
+          command: |
+            cd e2e_testing/scripts
+            ./start.sh
+          background: true
+      - run:
+          name: Install nodejs
+          command: |
+            curl -fsSL https://deb.nodesource.com/setup_17.x | sudo -E bash -
+            sudo apt-get install -y nodejs
+      - run:
+          name: Install npm dependencies
+          command: |
+            cd e2e_testing
+            npm install
+      - run:
+          name: Wait for chains to start up
+          command: |
+            timeout 60 bash -c "until curl -s http://localhost:1319/node_info > /dev/null; do sleep 0.5; done"
+      - run:
+          name: Run tests
+          command: |
+            cd e2e_testing/scripts
+            ./init.sh
+      - run:
+          name: Stop the container
+          command: |
+            cd e2e_testing/scripts
+            ./stop.sh
+
