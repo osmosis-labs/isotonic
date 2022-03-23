@@ -9,6 +9,7 @@ use cw_utils::parse_reply_instantiate_data;
 
 use crate::contract::query::token_info;
 use crate::error::ContractError;
+use crate::math::DecimalExt;
 use crate::msg::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, QueryTotalCreditLine, SudoMsg,
     TransferableAmountResponse,
@@ -674,6 +675,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractErro
             to_binary(&query::credit_line(deps, env, account)?)?
         }
         Reserve {} => to_binary(&query::reserve(deps, env)?)?,
+        Apy {} => to_binary(&query::apy(deps)?)?,
     };
     Ok(res)
 }
@@ -689,8 +691,8 @@ mod query {
     use utils::price::{coin_times_price_rate, PriceRate};
 
     use crate::interest::{calculate_interest, epochs_passed, token_supply, utilisation};
-    use crate::msg::{InterestResponse, ReserveResponse, TokensBalanceResponse};
-    use crate::state::TokensInfo;
+    use crate::msg::{ApyResponse, InterestResponse, ReserveResponse, TokensBalanceResponse};
+    use crate::state::{TokensInfo, SECONDS_IN_YEAR};
 
     fn token_balance(
         deps: Deps,
@@ -859,6 +861,24 @@ mod query {
             .unwrap_or(RESERVE.load(deps.storage)?);
 
         Ok(ReserveResponse { reserve })
+    }
+
+    /// Handler for `QueryMsg::Apy`
+    pub fn apy(deps: Deps) -> Result<ApyResponse, ContractError> {
+        let cfg = CONFIG.load(deps.storage)?;
+        let charge_periods = SECONDS_IN_YEAR / (cfg.interest_charge_period as u128);
+        let tokens_info = token_supply(deps, &cfg)?;
+        let utilisation = utilisation(&tokens_info);
+        let rate = cfg.rates.calculate_interest_rate(utilisation);
+
+        let borrower = dbg!(
+            (Decimal::one() + rate / Uint128::new(charge_periods))
+                .checked_pow(charge_periods as u32)?
+                - Decimal::one()
+        );
+        let lender = borrower * utilisation * (Decimal::one() - cfg.reserve_factor);
+
+        Ok(ApyResponse { borrower, lender })
     }
 }
 
