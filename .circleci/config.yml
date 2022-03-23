@@ -9,11 +9,13 @@ workflows:
       - contract_isotonic_osmosis_oracle
       - contract_isotonic_token
       - package_utils
-      - e2e_testing
   build:
     jobs:
       - lint
       - wasm_build
+      - e2e_testing:
+          requires:
+            - wasm_build
   deploy:
     jobs:
       - build_and_upload_contracts:
@@ -266,12 +268,14 @@ jobs:
               check_contract --supported-features iterator,staking,stargate,osmosis $W
             done
       - run:
-          name: Copy isotonic contract binaries to artifact them
+          name: Copy isotonic contract binaries to preserve them in workflow
           command: |
             mkdir /tmp/artifacts
             cp ./target/wasm32-unknown-unknown/release/*.wasm /tmp/artifacts
-      - store_artifacts:
-          path: /tmp/artifacts
+      - persist_to_workspace:
+          root: /tmp/artifacts
+          paths:
+            - .
 
   # This job roughly follows the instructions from https://circleci.com/blog/publishing-to-github-releases-via-circleci/
   build_and_upload_contracts:
@@ -360,11 +364,15 @@ jobs:
     machine:
       image: ubuntu-2004:202107-02
     steps:
+      - attach_workspace:
+          # Must be absolute path or relative path from working_directory
+          at: /tmp/artifacts
       - checkout
       - run:
           name: Spin up the network
           command: |
             cd e2e_testing/scripts
+            cp /tmp/artifacts/*.wasm contracts
             ./start.sh
           background: true
       - run:
