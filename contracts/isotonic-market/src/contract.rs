@@ -4,6 +4,7 @@ use cosmwasm_std::{
     coin, to_binary, Addr, BankMsg, Binary, Coin, Decimal, Env, MessageInfo, Reply, StdError,
     StdResult, Timestamp, Uint128, WasmMsg,
 };
+use osmo_bindings::OsmosisMsg;
 use cw2::set_contract_version;
 use osmo_bindings::{OsmosisMsg, OsmosisQuery};
 
@@ -205,6 +206,14 @@ pub fn execute(
                 .native()
                 .ok_or(ContractError::Cw20TokensNotSupported)?,
         ),
+        SwapWithdrawFrom {
+            account,
+            sell_limit,
+            buy,
+        } => {
+            let account = deps.api.addr_validate(&account)?;
+            execute::swap_withdraw_from(deps, info.sender, account, sell_limit, buy)
+        }
     }
 }
 
@@ -673,6 +682,56 @@ mod execute {
 
         CONFIG.save(deps.storage, &cfg)?;
         Ok(Response::new())
+    }
+
+    pub fn swap_withdraw_from(
+        deps: DepsMut,
+        sender: Addr,
+        account: Addr,
+        sell_limit: Uint128,
+        buy: Coin,
+    ) -> Result<Response, ContractError> {
+        let cfg = CONFIG.load(deps.storage)?;
+        if cfg.credit_agency != sender {
+            return Err(ContractError::RequiresCreditAgency {});
+        }
+
+        // TODO: Burn Ltokens!!
+
+        let pool_id_market_common: u64 = deps.querier.query_wasm_smart(
+            cfg.price_oracle.clone(),
+            &OracleQueryMsg::PoolId {
+                denom1: cfg.market_token.clone(),
+                denom2: cfg.common_token.clone(),
+            },
+        )?;
+        let swap = Swap::new(
+            pool_id_market_common,
+            cfg.market_token.clone(),
+            cfg.common_token.clone(),
+        );
+
+        let pool_id_common_buy: u64 = deps.querier.query_wasm_smart(
+            cfg.price_oracle.clone(),
+            &OracleQueryMsg::PoolId {
+                denom1: cfg.market_token.clone(),
+                denom2: buy.denom.clone(),
+            },
+        )?;
+        let route = vec![Step::new(pool_id_common_buy, buy.denom.clone())];
+
+        let amount = SwapAmountWithLimit::ExactOut {
+            output: buy.amount,
+            max_input: sell_limit,
+        };
+
+        let swap_msg = SubMsg::new(CosmosMsg::Custom(OsmosisMsg::Swap {
+            first: swap,
+            route,
+            amount,
+        }));
+
+        Ok(Response::new().add_submessage(swap_msg))
     }
 }
 

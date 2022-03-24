@@ -1,4 +1,4 @@
-use cosmwasm_std::{Decimal, Timestamp, Uint128};
+use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -69,6 +69,14 @@ pub enum ExecuteMsg {
     },
     AdjustCommonToken {
         new_token: Token,
+    },
+    /// Withdraw some base asset, by burning L Tokens and swapping it for `buy` amount.
+    /// The bought tokens are transferred to the sender.
+    /// Only callable by the credit agency. Skips the credit line check.
+    SwapWithdrawFrom {
+        account: String,
+        sell_limit: Uint128,
+        buy: Coin,
     },
 }
 
