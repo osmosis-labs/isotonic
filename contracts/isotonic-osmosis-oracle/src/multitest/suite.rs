@@ -101,15 +101,27 @@ pub struct Suite {
 }
 
 impl Suite {
-    pub fn query_price(&self, sell: &str, buy: &str) -> StdResult<Decimal> {
+    pub fn query_price(&self, sell: &str, buy: &str) -> AnyResult<Decimal> {
         let resp: PriceResponse = self.app.wrap().query_wasm_smart(
             self.osmosis_oracle.clone(),
             &QueryMsg::Price {
-                sell: sell.to_string(),
-                buy: buy.to_string(),
+                sell: sell.to_owned(),
+                buy: buy.to_owned(),
             },
         )?;
 
         Ok(resp.rate)
+    }
+
+    pub fn query_pool_id(&self, denom1: &str, denom2: &str) -> AnyResult<u64> {
+        let resp: u64 = self.app.wrap().query_wasm_smart(
+            self.osmosis_oracle.clone(),
+            &QueryMsg::PoolId {
+                denom1: denom1.to_owned(),
+                denom2: denom2.to_owned(),
+            },
+        )?;
+
+        Ok(resp)
     }
 }
