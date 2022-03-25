@@ -86,13 +86,17 @@ pub fn execute(
             let market = deps.api.addr_validate(&market)?;
             execute::exit_market(deps, info, market)
         }
+        RepayWithCollateral {
+            max_collateral,
+            amount_to_repay,
+        } => execute::repay_with_collateral(deps, info.sender, max_collateral, amount_to_repay),
     }
 }
 
 mod execute {
     use super::*;
 
-    use cosmwasm_std::{ensure_eq, StdError, SubMsg, WasmMsg};
+    use cosmwasm_std::{ensure_eq, Coin, Decimal, StdError, SubMsg, WasmMsg};
     use utils::{
         credit_line::{CreditLineResponse, CreditLineValues},
         price::{coin_times_price_rate, PriceRate},
@@ -102,7 +106,9 @@ mod execute {
         msg::MarketConfig,
         state::{MarketState, ENTERED_MARKETS, MARKETS, REPLY_IDS},
     };
-    use isotonic_market::msg::QueryMsg as MarketQueryMsg;
+    use isotonic_market::{
+        msg::QueryMsg as MarketQueryMsg, state::Configuration as MarketConfiguration,
+    };
 
     pub fn create_market(
         deps: DepsMut,
@@ -328,6 +334,50 @@ mod execute {
             .add_attribute("action", "exit_market")
             .add_attribute("market", market)
             .add_attribute("account", info.sender))
+    }
+
+    pub fn repay_with_collateral(
+        deps: DepsMut,
+        sender: Addr,
+        max_collateral: Coin,
+        amount_to_repay: Coin,
+    ) -> Result<Response, ContractError> {
+        let collateral_market = query::market(deps.as_ref(), max_collateral.denom.clone())?.market;
+        let debt_market = query::market(deps.as_ref(), amount_to_repay.denom.clone())?.market;
+
+        let markets = ENTERED_MARKETS
+            .may_load(deps.storage, &sender)?
+            .unwrap_or_default();
+
+        if !markets.contains(&collateral_market) {
+            return Err(ContractError::NotOnMarket {
+                address: sender,
+                market: collateral_market.clone(),
+            });
+        } else if !markets.contains(&debt_market) {
+            return Err(ContractError::NotOnMarket {
+                address: sender,
+                market: debt_market.clone(),
+            });
+        }
+
+        let collateral_cr: CreditLineResponse = deps.querier.query_wasm_smart(
+            collateral_market.clone(),
+            &MarketQueryMsg::CreditLine {
+                account: sender.to_string(),
+            },
+        )?;
+        let collateral_market_collateral_ratio: Decimal = {
+            let config: MarketConfiguration = deps
+                .querier
+                .query_wasm_smart(collateral_market.clone(), &MarketQueryMsg::Configuration {})?;
+            config.collateral_ratio
+        };
+
+        // let simulated_credit_line = collateral_cr.credit_line - (collateral_cr.collateral * collateral_market_collateral_ratio);
+        // let simulated_debt = collateral_market_collateral_ratio
+
+        Ok(Response::new())
     }
 }
 

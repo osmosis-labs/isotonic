@@ -714,7 +714,7 @@ mod execute {
         let pool_id_common_buy: u64 = deps.querier.query_wasm_smart(
             cfg.price_oracle.clone(),
             &OracleQueryMsg::PoolId {
-                denom1: cfg.market_token.clone(),
+                denom1: cfg.market_token,
                 denom2: buy.denom.clone(),
             },
         )?;
