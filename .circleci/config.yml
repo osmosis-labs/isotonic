@@ -403,8 +403,9 @@ jobs:
       - run:
           name: Spin up the network
           command: |
-            cp ./artifacts/*.wasm ./artifacts/checksums.txt project/e2e_testing/scripts/contracts
-            cd project/e2e_testing/scripts
+            mkdir -p ./project/e2e_testing/scripts/contracts
+            cp ./artifacts/*.wasm ./artifacts/checksums.txt ./project/e2e_testing/scripts/contracts
+            cd ./project/e2e_testing/scripts
             ./start.sh
           background: true
       - run:

@@ -27,8 +27,8 @@ const creditAgencyInit = {
     gov_contract: alice.address0,
     isotonic_market_id: 1,
     isotonic_token_id: 2,
-    reward_token: "ucosm",
-    common_token: "ucosm",
+    reward_token: { Native: "ucosm" },
+    common_token: { Native: "ucosm" },
     liquidation_price: "0.92",
   },
   admin: undefined,
@@ -40,16 +40,14 @@ const firstMarket = {
     "symbol": "FST",
     "decimals": 5,
     "token_id": 2,
-    "market_token": "ustake",
+    "market_token": { Native: "ustake" },
     "interest_rate": {
       "linear": {
         "base": "0.04",
         "slope": "0.2"
       }
     },
-    "distributed_token": "ustake",
     "interest_charge_period": 3600,
-    "common_token": "ucosm",
     "collateral_ratio": "0.7",
     "price_oracle": "wasm1hrpna9v7vs3stzyd4z3xf00676kf78zpe2u5ksvljswn2vnjp3ys8c5wp9",
     "reserve_factor": "0.1"
@@ -62,16 +60,14 @@ const secondMarket = {
     "symbol": "SND",
     "decimals": 5,
     "token_id": 2,
-    "market_token": "ucosm",
+    "market_token": { Native: "ucosm" },
     "interest_rate": {
       "linear": {
         "base": "0.04",
         "slope": "0.2"
       }
     },
-    "distributed_token": "ucosm",
     "interest_charge_period": 3600,
-    "common_token": "ucosm",
     "collateral_ratio": "0.7",
     "price_oracle": "wasm1hrpna9v7vs3stzyd4z3xf00676kf78zpe2u5ksvljswn2vnjp3ys8c5wp9",
     "reserve_factor": "0.1"
@@ -180,8 +176,8 @@ async function main() {
     alice.address0,
     oracle,
     { "set_price": {
-      "sell": "ucosm",
-      "buy": "ustake",
+      "sell": { Native: "ucosm"},
+      "buy": { Native: "ustake"},
       "rate": "2",
     } },
     instantiateFee,
@@ -193,8 +189,8 @@ async function main() {
     alice.address0,
     oracle,
     { "set_price": {
-      "sell": "ustake",
-      "buy": "ucosm",
+      "sell": { Native: "ustake" },
+      "buy": { Native: "ucosm" },
       "rate": "0.5",
     } },
     instantiateFee,

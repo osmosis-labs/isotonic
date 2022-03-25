@@ -34,13 +34,13 @@ async function main() {
 
   var ustakeMarket = (await client.queryContractSmart(
     creditAgency,
-    { market: { market_token: "ustake" } },
+    { market: { market_token: { Native: "ustake" } } },
   )).market;
   console.info("Query credit agency for ustake market: ", ustakeMarket);
 
   var ucosmMarket = (await client.queryContractSmart(
     creditAgency,
-    { market: { market_token: "ucosm" } },
+    { market: { market_token: { Native: "ucosm" } } },
   )).market;
   console.info("Query credit agency for ucosm market: ", ucosmMarket);
 

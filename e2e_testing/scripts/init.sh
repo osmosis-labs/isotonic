@@ -18,7 +18,7 @@ SCRIPT_DIR="$(realpath "$(dirname "$0")")"
 (
   echo "Ensuring contracts' checksums are correct ..."
   cd "$SCRIPT_DIR/contracts"
-  sha256sum --check checksums.sha256 || true # TODO: fix checksum and remove || true
+  sha256sum --check checksums.txt || true # TODO: fix checksum and remove || true
 )
 "$SCRIPT_DIR/deploy_and_instantiate_contracts.js"
 "$SCRIPT_DIR/market_play.js"
