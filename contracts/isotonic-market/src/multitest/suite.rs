@@ -13,8 +13,8 @@ use super::ca_mock::{
     InstantiateMsg as CAInstantiateMsg,
 };
 use crate::msg::{
-    ExecuteMsg, InstantiateMsg, InterestResponse, MigrateMsg, QueryMsg, ReserveResponse, SudoMsg,
-    TokensBalanceResponse, TransferableAmountResponse,
+    ApyResponse, ExecuteMsg, InstantiateMsg, InterestResponse, MigrateMsg, QueryMsg,
+    ReserveResponse, SudoMsg, TokensBalanceResponse, TransferableAmountResponse,
 };
 use crate::state::Config;
 
@@ -462,6 +462,14 @@ impl Suite {
         self.app
             .wrap()
             .query_wasm_smart(ltoken, &isotonic_token::msg::QueryMsg::TokenInfo {})
+            .map_err(|err| anyhow!(err))
+    }
+
+    /// Queries for APY
+    pub fn query_apy(&self) -> AnyResult<ApyResponse> {
+        self.app
+            .wrap()
+            .query_wasm_smart(self.contract.clone(), &QueryMsg::Apy {})
             .map_err(|err| anyhow!(err))
     }
 

@@ -94,6 +94,8 @@ pub enum QueryMsg {
     CreditLine { account: String },
     /// Returns ReserveResponse
     Reserve {},
+    /// APY Query
+    Apy {},
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -152,4 +154,13 @@ pub enum CreditAgencyExecuteMsg {
     /// Ensures a given account has entered a market. Meant to be called by a specific
     /// market contract - so the sender of the msg would be the market
     EnterMarket { account: String },
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ApyResponse {
+    /// How much % interest will a borrower have to pay
+    pub borrower: Decimal,
+    /// How much % interest will a lender earn
+    pub lender: Decimal,
 }
