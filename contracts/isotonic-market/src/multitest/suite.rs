@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result as AnyResult};
 use std::collections::HashMap;
 
-use cosmwasm_std::{Addr, Coin, Decimal, Empty, StdResult, Uint128};
+use cosmwasm_std::{Addr, Coin, Decimal, StdResult, Uint128};
 use cw20::BalanceResponse;
 use cw_multi_test::{AppResponse, Contract, ContractWrapper, Executor};
 use isotonic_osmosis_oracle::msg::{
@@ -37,7 +37,7 @@ fn contract_oracle() -> Box<dyn Contract<OsmosisMsg, OsmosisQuery>> {
     Box::new(contract)
 }
 
-pub fn contract_market() -> Box<dyn Contract<Empty>> {
+pub fn contract_market() -> Box<dyn Contract<OsmosisMsg, OsmosisQuery>> {
     let contract = ContractWrapper::new(
         crate::contract::execute,
         crate::contract::instantiate,
@@ -50,8 +50,8 @@ pub fn contract_market() -> Box<dyn Contract<Empty>> {
     Box::new(contract)
 }
 
-pub fn contract_token() -> Box<dyn Contract<Empty>> {
-    let contract = ContractWrapper::new(
+pub fn contract_token() -> Box<dyn Contract<OsmosisMsg, OsmosisQuery>> {
+    let contract = ContractWrapper::new_with_empty(
         isotonic_token::contract::execute,
         isotonic_token::contract::instantiate,
         isotonic_token::contract::query,
@@ -105,7 +105,7 @@ impl SuiteBuilder {
             interest_base: Decimal::percent(3),
             interest_slope: Decimal::percent(20),
             interest_charge_period: 300,
-            common_token: "common".to_owned(),
+            common_token: COMMON.to_owned(),
             collateral_ratio: Decimal::percent(50),
             reserve_factor: Decimal::percent(0),
             pools: HashMap::new(),
@@ -169,7 +169,7 @@ impl SuiteBuilder {
 
     #[track_caller]
     pub fn build(self) -> Suite {
-        let mut app = App::default();
+        let mut app = OsmosisApp::default();
         let owner = Addr::unchecked("owner");
 
         let market_token = Token::Native(self.market_token.clone());
@@ -297,7 +297,7 @@ impl SuiteBuilder {
 /// Test suite
 pub struct Suite {
     /// The multitest app
-    app: App,
+    app: OsmosisApp,
     owner: Addr,
     /// Address of Market contract
     contract: Addr,
@@ -314,7 +314,7 @@ pub struct Suite {
 }
 
 impl Suite {
-    pub fn app(&mut self) -> &mut App {
+    pub fn app(&mut self) -> &mut OsmosisApp {
         &mut self.app
     }
 
@@ -340,8 +340,8 @@ impl Suite {
     }
 
     /// The denom of the common token
-    pub fn common_token(&self) -> &Token {
-        &self.common_token
+    pub fn common_token(&self) -> Token {
+        self.common_token.clone()
     }
 
     /// Deposit base asset in the lending pool and mint l-token
@@ -516,11 +516,12 @@ impl Suite {
         account: impl ToString,
         credit_line: CreditLineValues,
     ) -> AnyResult<AppResponse> {
+        let common_token = self.common_token();
         self.app.execute_contract(
             Addr::unchecked(account.to_string()),
             self.ca_contract.clone(),
             &CAExecuteMsg::SetCreditLine {
-                credit_line: credit_line.make_response(self.common_token().clone()),
+                credit_line: credit_line.make_response(common_token),
             },
             &[],
         )

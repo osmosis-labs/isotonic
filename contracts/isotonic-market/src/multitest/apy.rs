@@ -11,7 +11,7 @@ fn nothing_on_market() {
         // sell/buy ratio between common_token and market_token is 2.0
         // which means borrowing (buying) 1000 market btokens will get
         // debt of 2000 common tokens
-        .with_pool(1, (coin(100, COMMON), coin(200, market_token)))
+        .with_pool(1, (coin(200, COMMON), coin(100, market_token)))
         .build();
 
     let apy = suite.query_apy().unwrap();
@@ -27,7 +27,7 @@ fn nothing_borrowed() {
     let mut suite = SuiteBuilder::new()
         .with_funds(lender, &[coin(1000, market_token)])
         .with_market_token(market_token)
-        .with_pool(1, (coin(100, COMMON), coin(200, market_token)))
+        .with_pool(1, (coin(200, COMMON), coin(100, market_token)))
         .build();
 
     suite.deposit(lender, &[coin(1000, market_token)]).unwrap();
@@ -46,7 +46,7 @@ fn half_borrowed() {
     let mut suite = SuiteBuilder::new()
         .with_funds(lender, &[coin(1000, market_token)])
         .with_market_token(market_token)
-        .with_pool(1, (coin(100, COMMON), coin(200, market_token)))
+        .with_pool(1, (coin(200, COMMON), coin(100, market_token)))
         .build();
 
     suite.set_high_credit_line(borrower).unwrap();
@@ -68,7 +68,7 @@ fn whole_borrowed() {
     let mut suite = SuiteBuilder::new()
         .with_funds(lender, &[coin(1000, market_token)])
         .with_market_token(market_token)
-        .with_pool(1, (coin(100, COMMON), coin(200, market_token)))
+        .with_pool(1, (coin(200, COMMON), coin(100, market_token)))
         .build();
 
     suite.set_high_credit_line(borrower).unwrap();
@@ -91,7 +91,7 @@ fn with_reserve_factor() {
         .with_funds(lender, &[coin(1000, market_token)])
         .with_market_token(market_token)
         .with_reserve_factor(20)
-        .with_pool(1, (coin(100, COMMON), coin(200, market_token)))
+        .with_pool(1, (coin(200, COMMON), coin(100, market_token)))
         .build();
 
     suite.set_high_credit_line(borrower).unwrap();

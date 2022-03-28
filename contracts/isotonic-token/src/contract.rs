@@ -5,11 +5,12 @@ use cosmwasm_std::{
     Response, StdResult, SubMsg, Uint128,
 };
 use cw2::set_contract_version;
+use cw20::Cw20ReceiveMsg;
 
 use crate::display_amount::DisplayAmount;
 use crate::error::ContractError;
 use crate::msg::{
-    BalanceResponse, ControllerQuery, Cw20ReceiveMsg, ExecuteMsg, FundsResponse, InstantiateMsg,
+    BalanceResponse, ControllerQuery, ExecuteMsg, FundsResponse, InstantiateMsg,
     MultiplierResponse, QueryMsg, TokenInfoResponse, TransferableAmountResp,
 };
 use crate::state::{

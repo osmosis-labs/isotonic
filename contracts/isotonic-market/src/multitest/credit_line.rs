@@ -32,14 +32,14 @@ fn zero_credit_line() {
     let market_token = "atom";
     let suite = SuiteBuilder::new()
         .with_market_token(market_token)
-        .with_pool(1, (coin(100, COMMON), coin(50, market_token)))
+        .with_pool(1, (coin(50, COMMON), coin(100, market_token)))
         .build();
 
     // No tokens were deposited nor borrowed, so credit line is zero
     let credit_line = suite.query_credit_line(lender).unwrap();
     assert_eq!(
         credit_line,
-        CreditLineValues::zero().make_response(suite.common_token().clone())
+        CreditLineValues::zero().make_response(suite.common_token())
     );
 }
 
@@ -56,7 +56,7 @@ fn borrower_borrows_tokens() {
         // sell/buy ratio between common_token and market_token is 2.0
         // which means borrowing (buying) 1000 market btokens will get
         // debt of 2000 common tokens
-        .with_pool(1, (coin(100, COMMON), coin(200, market_token)))
+        .with_pool(1, (coin(200, COMMON), coin(100, market_token)))
         .build();
 
     suite.set_high_credit_line(borrower).unwrap();
@@ -77,7 +77,7 @@ fn borrower_borrows_tokens() {
             // 1000 borrowed * 2.0 oracle's price
             debt: Uint128::new(2000),
         }
-        .make_response(suite.common_token().clone())
+        .make_response(suite.common_token())
     );
 }
 
@@ -92,7 +92,7 @@ fn lender_deposits_tokens() {
         .with_market_token(market_token)
         // sell/buy ratio between common_token and market_token is 2.0
         // so 1000 market tokens will get you 2000 common tokens collateral
-        .with_pool(1, (coin(100, COMMON), coin(200, market_token)))
+        .with_pool(1, (coin(200, COMMON), coin(100, market_token)))
         .build();
 
     // Deposit some tokens
@@ -112,7 +112,7 @@ fn lender_deposits_tokens() {
             // no debt because of lack of btokens
             debt: Uint128::zero(),
         }
-        .make_response(suite.common_token().clone())
+        .make_response(suite.common_token())
     );
 }
 
@@ -128,7 +128,7 @@ fn deposits_and_borrows_tokens() {
         .with_collateral_ratio(Decimal::percent(70))
         .with_market_token(market_token)
         // sell/buy ratio between common_token and market_token is 2.0
-        .with_pool(1, (coin(100, COMMON), coin(200, market_token)))
+        .with_pool(1, (coin(200, COMMON), coin(100, market_token)))
         .build();
 
     suite.set_high_credit_line(borrower).unwrap();
@@ -158,7 +158,7 @@ fn deposits_and_borrows_tokens() {
             // no debt because of lack of btokens
             debt: Uint128::zero(),
         }
-        .make_response(suite.common_token().clone())
+        .make_response(suite.common_token())
     );
     let credit_line = suite.query_credit_line(borrower).unwrap();
     assert_eq!(
@@ -171,7 +171,7 @@ fn deposits_and_borrows_tokens() {
             // 1000 borrowed * 2.0 oracle's price
             debt: Uint128::new(2000),
         }
-        .make_response(suite.common_token().clone())
+        .make_response(suite.common_token())
     );
 }
 
@@ -208,7 +208,7 @@ fn deposits_and_borrows_tokens_market_common_matches_denoms() {
             // no debt because of lack of btokens
             debt: Uint128::zero(),
         }
-        .make_response(suite.common_token().clone())
+        .make_response(suite.common_token())
     );
     let credit_line = suite.query_credit_line(borrower).unwrap();
     assert_eq!(
@@ -221,7 +221,7 @@ fn deposits_and_borrows_tokens_market_common_matches_denoms() {
             // 1000 borrowed * 1.0 oracle's price
             debt: Uint128::new(1000),
         }
-        .make_response(suite.common_token().clone())
+        .make_response(suite.common_token())
     );
 }
 

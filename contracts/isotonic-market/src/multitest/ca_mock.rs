@@ -5,12 +5,13 @@
 
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{
-    to_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdError, StdResult,
-};
+use cosmwasm_std::{to_binary, Addr, Binary, Env, MessageInfo, StdError, StdResult};
 use cw_multi_test::{Contract, ContractWrapper};
 use cw_storage_plus::Map;
+use osmo_bindings::{OsmosisMsg, OsmosisQuery};
 use utils::credit_line::CreditLineResponse;
+
+use crate::contract::{Deps, DepsMut, Response};
 
 pub const CLR: Map<&Addr, CreditLineResponse> = Map::new("clr");
 
@@ -67,7 +68,7 @@ fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, StdError> {
     }
 }
 
-pub fn contract() -> Box<dyn Contract<Empty>> {
+pub fn contract() -> Box<dyn Contract<OsmosisMsg, OsmosisQuery>> {
     let contract = ContractWrapper::new(execute, instantiate, query);
     Box::new(contract)
 }
