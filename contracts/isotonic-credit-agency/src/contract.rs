@@ -106,9 +106,7 @@ mod execute {
         msg::MarketConfig,
         state::{MarketState, ENTERED_MARKETS, MARKETS, REPLY_IDS},
     };
-    use isotonic_market::{
-        msg::QueryMsg as MarketQueryMsg, state::Configuration as MarketConfiguration,
-    };
+    use isotonic_market::{msg::QueryMsg as MarketQueryMsg, state::Config as MarketConfiguration};
 
     pub fn create_market(
         deps: DepsMut,
