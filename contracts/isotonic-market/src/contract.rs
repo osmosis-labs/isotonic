@@ -4,7 +4,6 @@ use cosmwasm_std::{
     coin, to_binary, Addr, BankMsg, Binary, Coin, Decimal, Env, MessageInfo, Reply, StdError,
     StdResult, Timestamp, Uint128, WasmMsg,
 };
-use osmo_bindings::OsmosisMsg;
 use cw2::set_contract_version;
 use osmo_bindings::{OsmosisMsg, OsmosisQuery};
 
@@ -15,7 +14,7 @@ use crate::msg::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, QueryTotalCreditLine, SudoMsg,
     TransferableAmountResponse,
 };
-use crate::state::{Config, CONFIG, RESERVE};
+use crate::state::{Config, CONFIG, RESERVE, TO_BURN_AND_WITHDRAW};
 
 use utils::token::Token;
 
@@ -30,6 +29,7 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const LTOKEN_INIT_REPLY_ID: u64 = 1;
 const BTOKEN_INIT_REPLY_ID: u64 = 2;
+const PRICE_RESPONSE_AFTER_SWAP_ID: u64 = 3;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -118,6 +118,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
         LTOKEN_INIT_REPLY_ID | BTOKEN_INIT_REPLY_ID => {
             reply::token_instantiate_reply(deps, env, msg)
         }
+        PRICE_RESPONSE_AFTER_SWAP_ID => reply::burn_after_swap(deps, env, msg),
         _ => Err(ContractError::UnrecognisedReply(msg.id)),
     }
 }
@@ -125,7 +126,9 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
 mod reply {
     use super::*;
 
-    use cw_utils::parse_reply_instantiate_data;
+    use cosmwasm_std::{from_binary, CosmosMsg};
+    use cw_utils::{parse_reply_execute_data, parse_reply_instantiate_data};
+    use osmo_bindings::{EstimatePriceResponse, SwapAmount};
 
     pub fn token_instantiate_reply(
         deps: DepsMut,
@@ -156,6 +159,74 @@ mod reply {
             })?
         };
 
+        Ok(response)
+    }
+
+    pub fn burn_after_swap(
+        mut deps: DepsMut,
+        env: Env,
+        msg: Reply,
+    ) -> Result<Response, ContractError> {
+        let id = msg.id;
+        let estimate_price_response: EstimatePriceResponse = {
+            let res =
+                parse_reply_execute_data(msg).map_err(|err| ContractError::ReplyParseFailure {
+                    id,
+                    err: err.to_string(),
+                })?;
+            if let Some(data) = res.data {
+                from_binary(&data)?
+            } else {
+                return Err(ContractError::ReplyParseFailure {
+                    id,
+                    err: "Reply was empty".to_owned(),
+                });
+            }
+        };
+
+        let amount = match estimate_price_response.amount {
+            SwapAmount::Out(amount) => amount,
+            _ => {
+                return Err(ContractError::ReplyParseFailure {
+                    id,
+                    err: "Reply was empty".to_owned(),
+                });
+            }
+        };
+
+        let mut response = Response::new();
+
+        // Create rebase messagess for tokens based on interest and supply
+        let charge_msgs = execute::charge_interest(deps.branch(), env)?;
+        if !charge_msgs.is_empty() {
+            response = response.add_submessages(charge_msgs);
+        }
+
+        let cfg = CONFIG.load(deps.storage)?;
+        let sender = TO_BURN_AND_WITHDRAW.load(deps.storage)?;
+
+        // Burn the L tokens
+        let burn_msg = to_binary(&isotonic_token::msg::ExecuteMsg::BurnFrom {
+            owner: sender.to_string(),
+            amount: isotonic_token::DisplayAmount::raw(amount),
+        })?;
+        let wrapped_msg = SubMsg::new(WasmMsg::Execute {
+            contract_addr: cfg.ltoken_contract.to_string(),
+            msg: burn_msg,
+            funds: vec![],
+        });
+
+        // Send the base assets from contract to lender
+        let send_msg = CosmosMsg::Bank(BankMsg::Send {
+            to_address: sender.to_string(),
+            amount: vec![coin(amount.u128(), cfg.market_token)],
+        });
+
+        response = response
+            .add_attribute("action", "withdraw after swap")
+            .add_attribute("sender", sender)
+            .add_submessage(wrapped_msg)
+            .add_message(send_msg);
         Ok(response)
     }
 }
@@ -210,10 +281,7 @@ pub fn execute(
             account,
             sell_limit,
             buy,
-        } => {
-            let account = deps.api.addr_validate(&account)?;
-            execute::swap_withdraw_from(deps, info.sender, account, sell_limit, buy)
-        }
+        } => execute::swap_withdraw_from(deps, info.sender, account, sell_limit, buy),
     }
 }
 
@@ -285,6 +353,8 @@ mod cr_utils {
 
 mod execute {
     use cosmwasm_std::CosmosMsg;
+    use isotonic_osmosis_oracle::msg::QueryMsg as OracleQueryMsg;
+    use osmo_bindings::{Step, Swap, SwapAmountWithLimit};
 
     use crate::{
         interest::{calculate_interest, epochs_passed, InterestUpdate},
@@ -687,7 +757,7 @@ mod execute {
     pub fn swap_withdraw_from(
         deps: DepsMut,
         sender: Addr,
-        account: Addr,
+        account: String,
         sell_limit: Uint128,
         buy: Coin,
     ) -> Result<Response, ContractError> {
@@ -695,8 +765,6 @@ mod execute {
         if cfg.credit_agency != sender {
             return Err(ContractError::RequiresCreditAgency {});
         }
-
-        // TODO: Burn Ltokens!!
 
         let pool_id_market_common: u64 = deps.querier.query_wasm_smart(
             cfg.price_oracle.clone(),
@@ -721,17 +789,22 @@ mod execute {
         let route = vec![Step::new(pool_id_common_buy, buy.denom.clone())];
 
         let amount = SwapAmountWithLimit::ExactOut {
-            output: buy.amount,
+            output: buy.amount.clone(),
             max_input: sell_limit,
         };
 
-        let swap_msg = SubMsg::new(CosmosMsg::Custom(OsmosisMsg::Swap {
+        let swap_msg = CosmosMsg::Custom(OsmosisMsg::Swap {
             first: swap,
             route,
             amount,
-        }));
+        });
 
-        Ok(Response::new().add_submessage(swap_msg))
+        TO_BURN_AND_WITHDRAW.save(deps.storage, &account)?;
+
+        Ok(Response::new().add_submessage(SubMsg::reply_on_success(
+            swap_msg,
+            PRICE_RESPONSE_AFTER_SWAP_ID,
+        )))
     }
 }
 
