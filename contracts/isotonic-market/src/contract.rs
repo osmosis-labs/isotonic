@@ -5,7 +5,6 @@ use cosmwasm_std::{
     StdResult, Timestamp, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
-use cw_utils::parse_reply_instantiate_data;
 use osmo_bindings::{OsmosisMsg, OsmosisQuery};
 
 use crate::contract::query::token_info;
@@ -282,10 +281,7 @@ pub fn execute(
             account,
             sell_limit,
             buy,
-        } => {
-            let account = deps.api.addr_validate(&account)?;
-            execute::swap_withdraw_from(deps, env, info.sender, account, sell_limit, buy)
-        }
+        } => execute::swap_withdraw_from(deps, info.sender, account, sell_limit, buy),
     }
 }
 
@@ -356,7 +352,7 @@ mod cr_utils {
 }
 
 mod execute {
-    use cosmwasm_std::{CosmosMsg, QueryRequest};
+    use cosmwasm_std::CosmosMsg;
     use isotonic_osmosis_oracle::msg::QueryMsg as OracleQueryMsg;
     use osmo_bindings::{Step, Swap, SwapAmountWithLimit};
 
@@ -760,7 +756,6 @@ mod execute {
 
     pub fn swap_withdraw_from(
         deps: DepsMut,
-        env: Env,
         sender: Addr,
         account: String,
         sell_limit: Uint128,
@@ -794,7 +789,7 @@ mod execute {
         let route = vec![Step::new(pool_id_common_buy, buy.denom.clone())];
 
         let amount = SwapAmountWithLimit::ExactOut {
-            output: buy.amount.clone(),
+            output: buy.amount,
             max_input: sell_limit,
         };
 

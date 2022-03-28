@@ -1,7 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    coin, to_binary, Addr, BankMsg, Binary, Coin, Decimal, Env, MessageInfo, StdResult, Uint128, CosmosMsg
+    coin, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
+    MessageInfo, Response, StdResult, SubMsg, Uint128,
 };
 use cw2::set_contract_version;
 use cw20::Cw20ReceiveMsg;
@@ -16,11 +17,6 @@ use crate::state::{
     Distribution, TokenInfo, WithdrawAdjustment, BALANCES, CONTROLLER, DISTRIBUTION, MULTIPLIER,
     POINTS_SCALE, TOKEN_INFO, TOTAL_SUPPLY, WITHDRAW_ADJUSTMENT,
 };
-
-pub type Response = cosmwasm_std::Response<OsmosisMsg>;
-pub type SubMsg = cosmwasm_std::SubMsg<OsmosisMsg>;
-pub type Deps<'a> = cosmwasm_std::Deps<'a, OsmosisQuery>;
-pub type DepsMut<'a> = cosmwasm_std::DepsMut<'a, OsmosisQuery>;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:isotonic-token";
