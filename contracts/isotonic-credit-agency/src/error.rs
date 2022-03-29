@@ -1,6 +1,6 @@
 use cosmwasm_std::{Addr, StdError, Uint128};
 use utils::coin::Coin;
-use utils::{credit_line::InvalidCommonTokenDenom, price::PriceError};
+use utils::{coin::CoinError, credit_line::InvalidCommonTokenDenom, price::PriceError};
 
 use thiserror::Error;
 
@@ -11,6 +11,9 @@ pub enum ContractError {
 
     #[error("{0}")]
     Price(#[from] PriceError),
+
+    #[error("{0}")]
+    Coin(#[from] CoinError),
 
     #[error("Unauthorized")]
     Unauthorized {},
@@ -79,4 +82,7 @@ pub enum ContractError {
 
     #[error("Cw20 tokens are not supported yet")]
     Cw20TokensNotSupported,
+
+    #[error("Repaying loan using collateral failed - your debt is bigger then your credit line")]
+    RepayingLoanUsingCollateralFailed {},
 }

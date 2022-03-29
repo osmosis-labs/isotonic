@@ -96,8 +96,9 @@ pub fn execute(
 mod execute {
     use super::*;
 
-    use cosmwasm_std::{ensure_eq, Coin, Decimal, StdError, SubMsg, WasmMsg};
+    use cosmwasm_std::{ensure_eq, Decimal, StdError, SubMsg, WasmMsg};
     use utils::{
+        coin::Coin,
         credit_line::{CreditLineResponse, CreditLineValues},
         price::{coin_times_price_rate, PriceRate},
     };
@@ -106,7 +107,10 @@ mod execute {
         msg::MarketConfig,
         state::{MarketState, ENTERED_MARKETS, MARKETS, REPLY_IDS},
     };
-    use isotonic_market::{msg::QueryMsg as MarketQueryMsg, state::Config as MarketConfiguration};
+    use isotonic_market::{
+        msg::{ExecuteMsg as MarketExecuteMsg, QueryMsg as MarketQueryMsg},
+        state::Config as MarketConfiguration,
+    };
 
     pub fn create_market(
         deps: DepsMut,
@@ -340,8 +344,26 @@ mod execute {
         max_collateral: Coin,
         amount_to_repay: Coin,
     ) -> Result<Response, ContractError> {
-        let collateral_market = query::market(deps.as_ref(), max_collateral.denom.clone())?.market;
-        let debt_market = query::market(deps.as_ref(), amount_to_repay.denom.clone())?.market;
+        let collateral_market = query::market(
+            deps.as_ref(),
+            max_collateral
+                .clone()
+                .denom
+                .native()
+                .ok_or(ContractError::Cw20TokensNotSupported)?
+                .clone(),
+        )?
+        .market;
+        let debt_market = query::market(
+            deps.as_ref(),
+            amount_to_repay
+                .clone()
+                .denom
+                .native()
+                .ok_or(ContractError::Cw20TokensNotSupported)?
+                .clone(),
+        )?
+        .market;
 
         let markets = ENTERED_MARKETS
             .may_load(deps.storage, &sender)?
@@ -359,12 +381,7 @@ mod execute {
             });
         }
 
-        let collateral_cr: CreditLineResponse = deps.querier.query_wasm_smart(
-            collateral_market.clone(),
-            &MarketQueryMsg::CreditLine {
-                account: sender.to_string(),
-            },
-        )?;
+        let tcr = query::total_credit_line(deps.as_ref(), sender.to_string())?;
         let collateral_market_collateral_ratio: Decimal = {
             let config: MarketConfiguration = deps
                 .querier
@@ -372,10 +389,38 @@ mod execute {
             config.collateral_ratio
         };
 
-        // let simulated_credit_line = collateral_cr.credit_line - (collateral_cr.collateral * collateral_market_collateral_ratio);
-        // let simulated_debt = collateral_market_collateral_ratio
+        let simulated_credit_line = tcr
+            .credit_line
+            .checked_sub(max_collateral * collateral_market_collateral_ratio)?;
+        let simulated_debt = tcr.debt.checked_sub(amount_to_repay)?;
+        if simulated_debt > simulated_credit_line {
+            return Err(ContractError::RepayingLoanUsingCollateralFailed {});
+        }
 
-        Ok(Response::new())
+        let msg = to_binary(&MarketExecuteMsg::SwapWithdrawFrom {
+            account: sender.to_string(),
+            sell_limit: max_collateral.amount,
+            buy: amount_to_repay,
+        })?;
+        let swap_withdraw_from_msg = SubMsg::new(WasmMsg::Execute {
+            contract_addr: collateral_market.to_string(),
+            msg,
+            funds: vec![],
+        });
+
+        let msg = to_binary(&MarketExecuteMsg::RepayTo {
+            account: sender.to_string(),
+            amount: amount_to_repay.amount,
+        })?;
+        let repay_to_msg = SubMsg::new(WasmMsg::Execute {
+            contract_addr: debt.to_string(),
+            msg,
+            funds: vec![],
+        });
+
+        Ok(Response::new()
+            .add_message(swap_withdraw_from_msg)
+            .add_message(repay_to_msg))
     }
 }
 
