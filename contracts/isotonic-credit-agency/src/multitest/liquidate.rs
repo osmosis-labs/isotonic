@@ -626,7 +626,7 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
 
     let balance = suite.query_tokens_balance(ust, debtor).unwrap();
     // 75_000 * 1.11 (interests) - 60_000 (repaid) = 83250 - 60000
-    assert_eq!(balance.btokens, Uint128::new(23250));
+    assert_eq!(balance.btokens, Uint128::new(23256));
     let balance = suite.query_tokens_balance(atom, debtor).unwrap();
     // amount left after paying liquidation reward
     // 4017 - 2172 repaid = 1845 FIXME: rounding issue

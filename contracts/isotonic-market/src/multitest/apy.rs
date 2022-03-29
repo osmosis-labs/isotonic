@@ -19,7 +19,7 @@ fn nothing_on_market() {
         .unwrap();
 
     let apy = suite.query_apy().unwrap();
-    assert_eq!(apy.borrower, "0.030454529545061873".parse().unwrap());
+    assert_eq!(apy.borrower, "0.030454529542178457".parse().unwrap());
     assert_eq!(apy.lender, Decimal::zero());
 }
 
@@ -46,7 +46,7 @@ fn nothing_borrowed() {
         .unwrap();
 
     let apy = suite.query_apy().unwrap();
-    assert_eq!(apy.borrower, "0.030454529545061873".parse().unwrap());
+    assert_eq!(apy.borrower, "0.030454529542178457".parse().unwrap());
     assert_eq!(apy.lender, Decimal::zero());
 }
 
@@ -77,8 +77,8 @@ fn half_borrowed() {
     suite.borrow(borrower, 500).unwrap();
 
     let apy = suite.query_apy().unwrap();
-    assert_eq!(apy.borrower, "0.13882829184066357".parse().unwrap());
-    assert_eq!(apy.lender, "0.069414145920331785".parse().unwrap());
+    assert_eq!(apy.borrower, "0.138828291780615352".parse().unwrap());
+    assert_eq!(apy.lender, "0.069414145890307676".parse().unwrap());
 }
 
 #[test]
@@ -108,8 +108,8 @@ fn whole_borrowed() {
     suite.borrow(borrower, 1000).unwrap();
 
     let apy = suite.query_apy().unwrap();
-    assert_eq!(apy.borrower, "0.258599693452152831".parse().unwrap());
-    assert_eq!(apy.lender, "0.258599693452152831".parse().unwrap());
+    assert_eq!(apy.borrower, "0.258599693244403384".parse().unwrap());
+    assert_eq!(apy.lender, "0.258599693244403384".parse().unwrap());
 }
 
 #[test]
@@ -140,6 +140,6 @@ fn with_reserve_factor() {
     suite.borrow(borrower, 500).unwrap();
 
     let apy = suite.query_apy().unwrap();
-    assert_eq!(apy.borrower, "0.13882829184066357".parse().unwrap());
-    assert_eq!(apy.lender, "0.055531316736265428".parse().unwrap());
+    assert_eq!(apy.borrower, "0.138828291780615352".parse().unwrap());
+    assert_eq!(apy.lender, "0.05553131671224614".parse().unwrap());
 }
