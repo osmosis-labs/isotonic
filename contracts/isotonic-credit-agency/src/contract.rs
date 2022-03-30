@@ -96,9 +96,8 @@ pub fn execute(
 mod execute {
     use super::*;
 
-    use cosmwasm_std::{ensure_eq, Decimal, StdError, SubMsg, WasmMsg};
+    use cosmwasm_std::{ensure_eq, Coin, Decimal, StdError, SubMsg, WasmMsg};
     use utils::{
-        coin::Coin,
         credit_line::{CreditLineResponse, CreditLineValues},
         price::{coin_times_price_rate, PriceRate},
     };
@@ -344,24 +343,8 @@ mod execute {
         max_collateral: Coin,
         amount_to_repay: Coin,
     ) -> Result<Response, ContractError> {
-        let collateral_market = query::market(
-            deps.as_ref(),
-            max_collateral
-                .clone()
-                .denom
-                .native()
-                .ok_or(ContractError::Cw20TokensNotSupported)?,
-        )?
-        .market;
-        let debt_market = query::market(
-            deps.as_ref(),
-            amount_to_repay
-                .clone()
-                .denom
-                .native()
-                .ok_or(ContractError::Cw20TokensNotSupported)?,
-        )?
-        .market;
+        let collateral_market = query::market(deps.as_ref(), max_collateral.clone().denom)?.market;
+        let debt_market = query::market(deps.as_ref(), amount_to_repay.clone().denom)?.market;
 
         let markets = ENTERED_MARKETS
             .may_load(deps.storage, &sender)?
@@ -387,10 +370,11 @@ mod execute {
             config.collateral_ratio
         };
 
+        let util_collateral: utils::coin::Coin = max_collateral.clone().into();
         let simulated_credit_line = tcr
             .credit_line
-            .checked_sub(max_collateral.clone() * collateral_market_collateral_ratio)?;
-        let simulated_debt = tcr.debt.checked_sub(amount_to_repay.clone())?;
+            .checked_sub(util_collateral * collateral_market_collateral_ratio)?;
+        let simulated_debt = tcr.debt.checked_sub(amount_to_repay.clone().into())?;
         if simulated_debt > simulated_credit_line {
             return Err(ContractError::RepayingLoanUsingCollateralFailed {});
         }
@@ -398,7 +382,7 @@ mod execute {
         let msg = to_binary(&MarketExecuteMsg::SwapWithdrawFrom {
             account: sender.to_string(),
             sell_limit: max_collateral.amount,
-            buy: amount_to_repay.into_std_coin()?,
+            buy: amount_to_repay.clone(),
         })?;
         let swap_withdraw_from_msg = SubMsg::new(WasmMsg::Execute {
             contract_addr: collateral_market.to_string(),

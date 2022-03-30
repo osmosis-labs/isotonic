@@ -475,6 +475,24 @@ impl Suite {
         )
     }
 
+    pub fn repay_with_collateral(
+        &mut self,
+        sender: &str,
+        max_collateral: Coin,
+        amount_to_repay: Coin,
+    ) -> AnyResult<AppResponse> {
+        let ca = self.contract.clone();
+        self.app.execute_contract(
+            Addr::unchecked(sender),
+            ca,
+            &ExecuteMsg::RepayWithCollateral {
+                max_collateral,
+                amount_to_repay,
+            },
+            &[],
+        )
+    }
+
     pub fn list_entered_markets(
         &self,
         account: &str,

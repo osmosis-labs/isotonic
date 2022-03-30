@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Decimal, Uint128};
+use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
 use isotonic_market::msg::MigrateMsg as MarketMigrateMsg;
 
 use utils::{interest::Interest, token::Token};

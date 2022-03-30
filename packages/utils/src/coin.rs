@@ -1,7 +1,7 @@
-use cosmwasm_std::{Decimal, Uint128, Coin as StdCoin, coin};
+use cosmwasm_std::{Decimal, Uint128, Coin as StdCoin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::ops::Mul;
+use std::{ops::Mul, convert::From};
 use thiserror::Error;
 
 use crate::token::Token;
@@ -44,12 +44,11 @@ impl Coin {
             Err(CoinError::IncorrectDenoms { operation: "subtraction".to_owned(), denom1: self.denom, denom2: rhs.denom })
         }
     }
+}
 
-    pub fn into_std_coin(&self) -> Result<StdCoin, CoinError> {
-        match &self.denom {
-            Token::Native(denom) => Ok(coin(self.amount.u128(), denom)),
-            _ => Err(CoinError::ConvertBadToken {})
-        }
+impl From<StdCoin> for Coin {
+    fn from(c: StdCoin) -> Self {
+        Coin { amount: c.amount, denom: Token::Native(c.denom) }
     }
 }
 
@@ -65,8 +64,5 @@ impl Mul<Decimal> for Coin {
 pub enum CoinError {
     #[error("Operation {operation} is not allowed, because denoms does not match: {denom1} {denom2}")]
     IncorrectDenoms { operation: String, denom1: Token, denom2: Token },
-
-    #[error("cosmwasm_std::Coin type cannot be created from Cw20 coin")]
-    ConvertBadToken {},
 }
 
