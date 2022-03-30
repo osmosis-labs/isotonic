@@ -12,10 +12,12 @@ fn queries() {
     let controller = suite.controller();
     let controller = controller.as_str();
 
+    let basic_mul = suite.query_multiplier().unwrap();
+
     // Preparation to have anything to query
     suite.mint(controller, lender, Uint128::new(100)).unwrap();
 
-    // Before rebase the multiplier is at 1.0 and we have 100 tokens.
+    // Before rebase we have 100 tokens.
     assert_eq!(
         suite.query_balance(lender).unwrap(),
         DisplayAmount::raw(100u128)
@@ -27,7 +29,10 @@ fn queries() {
 
     // Rebase by 1.2. The "displayed" tokens are now at 120. The multiplier is at 1.2.
     suite.rebase(controller, Decimal::percent(120)).unwrap();
-    assert_eq!(suite.query_multiplier().unwrap(), Decimal::percent(120));
+    assert_eq!(
+        suite.query_multiplier().unwrap(),
+        basic_mul * Decimal::percent(120)
+    );
     assert_eq!(
         suite.query_balance(lender).unwrap(),
         DisplayAmount::raw(120u128)
@@ -39,7 +44,10 @@ fn queries() {
 
     // Another rebase by 1.2. The "displayed" tokens are now at 144. The multiplier is at 1.44.
     suite.rebase(controller, Decimal::percent(120)).unwrap();
-    assert_eq!(suite.query_multiplier().unwrap(), Decimal::percent(144));
+    assert_eq!(
+        suite.query_multiplier().unwrap(),
+        basic_mul * Decimal::percent(144)
+    );
     assert_eq!(
         suite.query_balance(lender).unwrap(),
         DisplayAmount::raw(144u128)
@@ -61,9 +69,14 @@ fn mint() {
 
     suite.mint(controller, lender, Uint128::new(100)).unwrap();
 
+    let basic_mul = suite.query_multiplier().unwrap();
+
     // Rebase by 1.25. The "displayed" tokens are now at 125. The multiplier is at 1.25.
     suite.rebase(controller, Decimal::percent(125)).unwrap();
-    assert_eq!(suite.query_multiplier().unwrap(), Decimal::percent(125));
+    assert_eq!(
+        suite.query_multiplier().unwrap(),
+        basic_mul * Decimal::percent(125)
+    );
     assert_eq!(
         suite.query_balance(lender).unwrap(),
         DisplayAmount::raw(125u128)
@@ -74,7 +87,7 @@ fn mint() {
 
     // Reverse the rebase so that the multiplier is back at 1.0
     suite.rebase(controller, Decimal::percent(80)).unwrap();
-    assert_eq!(suite.query_multiplier().unwrap(), Decimal::percent(100));
+    assert_eq!(suite.query_multiplier().unwrap(), basic_mul);
     assert_eq!(
         suite.query_balance(lender).unwrap(),
         DisplayAmount::raw(116u128)

@@ -103,10 +103,9 @@ fn after_half_year() {
         .deposit(lender, &[Coin::new(1000, market_token)])
         .unwrap();
 
-    // TODO: rounding error
     assert_eq!(
         suite.query_ltoken_info().unwrap().total_supply,
-        DisplayAmount::raw(5288u128)
+        DisplayAmount::raw(5289u128)
     );
 
     assert_eq!(suite.query_reserve().unwrap(), Uint128::new(57));
@@ -157,10 +156,9 @@ fn charged_couple_times() {
         .deposit(lender, &[Coin::new(1000, market_token)])
         .unwrap();
 
-    // TODO: rounding error
     assert_eq!(
         suite.query_ltoken_info().unwrap().total_supply,
-        DisplayAmount::raw(3047u128)
+        DisplayAmount::raw(3048u128)
     );
 
     assert_eq!(suite.query_reserve().unwrap(), Uint128::new(7));
@@ -187,7 +185,7 @@ fn charged_couple_times() {
 
     assert_eq!(
         suite.query_ltoken_info().unwrap().total_supply,
-        DisplayAmount::raw(4136u128)
+        DisplayAmount::raw(4137u128)
     );
 
     assert_eq!(suite.query_reserve().unwrap(), Uint128::new(20));

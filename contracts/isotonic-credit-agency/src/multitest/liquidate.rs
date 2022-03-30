@@ -7,7 +7,7 @@ use cosmwasm_std::{coin, coins, Decimal, Uint128};
 use utils::credit_line::{CreditLineResponse, CreditLineValues};
 use utils::token::Token;
 
-const YEAR_IN_SECONDS: u64 = 31_556_736;
+const YEAR_IN_SECONDS: u64 = 365 * 24 * 3600;
 
 #[test]
 fn send_more_then_one_denom() {
@@ -192,7 +192,7 @@ fn liquidating_whole_debt() {
             // 575 - 515 = 60
             collateral: Uint128::new(61),
             credit_line: Uint128::new(48),
-            debt: Uint128::new(1) // FIXME: Rounding issue
+            debt: Uint128::new(0)
         }
         .make_response(suite.common_token().clone())
     );
@@ -345,7 +345,7 @@ fn receive_reward_different_denom_fails_if_debtor_has_not_enough_reward_tokens()
         CreditLineValues {
             collateral: Uint128::new(1039),
             credit_line: Uint128::new(831),
-            debt: Uint128::new(855)
+            debt: Uint128::new(854)
         }
         .make_response(suite.common_token().clone())
     );
@@ -626,7 +626,7 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
 
     let balance = suite.query_tokens_balance(ust, debtor).unwrap();
     // 75_000 * 1.11 (interests) - 60_000 (repaid) = 83250 - 60000
-    assert_eq!(balance.btokens, Uint128::new(23256));
+    assert_eq!(balance.btokens, Uint128::new(23250));
     let balance = suite.query_tokens_balance(atom, debtor).unwrap();
     // amount left after paying liquidation reward
     // 4017 - 2172 repaid = 1845 FIXME: rounding issue

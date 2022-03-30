@@ -1,5 +1,7 @@
-use cosmwasm_std::{StdError, Uint128};
+use cosmwasm_std::{Decimal, StdError, Uint128};
 use thiserror::Error;
+
+use crate::DisplayAmount;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
@@ -26,10 +28,15 @@ pub enum ContractError {
 }
 
 impl ContractError {
-    pub fn insufficient_tokens(available: impl Into<Uint128>, needed: impl Into<Uint128>) -> Self {
+    pub fn insufficient_tokens(
+        available: impl Into<Uint128>,
+        needed: impl Into<Uint128>,
+        multiplier: Decimal,
+    ) -> Self {
         Self::InsufficientTokens {
-            available: available.into(),
-            needed: needed.into(),
+            available: DisplayAmount::from_stored_amount(multiplier, available.into())
+                .display_amount(),
+            needed: DisplayAmount::from_stored_amount(multiplier, needed.into()).display_amount(),
         }
     }
 }

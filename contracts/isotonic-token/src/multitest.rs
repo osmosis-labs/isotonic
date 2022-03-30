@@ -161,7 +161,10 @@ mod burning {
             .unwrap_err();
 
         assert_eq!(
-            ContractError::insufficient_tokens(100u128, 150u128),
+            ContractError::InsufficientTokens {
+                available: Uint128::new(100),
+                needed: Uint128::new(150u128)
+            },
             err.downcast().unwrap()
         );
         assert_eq!(
@@ -277,7 +280,10 @@ mod transfer {
             .unwrap_err();
 
         assert_eq!(
-            ContractError::insufficient_tokens(100u128, 140u128),
+            ContractError::InsufficientTokens {
+                available: Uint128::new(100),
+                needed: Uint128::new(140)
+            },
             err.downcast().unwrap()
         );
         assert_eq!(
@@ -500,7 +506,10 @@ mod send {
             .unwrap_err();
 
         assert_eq!(
-            ContractError::insufficient_tokens(100u128, 140u128),
+            ContractError::InsufficientTokens {
+                available: Uint128::new(100),
+                needed: Uint128::new(140)
+            },
             err.downcast().unwrap()
         );
         assert_eq!(suite.query_receiver().unwrap(), 0);
