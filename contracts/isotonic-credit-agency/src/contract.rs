@@ -350,8 +350,7 @@ mod execute {
                 .clone()
                 .denom
                 .native()
-                .ok_or(ContractError::Cw20TokensNotSupported)?
-                .clone(),
+                .ok_or(ContractError::Cw20TokensNotSupported)?,
         )?
         .market;
         let debt_market = query::market(
@@ -360,8 +359,7 @@ mod execute {
                 .clone()
                 .denom
                 .native()
-                .ok_or(ContractError::Cw20TokensNotSupported)?
-                .clone(),
+                .ok_or(ContractError::Cw20TokensNotSupported)?,
         )?
         .market;
 
@@ -372,12 +370,12 @@ mod execute {
         if !markets.contains(&collateral_market) {
             return Err(ContractError::NotOnMarket {
                 address: sender,
-                market: collateral_market.clone(),
+                market: collateral_market,
             });
         } else if !markets.contains(&debt_market) {
             return Err(ContractError::NotOnMarket {
                 address: sender,
-                market: debt_market.clone(),
+                market: debt_market,
             });
         }
 
@@ -391,8 +389,8 @@ mod execute {
 
         let simulated_credit_line = tcr
             .credit_line
-            .checked_sub(max_collateral * collateral_market_collateral_ratio)?;
-        let simulated_debt = tcr.debt.checked_sub(amount_to_repay)?;
+            .checked_sub(max_collateral.clone() * collateral_market_collateral_ratio)?;
+        let simulated_debt = tcr.debt.checked_sub(amount_to_repay.clone())?;
         if simulated_debt > simulated_credit_line {
             return Err(ContractError::RepayingLoanUsingCollateralFailed {});
         }
@@ -400,7 +398,7 @@ mod execute {
         let msg = to_binary(&MarketExecuteMsg::SwapWithdrawFrom {
             account: sender.to_string(),
             sell_limit: max_collateral.amount,
-            buy: amount_to_repay,
+            buy: amount_to_repay.into_std_coin()?,
         })?;
         let swap_withdraw_from_msg = SubMsg::new(WasmMsg::Execute {
             contract_addr: collateral_market.to_string(),
@@ -413,14 +411,14 @@ mod execute {
             amount: amount_to_repay.amount,
         })?;
         let repay_to_msg = SubMsg::new(WasmMsg::Execute {
-            contract_addr: debt.to_string(),
+            contract_addr: debt_market.to_string(),
             msg,
             funds: vec![],
         });
 
         Ok(Response::new()
-            .add_message(swap_withdraw_from_msg)
-            .add_message(repay_to_msg))
+            .add_submessage(swap_withdraw_from_msg)
+            .add_submessage(repay_to_msg))
     }
 }
 

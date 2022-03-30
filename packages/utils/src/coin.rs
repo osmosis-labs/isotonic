@@ -1,7 +1,10 @@
-use crate::token::Token;
-use cosmwasm_std::{Decimal, Uint128};
+use cosmwasm_std::{Decimal, Uint128, Coin as StdCoin, coin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::ops::Mul;
+use thiserror::Error;
+
+use crate::token::Token;
 
 /// Universal coin type which is either a native coin, or cw20 coin
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema, PartialOrd, Ord)]
@@ -41,17 +44,14 @@ impl Coin {
             Err(CoinError::IncorrectDenoms { operation: "subtraction".to_owned(), denom1: self.denom, denom2: rhs.denom })
         }
     }
+
+    pub fn into_std_coin(&self) -> Result<StdCoin, CoinError> {
+        match &self.denom {
+            Token::Native(denom) => Ok(coin(self.amount.u128(), denom)),
+            _ => Err(CoinError::ConvertBadToken {})
+        }
+    }
 }
-
-use thiserror::Error;
-
-#[derive(Error, Debug, PartialEq)]
-pub enum CoinError {
-    #[error("Operation {operation} is not allowed, because denoms does not match: {denom1} {denom2}")]
-    IncorrectDenoms { operation: String, denom1: Token, denom2: Token },
-}
-
-use std::ops::Mul;
 
 impl Mul<Decimal> for Coin {
     type Output = Self;
@@ -60,3 +60,13 @@ impl Mul<Decimal> for Coin {
         Self { denom: self.denom, amount: self.amount * rhs }
     }
 }
+
+#[derive(Error, Debug, PartialEq)]
+pub enum CoinError {
+    #[error("Operation {operation} is not allowed, because denoms does not match: {denom1} {denom2}")]
+    IncorrectDenoms { operation: String, denom1: Token, denom2: Token },
+
+    #[error("cosmwasm_std::Coin type cannot be created from Cw20 coin")]
+    ConvertBadToken {},
+}
+
