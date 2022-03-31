@@ -786,7 +786,8 @@ mod execute {
                 denom2: buy.denom.clone(),
             },
         )?;
-        let route = dbg!(vec![Step::new(pool_id_common_buy, buy.denom.clone())]);
+        // let route = dbg!(vec![Step::new(pool_id_common_buy, buy.denom.clone())]);
+        let route = vec![];
 
         let amount = SwapAmountWithLimit::ExactOut {
             output: buy.amount,

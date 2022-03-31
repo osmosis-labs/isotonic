@@ -17,8 +17,8 @@ fn on_two_markets() {
         .with_funds(deposit_one, &[coin(10_000, first_denom)])
         .with_funds(deposit_two, &[coin(10_000, second_denom)])
         .with_funds(user, &[coin(5000, first_denom)])
-        .with_pool(1, (coin(150, COMMON), coin(100, first_denom)))
-        .with_pool(2, (coin(50, COMMON), coin(100, second_denom)))
+        .with_pool(1, (coin(110, COMMON), coin(100, first_denom)))
+        .with_pool(2, (coin(90, COMMON), coin(100, second_denom)))
         .build();
 
     suite
@@ -48,18 +48,18 @@ fn on_two_markets() {
     assert_eq!(
         total_credit_line,
         CreditLineValues {
-            // 3_000 deposited * 1.5 oracle's price
-            collateral: Uint128::new(4500),
-            // 4500 collateral * 1.5 oracle's price * 0.5 default collateral_ratio
-            credit_line: Uint128::new(2250),
-            // 1000 borrowed * 0.5 oracle's price
-            debt: Uint128::new(500)
+            // 3_000 deposited * 1.1 oracle's price
+            collateral: Uint128::new(3300),
+            // 3300 collateral * 1.1 oracle's price * 0.5 default collateral_ratio
+            credit_line: Uint128::new(1650), // <- I need to check this later, this is not right
+            // 1000 borrowed * 0.9 oracle's price
+            debt: Uint128::new(900)
         }
         .make_response(suite.common_token().clone())
     );
 
     suite
-        .repay_with_collateral(user, coin(2000, first_denom), coin(500, second_denom))
+        .repay_with_collateral(user, coin(390, first_denom), coin(10, second_denom))
         .unwrap();
     let total_credit_line = suite.query_total_credit_line(user).unwrap();
     assert_eq!(
