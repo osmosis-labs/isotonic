@@ -39,7 +39,7 @@ pub struct WithdrawAdjustment {
 
 /// How much points is the worth of single token in token distribution.
 ///
-/// 4_000_000_000 is a value choosen as 4_000_000_000 is the closest to reasonable 32bits shift,
+/// 4_000_000_000 is choosen as the closest to reasonable 32bits shift,
 /// still being decimal-friendly. It reduces how much tokens may be handled by this contract
 /// (it is now ~96-bit integer instead of 128). In original ERC2222 it is handled by 256-bit
 /// calculations, but I256 is missing and it is required for this.
