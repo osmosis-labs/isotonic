@@ -786,18 +786,18 @@ mod execute {
                 denom2: buy.denom.clone(),
             },
         )?;
-        let route = vec![Step::new(pool_id_common_buy, buy.denom.clone())];
+        let route = dbg!(vec![Step::new(pool_id_common_buy, buy.denom.clone())]);
 
         let amount = SwapAmountWithLimit::ExactOut {
             output: buy.amount,
             max_input: sell_limit,
         };
 
-        let swap_msg = CosmosMsg::Custom(OsmosisMsg::Swap {
+        let swap_msg = CosmosMsg::Custom(dbg!(OsmosisMsg::Swap {
             first: swap,
             route,
             amount,
-        });
+        }));
 
         TO_BURN_AND_WITHDRAW.save(deps.storage, &account)?;
 
