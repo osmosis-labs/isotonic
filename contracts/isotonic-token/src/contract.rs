@@ -357,6 +357,14 @@ pub fn distribute(
         return Ok(Response::new());
     }
 
+    // Distribution calculation:
+    // 1. Distributed amount is turned into points by scalling them by POINTS_SCALE;
+    // 2. The leftover from any previous distribution is added to be distributed now;
+    // 3. Calculating how much points would be distributed to receivers per token they own;
+    // 4. It is very much possible, that non-whole points should be paid for single token. To
+    //    overcome this, we distribute as much points as it is possible without non-whole division,
+    //    and leftover is stored for next distribution.
+    // 5. Distributed points per token are accumulated;
     let leftover: u128 = distribution.points_leftover.into();
     let points = amount * POINTS_SCALE + leftover;
     let points_per_token = points / total_supply;
