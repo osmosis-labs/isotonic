@@ -1,8 +1,7 @@
-use super::suite::SuiteBuilder;
+use super::suite::{SuiteBuilder, COMMON};
 
-use cosmwasm_std::{coin, Decimal, Uint128};
+use cosmwasm_std::{coin, Uint128};
 use utils::credit_line::CreditLineValues;
-use utils::token::Token;
 
 #[test]
 fn on_two_markets() {
@@ -18,6 +17,8 @@ fn on_two_markets() {
         .with_funds(deposit_one, &[coin(10_000, first_denom)])
         .with_funds(deposit_two, &[coin(10_000, second_denom)])
         .with_funds(user, &[coin(5000, first_denom)])
+        .with_pool(1, (coin(100, COMMON), coin(150, first_denom)))
+        .with_pool(2, (coin(100, COMMON), coin(50, second_denom)))
         .build();
 
     suite
@@ -25,19 +26,6 @@ fn on_two_markets() {
         .unwrap();
     suite
         .create_market_quick("gov", "ethereum", second_denom, None, None, None)
-        .unwrap();
-
-    suite
-        .oracle_set_price_market_per_common(
-            Token::Native(first_denom.to_owned()),
-            Decimal::percent(150),
-        )
-        .unwrap();
-    suite
-        .oracle_set_price_market_per_common(
-            Token::Native(second_denom.to_owned()),
-            Decimal::percent(50),
-        )
         .unwrap();
 
     suite
@@ -71,7 +59,7 @@ fn on_two_markets() {
     );
 
     suite
-        .repay_with_collateral(user, coin(4500, first_denom), coin(500, second_denom))
+        .repay_with_collateral(user, coin(2000, first_denom), coin(500, second_denom))
         .unwrap();
     let total_credit_line = suite.query_total_credit_line(user).unwrap();
     assert_eq!(

@@ -96,7 +96,7 @@ pub fn execute(
 mod execute {
     use super::*;
 
-    use cosmwasm_std::{ensure_eq, Coin, Decimal, StdError, SubMsg, WasmMsg};
+    use cosmwasm_std::{coin, ensure_eq, Coin, StdError, SubMsg, WasmMsg};
     use utils::{
         credit_line::{CreditLineResponse, CreditLineValues},
         price::{coin_times_price_rate, PriceRate},
@@ -363,17 +363,40 @@ mod execute {
         }
 
         let tcr = query::total_credit_line(deps.as_ref(), sender.to_string())?;
-        let collateral_market_collateral_ratio: Decimal = {
-            let config: MarketConfiguration = deps
-                .querier
-                .query_wasm_smart(collateral_market.clone(), &MarketQueryMsg::Configuration {})?;
-            config.collateral_ratio
-        };
+        let cfg = CONFIG.load(deps.storage)?;
+
+        let collateral_market_cfg: MarketConfiguration = deps
+            .querier
+            .query_wasm_smart(collateral_market.clone(), &MarketQueryMsg::Configuration {})?;
+
+        let collateral_per_common_rate: PriceRate = deps.querier.query_wasm_smart(
+            collateral_market.clone(),
+            &MarketQueryMsg::PriceMarketLocalPerCommon {},
+        )?;
+        let collateral_per_common_rate = collateral_per_common_rate.rate_sell_per_buy;
+        let max_collateral = coin(
+            (max_collateral.amount * collateral_per_common_rate).u128(),
+            cfg.common_token.clone(),
+        );
+
+        let debt_per_common_rate: PriceRate = deps.querier.query_wasm_smart(
+            debt_market.clone(),
+            &MarketQueryMsg::PriceMarketLocalPerCommon {},
+        )?;
+        let debt_per_common_rate = debt_per_common_rate.rate_sell_per_buy;
+        let amount_to_repay = coin(
+            (amount_to_repay.amount * debt_per_common_rate).u128(),
+            cfg.common_token,
+        );
 
         let util_collateral: utils::coin::Coin = max_collateral.clone().into();
+
+        dbg!(tcr.credit_line.clone());
+        dbg!(util_collateral.clone());
+        dbg!(collateral_market_cfg.collateral_ratio);
         let simulated_credit_line = tcr
             .credit_line
-            .checked_sub(util_collateral * collateral_market_collateral_ratio)?;
+            .checked_sub(util_collateral * collateral_market_cfg.collateral_ratio)?;
         let simulated_debt = tcr.debt.checked_sub(amount_to_repay.clone().into())?;
         if simulated_debt > simulated_credit_line {
             return Err(ContractError::RepayingLoanUsingCollateralFailed {});
