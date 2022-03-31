@@ -391,9 +391,6 @@ mod execute {
 
         let util_collateral: utils::coin::Coin = max_collateral.clone().into();
 
-        dbg!(tcr.credit_line.clone());
-        dbg!(util_collateral.clone());
-        dbg!(collateral_market_cfg.collateral_ratio);
         let simulated_credit_line = tcr
             .credit_line
             .checked_sub(util_collateral * collateral_market_cfg.collateral_ratio)?;

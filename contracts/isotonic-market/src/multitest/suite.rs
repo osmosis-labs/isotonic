@@ -202,14 +202,17 @@ impl SuiteBuilder {
         })
         .unwrap();
         for (pool_id, (coin1, coin2)) in self.pools {
-            let msg = OracleExecuteMsg::RegisterPool {
-                pool_id,
-                denom1: coin1.denom,
-                denom2: coin2.denom,
-            };
-            dbg!(msg.clone());
-            app.execute_contract(owner.clone(), oracle_contract.clone(), &msg, &[])
-                .unwrap();
+            app.execute_contract(
+                owner.clone(),
+                oracle_contract.clone(),
+                &OracleExecuteMsg::RegisterPool {
+                    pool_id,
+                    denom1: coin1.denom,
+                    denom2: coin2.denom,
+                },
+                &[],
+            )
+            .unwrap();
         }
 
         let ca_id = app.store_code(contract_credit_agency());

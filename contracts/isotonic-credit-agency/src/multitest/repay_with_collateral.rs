@@ -17,8 +17,8 @@ fn on_two_markets() {
         .with_funds(deposit_one, &[coin(10_000, first_denom)])
         .with_funds(deposit_two, &[coin(10_000, second_denom)])
         .with_funds(user, &[coin(5000, first_denom)])
-        .with_pool(1, (coin(100, COMMON), coin(150, first_denom)))
-        .with_pool(2, (coin(100, COMMON), coin(50, second_denom)))
+        .with_pool(1, (coin(150, COMMON), coin(100, first_denom)))
+        .with_pool(2, (coin(50, COMMON), coin(100, second_denom)))
         .build();
 
     suite
