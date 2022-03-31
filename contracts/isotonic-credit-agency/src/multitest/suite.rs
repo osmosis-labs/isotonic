@@ -1,17 +1,19 @@
 use anyhow::Result as AnyResult;
+use std::collections::HashMap;
 
-use cosmwasm_std::{Addr, Coin, ContractInfoResponse, Decimal, Empty};
-use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
+use cosmwasm_std::{Addr, Coin, ContractInfoResponse, Decimal};
+use cw_multi_test::{AppResponse, Contract, ContractWrapper, Executor};
 use isotonic_market::msg::{
     ExecuteMsg as MarketExecuteMsg, MigrateMsg as MarketMigrateMsg, QueryMsg as MarketQueryMsg,
     TokensBalanceResponse,
 };
 use isotonic_market::state::SECONDS_IN_YEAR;
-use isotonic_oracle::msg::ExecuteMsg as OracleExecuteMsg;
-use utils::credit_line::CreditLineResponse;
-use utils::interest::Interest;
-use utils::time::Duration;
-use utils::token::Token;
+use isotonic_osmosis_oracle::msg::{
+    ExecuteMsg as OracleExecuteMsg, InstantiateMsg as OracleInstantiateMsg,
+};
+use osmo_bindings::{OsmosisMsg, OsmosisQuery};
+use osmo_bindings_test::{OsmosisApp, Pool};
+use utils::{credit_line::CreditLineResponse, interest::Interest, token::Token};
 
 use crate::msg::{
     ExecuteMsg, InstantiateMsg, IsOnMarketResponse, ListEnteredMarketsResponse,
@@ -19,17 +21,19 @@ use crate::msg::{
 };
 use crate::state::Config;
 
-fn contract_oracle() -> Box<dyn Contract<Empty>> {
+pub const COMMON: &str = "COMMON";
+
+fn contract_osmosis_oracle() -> Box<dyn Contract<OsmosisMsg, OsmosisQuery>> {
     let contract = ContractWrapper::new(
-        isotonic_oracle::contract::execute,
-        isotonic_oracle::contract::instantiate,
-        isotonic_oracle::contract::query,
+        isotonic_osmosis_oracle::contract::execute,
+        isotonic_osmosis_oracle::contract::instantiate,
+        isotonic_osmosis_oracle::contract::query,
     );
 
     Box::new(contract)
 }
 
-fn contract_credit_agency() -> Box<dyn Contract<Empty>> {
+fn contract_credit_agency() -> Box<dyn Contract<OsmosisMsg, OsmosisQuery>> {
     let contract = ContractWrapper::new(
         crate::contract::execute,
         crate::contract::instantiate,
@@ -41,7 +45,7 @@ fn contract_credit_agency() -> Box<dyn Contract<Empty>> {
     Box::new(contract)
 }
 
-pub fn contract_market() -> Box<dyn Contract<Empty>> {
+pub fn contract_market() -> Box<dyn Contract<OsmosisMsg, OsmosisQuery>> {
     let contract = ContractWrapper::new(
         isotonic_market::contract::execute,
         isotonic_market::contract::instantiate,
@@ -53,8 +57,8 @@ pub fn contract_market() -> Box<dyn Contract<Empty>> {
     Box::new(contract)
 }
 
-fn contract_token() -> Box<dyn Contract<Empty>> {
-    let contract = ContractWrapper::new(
+fn contract_token() -> Box<dyn Contract<OsmosisMsg, OsmosisQuery>> {
+    let contract = ContractWrapper::new_with_empty(
         isotonic_token::contract::execute,
         isotonic_token::contract::instantiate,
         isotonic_token::contract::query,
@@ -72,6 +76,7 @@ pub struct SuiteBuilder {
     funds: Vec<(Addr, Vec<Coin>)>,
     liquidation_price: Decimal,
     common_token: String,
+    pools: HashMap<u64, (Coin, Coin)>,
 }
 
 impl SuiteBuilder {
@@ -81,7 +86,8 @@ impl SuiteBuilder {
             reward_token: "reward".to_string(),
             funds: vec![],
             liquidation_price: Decimal::percent(92),
-            common_token: "common".to_owned(),
+            common_token: COMMON.to_owned(),
+            pools: HashMap::new(),
         }
     }
 
@@ -111,26 +117,55 @@ impl SuiteBuilder {
         self
     }
 
+    pub fn with_pool(mut self, id: u64, pool: (Coin, Coin)) -> Self {
+        self.pools.insert(id, pool);
+        self
+    }
+
     #[track_caller]
     pub fn build(self) -> Suite {
-        let mut app = App::default();
+        let mut app = OsmosisApp::default();
         let owner = Addr::unchecked("owner");
-        let common_token = self.common_token;
+        let common_token = self.common_token.clone();
 
-        let oracle_id = app.store_code(contract_oracle());
+        let oracle_id = app.store_code(contract_osmosis_oracle());
         let oracle_contract = app
             .instantiate_contract(
                 oracle_id,
                 owner.clone(),
-                &isotonic_oracle::msg::InstantiateMsg {
-                    oracle: owner.to_string(),
-                    maximum_age: Duration::new(999999999),
+                &OracleInstantiateMsg {
+                    controller: owner.to_string(),
                 },
                 &[],
                 "oracle",
                 Some(owner.to_string()),
             )
             .unwrap();
+
+        // initialize the pools for osmosis oracle
+        app.init_modules(|router, _, storage| -> AnyResult<()> {
+            for (pool_id, (coin1, coin2)) in self.pools.clone() {
+                router
+                    .custom
+                    .set_pool(storage, pool_id, &Pool::new(coin1, coin2))?;
+            }
+
+            Ok(())
+        })
+        .unwrap();
+        for (pool_id, (coin1, coin2)) in self.pools {
+            app.execute_contract(
+                owner.clone(),
+                oracle_contract.clone(),
+                &OracleExecuteMsg::RegisterPool {
+                    pool_id,
+                    denom1: coin1.denom,
+                    denom2: coin2.denom,
+                },
+                &[],
+            )
+            .unwrap();
+        }
 
         let isotonic_market_id = app.store_code(contract_market());
         let isotonic_token_id = app.store_code(contract_token());
@@ -176,7 +211,7 @@ impl SuiteBuilder {
 /// Test suite
 pub struct Suite {
     /// The multitest app
-    app: App,
+    app: OsmosisApp,
     /// Contract's owner
     owner: Addr,
     /// Address of the Credit Agency contract
@@ -188,8 +223,42 @@ pub struct Suite {
 }
 
 impl Suite {
-    pub fn app(&mut self) -> &mut App {
+    pub fn app(&mut self) -> &mut OsmosisApp {
         &mut self.app
+    }
+
+    pub fn add_pool(&mut self, pools: &[(u64, (Coin, Coin))]) -> AnyResult<()> {
+        let owner = self.owner.clone();
+        let oracle = self.oracle_contract.clone();
+
+        self.app
+            .init_modules(|router, _, storage| -> AnyResult<()> {
+                for (pool_id, (coin1, coin2)) in pools {
+                    router.custom.set_pool(
+                        storage,
+                        *pool_id,
+                        &Pool::new(coin1.clone(), coin2.clone()),
+                    )?;
+                }
+
+                Ok(())
+            })
+            .unwrap();
+        for (pool_id, (coin1, coin2)) in pools {
+            self.app
+                .execute_contract(
+                    owner.clone(),
+                    oracle.clone(),
+                    &OracleExecuteMsg::RegisterPool {
+                        pool_id: *pool_id,
+                        denom1: coin1.denom.clone(),
+                        denom2: coin2.denom.clone(),
+                    },
+                    &[],
+                )
+                .unwrap();
+        }
+        Ok(())
     }
 
     pub fn advance_seconds(&mut self, seconds: u64) {
@@ -335,26 +404,6 @@ impl Suite {
             },
         )?;
         Ok(resp)
-    }
-
-    /// Sets sell/buy price (rate) between market_token and common_token
-    pub fn oracle_set_price_market_per_common(
-        &mut self,
-        market: Token,
-        rate: Decimal,
-    ) -> AnyResult<AppResponse> {
-        let owner = self.owner.clone();
-
-        self.app.execute_contract(
-            owner,
-            self.oracle_contract.clone(),
-            &OracleExecuteMsg::SetPrice {
-                buy: self.common_token.clone(),
-                sell: market,
-                rate,
-            },
-            &[],
-        )
     }
 
     /// Deposit tokens on market selected by denom of Coin
