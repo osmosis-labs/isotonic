@@ -366,6 +366,17 @@ impl Suite {
         )
     }
 
+    pub fn attempt_withdraw_max(&mut self, sender: &str) -> AnyResult<()> {
+        let withdrawable = self.query_withdrawable(sender)?;
+        self.withdraw(sender, withdrawable.amount.u128())?;
+
+        // double check we cannot withdraw anything above this amount
+        self.assert_withdrawable(sender, 0);
+        assert!(self.withdraw(sender, 1).is_err());
+
+        Ok(())
+    }
+
     /// Borrow base asset from the lending pool and mint b-token
     pub fn borrow(&mut self, sender: &str, amount: u128) -> AnyResult<AppResponse> {
         self.app.execute_contract(
@@ -556,6 +567,16 @@ impl Suite {
         Ok(response)
     }
 
+    pub fn query_withdrawable(&self, account: impl ToString) -> AnyResult<Coin> {
+        let response: Coin = self.app.wrap().query_wasm_smart(
+            self.contract.clone(),
+            &QueryMsg::Withdrawable {
+                account: account.to_string(),
+            },
+        )?;
+        Ok(response)
+    }
+
     /// Migrates the contract, possibly changing some cfg values via MigrateMsg.
     pub fn migrate(&mut self, new_code_id: u64, msg: &MigrateMsg) -> AnyResult<AppResponse> {
         let owner = self.owner.clone();
@@ -637,5 +658,10 @@ impl Suite {
     pub fn assert_collateral(&self, account: impl ToString, amount: u128) {
         let crl = self.query_credit_line(account).unwrap();
         assert_eq!(crl.collateral.amount, amount.into());
+    }
+
+    pub fn assert_withdrawable(&self, account: impl ToString, amount: u128) {
+        let withdrawable = self.query_withdrawable(account).unwrap();
+        assert_eq!(withdrawable.amount, amount.into());
     }
 }

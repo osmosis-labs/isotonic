@@ -147,3 +147,23 @@ fn can_withdraw_up_to_credit_line() {
         err.downcast().unwrap()
     );
 }
+
+#[test]
+fn query_withdrawable_when_only_lending() {
+    let lender = "lender";
+    let mut suite = SuiteBuilder::new()
+        .with_funds(lender, &[coin(100, "ATOM")])
+        .with_market_token("ATOM")
+        .build();
+
+    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+    suite.set_high_credit_line(lender).unwrap();
+
+    // Deposit some tokens so we have something to withdraw.
+    suite.deposit(lender, &[coin(100, "ATOM")]).unwrap();
+
+    suite.assert_withdrawable(lender, 100);
+
+    suite.attempt_withdraw_max(lender).unwrap();
+}

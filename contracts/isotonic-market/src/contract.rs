@@ -691,6 +691,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractErro
         }
         Reserve {} => to_binary(&query::reserve(deps, env)?)?,
         Apy {} => to_binary(&query::apy(deps)?)?,
+        Withdrawable { account } => to_binary(&query::withdrawable(deps, env, account)?)?,
     };
     Ok(res)
 }
@@ -892,6 +893,25 @@ mod query {
         let lender = borrower * utilisation * (Decimal::one() - cfg.reserve_factor);
 
         Ok(ApyResponse { borrower, lender })
+    }
+
+    /// Handler for `QueryMsg::Withdrawable`
+    pub fn withdrawable(deps: Deps, env: Env, account: String) -> Result<Coin, ContractError> {
+        use std::cmp::min;
+
+        let cfg = CONFIG.load(deps.storage)?;
+
+        let transferable = cr_utils::transferable_amount(deps, &cfg, &account)?;
+        let ltoken_balance = ltoken_balance(deps, &cfg, &account)?;
+        let allowed_to_withdraw = min(transferable, ltoken_balance.amount);
+        let withdrawable = min(
+            allowed_to_withdraw,
+            deps.querier
+                .query_balance(env.contract.address, &cfg.market_token)?
+                .amount,
+        );
+
+        Ok(coin(withdrawable.u128(), cfg.market_token))
     }
 }
 
