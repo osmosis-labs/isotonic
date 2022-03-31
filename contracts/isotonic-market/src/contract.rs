@@ -685,7 +685,7 @@ mod query {
 
     use cosmwasm_std::{coin, Coin, Decimal, Uint128};
     use cw20::BalanceResponse;
-    use isotonic_oracle::msg::{PriceResponse, QueryMsg as OracleQueryMsg};
+    use isotonic_osmosis_oracle::msg::{PriceResponse, QueryMsg as OracleQueryMsg};
     use isotonic_token::msg::QueryMsg as TokenQueryMsg;
     use utils::credit_line::{CreditLineResponse, CreditLineValues};
     use utils::price::{coin_times_price_rate, PriceRate};
@@ -812,8 +812,8 @@ mod query {
             let price_response: PriceResponse = deps.querier.query_wasm_smart(
                 config.price_oracle.clone(),
                 &OracleQueryMsg::Price {
-                    sell: Token::Native(config.market_token.clone()),
-                    buy: Token::Native(config.common_token.clone()),
+                    sell: config.market_token.clone(),
+                    buy: config.common_token.clone(),
                 },
             )?;
             Ok(PriceRate {

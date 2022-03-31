@@ -1,6 +1,6 @@
 use crate::state::SECONDS_IN_YEAR;
 
-use super::suite::SuiteBuilder;
+use super::suite::{SuiteBuilder, COMMON};
 
 use cosmwasm_std::{coin, Decimal, StdError, Uint128};
 use utils::credit_line::CreditLineValues;
@@ -30,11 +30,10 @@ fn oracle_price_not_set() {
 fn zero_credit_line() {
     let lender = "lender";
     let market_token = "atom";
-    let mut suite = SuiteBuilder::new().with_market_token(market_token).build();
-
-    suite
-        .oracle_set_price_market_per_common(Decimal::percent(50))
-        .unwrap();
+    let suite = SuiteBuilder::new()
+        .with_market_token(market_token)
+        .with_pool(1, (coin(100, COMMON), coin(50, market_token)))
+        .build();
 
     // No tokens were deposited nor borrowed, so credit line is zero
     let credit_line = suite.query_credit_line(lender).unwrap();
@@ -54,18 +53,13 @@ fn borrower_borrows_tokens() {
         // collateral ratio is 0.7
         .with_collateral_ratio(Decimal::percent(70))
         .with_market_token(market_token)
+        // sell/buy ratio between common_token and market_token is 2.0
+        // which means borrowing (buying) 1000 market btokens will get
+        // debt of 2000 common tokens
+        .with_pool(1, (coin(100, COMMON), coin(200, market_token)))
         .build();
 
-    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
-    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(borrower).unwrap();
-
-    // sell/buy ratio between common_token and market_token is 2.0
-    // which means borrowing (buying) 1000 market btokens will get
-    // debt of 2000 common tokens
-    suite
-        .oracle_set_price_market_per_common(Decimal::percent(200))
-        .unwrap();
 
     // Lender deposits coins
     suite.deposit(lender, &[coin(1000, market_token)]).unwrap();
@@ -96,13 +90,10 @@ fn lender_deposits_tokens() {
         // collateral ratio is 0.7
         .with_collateral_ratio(Decimal::percent(70))
         .with_market_token(market_token)
+        // sell/buy ratio between common_token and market_token is 2.0
+        // so 1000 market tokens will get you 2000 common tokens collateral
+        .with_pool(1, (coin(100, COMMON), coin(200, market_token)))
         .build();
-
-    // sell/buy ratio between common_token and market_token is 2.0
-    // so 1000 market tokens will get you 2000 common tokens collateral
-    suite
-        .oracle_set_price_market_per_common(Decimal::percent(200))
-        .unwrap();
 
     // Deposit some tokens
     suite.deposit(lender, &[coin(1000, market_token)]).unwrap();
@@ -136,17 +127,12 @@ fn deposits_and_borrows_tokens() {
         // collateral ratio is 0.7
         .with_collateral_ratio(Decimal::percent(70))
         .with_market_token(market_token)
+        // sell/buy ratio between common_token and market_token is 2.0
+        .with_pool(1, (coin(100, COMMON), coin(200, market_token)))
         .build();
 
-    // Set arbitrary market/common exchange ratio and credit lines (not part of this test)
-    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(borrower).unwrap();
     suite.set_high_credit_line(lender).unwrap();
-
-    // sell/buy ratio between common_token and market_token is 2.0
-    suite
-        .oracle_set_price_market_per_common(Decimal::percent(200))
-        .unwrap();
 
     // Lender deposits coins
     suite.deposit(lender, &[coin(1000, market_token)]).unwrap();
@@ -200,10 +186,9 @@ fn deposits_and_borrows_tokens_market_common_matches_denoms() {
         .with_collateral_ratio(Decimal::percent(70))
         .with_market_token(market_token)
         .with_common_token(market_token)
+        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
-    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
-    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(borrower).unwrap();
 
     suite.deposit(lender, &[coin(1000, market_token)]).unwrap();
@@ -252,10 +237,9 @@ fn query_credit_line_with_uncharged_interest() {
         .with_interest(10, 0)
         .with_reserve_factor(0)
         .with_market_token(market_token)
+        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
-    // Set arbitrary market/common exchange ratio and credit lines (not part of this test)
-    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(borrower).unwrap();
     suite.set_high_credit_line(lender).unwrap();
 

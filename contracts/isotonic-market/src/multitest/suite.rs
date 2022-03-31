@@ -1,12 +1,19 @@
 use anyhow::{anyhow, Result as AnyResult};
+use std::collections::HashMap;
 
 use cosmwasm_std::{Addr, Coin, Decimal, Empty, StdResult, Uint128};
 use cw20::BalanceResponse;
-use cw_multi_test::{App, AppResponse, Contract, ContractWrapper, Executor};
-use utils::credit_line::{CreditLineResponse, CreditLineValues};
-use utils::interest::Interest;
-use utils::time::Duration;
-use utils::token::Token;
+use cw_multi_test::{AppResponse, Contract, ContractWrapper, Executor};
+use isotonic_osmosis_oracle::msg::{
+    ExecuteMsg as OracleExecuteMsg, InstantiateMsg as OracleInstantiateMsg,
+};
+use osmo_bindings::{OsmosisMsg, OsmosisQuery};
+use osmo_bindings_test::{OsmosisApp, Pool};
+use utils::{
+    credit_line::{CreditLineResponse, CreditLineValues},
+    interest::Interest,
+    token::Token,
+};
 
 use super::ca_mock::{
     contract as contract_credit_agency, ExecuteMsg as CAExecuteMsg,
@@ -18,11 +25,13 @@ use crate::msg::{
 };
 use crate::state::Config;
 
-fn contract_oracle() -> Box<dyn Contract<Empty>> {
+pub const COMMON: &str = "COMMON";
+
+fn contract_oracle() -> Box<dyn Contract<OsmosisMsg, OsmosisQuery>> {
     let contract = ContractWrapper::new(
-        isotonic_oracle::contract::execute,
-        isotonic_oracle::contract::instantiate,
-        isotonic_oracle::contract::query,
+        isotonic_osmosis_oracle::contract::execute,
+        isotonic_osmosis_oracle::contract::instantiate,
+        isotonic_osmosis_oracle::contract::query,
     );
 
     Box::new(contract)
@@ -80,6 +89,7 @@ pub struct SuiteBuilder {
     collateral_ratio: Decimal,
     /// Defines the portion of borrower interest that is converted into reserves (0 <= x <= 1)
     reserve_factor: Decimal,
+    pools: HashMap<u64, (Coin, Coin)>,
 }
 
 impl SuiteBuilder {
@@ -98,6 +108,7 @@ impl SuiteBuilder {
             common_token: "common".to_owned(),
             collateral_ratio: Decimal::percent(50),
             reserve_factor: Decimal::percent(0),
+            pools: HashMap::new(),
         }
     }
 
@@ -151,28 +162,57 @@ impl SuiteBuilder {
         self
     }
 
+    pub fn with_pool(mut self, id: u64, pool: (Coin, Coin)) -> Self {
+        self.pools.insert(id, pool);
+        self
+    }
+
     #[track_caller]
     pub fn build(self) -> Suite {
         let mut app = App::default();
         let owner = Addr::unchecked("owner");
 
-        let market_token = Token::Native(self.market_token);
-        let common_token = Token::Native(self.common_token);
+        let market_token = Token::Native(self.market_token.clone());
+        let common_token = Token::Native(self.common_token.clone());
 
         let oracle_id = app.store_code(contract_oracle());
         let oracle_contract = app
             .instantiate_contract(
                 oracle_id,
                 owner.clone(),
-                &isotonic_oracle::msg::InstantiateMsg {
-                    oracle: owner.to_string(),
-                    maximum_age: Duration::new(99999999),
+                &OracleInstantiateMsg {
+                    controller: owner.to_string(),
                 },
                 &[],
                 "oracle",
                 Some(owner.to_string()),
             )
             .unwrap();
+
+        // initialize the pools for osmosis oracle
+        app.init_modules(|router, _, storage| -> AnyResult<()> {
+            for (pool_id, (coin1, coin2)) in self.pools.clone() {
+                router
+                    .custom
+                    .set_pool(storage, pool_id, &Pool::new(coin1, coin2))?;
+            }
+
+            Ok(())
+        })
+        .unwrap();
+        for (pool_id, (coin1, coin2)) in self.pools {
+            app.execute_contract(
+                owner.clone(),
+                oracle_contract.clone(),
+                &OracleExecuteMsg::RegisterPool {
+                    pool_id,
+                    denom1: coin1.denom,
+                    denom2: coin2.denom,
+                },
+                &[],
+            )
+            .unwrap();
+        }
 
         let ca_id = app.store_code(contract_credit_agency());
         let ca_contract = app
@@ -250,7 +290,6 @@ impl SuiteBuilder {
             market_token,
             common_token,
             ca_contract,
-            oracle_contract,
         }
     }
 }
@@ -272,8 +311,6 @@ pub struct Suite {
     common_token: Token,
     /// Credit Agency contract address
     ca_contract: Addr,
-    /// Oracle contract address
-    oracle_contract: Addr,
 }
 
 impl Suite {
@@ -471,27 +508,6 @@ impl Suite {
             .wrap()
             .query_wasm_smart(self.contract.clone(), &QueryMsg::Apy {})
             .map_err(|err| anyhow!(err))
-    }
-
-    /// Sets sell/buy price (rate) between market_token and common_token
-    pub fn oracle_set_price_market_per_common(&mut self, rate: Decimal) -> AnyResult<AppResponse> {
-        use isotonic_oracle::msg::ExecuteMsg::SetPrice;
-
-        let owner = self.owner.clone();
-        let sell = self.market_token.clone();
-        let buy = self.common_token.clone();
-
-        self.app.execute_contract(
-            owner,
-            self.oracle_contract.clone(),
-            &SetPrice { buy, sell, rate },
-            &[],
-        )
-    }
-
-    /// Quick helper to set price ratio between market and common tokens to 1.0
-    pub fn set_token_ratio_one(&mut self) -> AnyResult<AppResponse> {
-        self.oracle_set_price_market_per_common(Decimal::percent(100))
     }
 
     /// Sets TotalCreditLine response for CA mock

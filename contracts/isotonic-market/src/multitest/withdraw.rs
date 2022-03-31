@@ -1,24 +1,24 @@
 use cosmwasm_std::{coin, Decimal, Uint128};
 use utils::credit_line::CreditLineValues;
 
-use super::suite::SuiteBuilder;
+use super::suite::{SuiteBuilder, COMMON};
 use crate::error::ContractError;
 use isotonic_token::error::ContractError as TokenContractError;
 
 #[test]
 fn withdraw_works() {
     let lender = "lender";
+    let market_token = "ATOM";
     let mut suite = SuiteBuilder::new()
-        .with_funds(lender, &[coin(100, "ATOM")])
-        .with_market_token("ATOM")
+        .with_funds(lender, &[coin(100, market_token)])
+        .with_market_token(market_token)
+        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
-    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
-    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(lender).unwrap();
 
     // Deposit some tokens so we have something to withdraw.
-    suite.deposit(lender, &[coin(100, "ATOM")]).unwrap();
+    suite.deposit(lender, &[coin(100, market_token)]).unwrap();
 
     // After the deposit, the lender has 100 l-token and the contract has 100 base asset.
     // The lender should be able to withdraw 40 tokens.
@@ -32,17 +32,17 @@ fn withdraw_works() {
 #[test]
 fn withdraw_overflow_is_handled() {
     let lender = "lender";
+    let market_token = "ATOM";
     let mut suite = SuiteBuilder::new()
-        .with_funds(lender, &[coin(100, "ATOM")])
-        .with_market_token("ATOM")
+        .with_funds(lender, &[coin(100, market_token)])
+        .with_market_token(market_token)
+        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
-    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
-    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(lender).unwrap();
 
     // Deposit some tokens so we have something to withdraw.
-    suite.deposit(lender, &[coin(100, "ATOM")]).unwrap();
+    suite.deposit(lender, &[coin(100, market_token)]).unwrap();
 
     // Try to withdraw more base asset than we have deposited - should fail and not
     // affect any balances.
@@ -62,16 +62,15 @@ fn withdraw_overflow_is_handled() {
 #[test]
 fn cant_withdraw_with_debt_higher_then_credit_line() {
     let lender = "lender";
+    let market_token = "ATOM";
     let mut suite = SuiteBuilder::new()
-        .with_funds(lender, &[coin(100, "ATOM")])
+        .with_funds(lender, &[coin(100, market_token)])
         .with_collateral_ratio(Decimal::percent(70))
-        .with_market_token("ATOM")
+        .with_market_token(market_token)
+        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
-    // Set arbitrary market/common exchange ratio (not part of this test)
-    suite.set_token_ratio_one().unwrap();
-
-    suite.deposit(lender, &[coin(100, "ATOM")]).unwrap();
+    suite.deposit(lender, &[coin(100, market_token)]).unwrap();
 
     // Set debt higher then credit line
     suite
@@ -99,16 +98,15 @@ fn cant_withdraw_with_debt_higher_then_credit_line() {
 #[test]
 fn can_withdraw_up_to_credit_line() {
     let lender = "lender";
+    let market_token = "ATOM";
     let mut suite = SuiteBuilder::new()
-        .with_funds(lender, &[coin(100, "ATOM")])
+        .with_funds(lender, &[coin(100, market_token)])
         .with_collateral_ratio(Decimal::percent(70))
-        .with_market_token("ATOM")
+        .with_market_token(market_token)
+        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
-    // Set arbitrary market/common exchange ratio (not part of this test)
-    suite.set_token_ratio_one().unwrap();
-
-    suite.deposit(lender, &[coin(100, "ATOM")]).unwrap();
+    suite.deposit(lender, &[coin(100, market_token)]).unwrap();
 
     // Set appropriate credit line and collateral
     suite

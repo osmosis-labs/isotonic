@@ -1,4 +1,4 @@
-use super::suite::SuiteBuilder;
+use super::suite::{SuiteBuilder, COMMON};
 
 use cosmwasm_std::{coin, Coin, Decimal, Uint128};
 use isotonic_token::DisplayAmount;
@@ -18,10 +18,9 @@ fn after_full_year() {
         .with_interest(4, 20)
         .with_reserve_factor(10)
         .with_market_token(market_token)
+        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
-    // Set arbitrary market/common exchange ratio and credit lines (not part of this test)
-    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(borrower).unwrap();
     suite.set_high_credit_line(lender).unwrap();
 
@@ -71,10 +70,9 @@ fn after_half_year() {
         .with_interest(4, 20)
         .with_reserve_factor(20)
         .with_market_token(market_token)
+        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
-    // Set arbitrary market/common exchange ratio and credit lines (not part of this test)
-    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(borrower).unwrap();
     suite.set_high_credit_line(lender).unwrap();
 
@@ -129,10 +127,9 @@ fn charged_couple_times() {
         .with_interest(4, 20)
         .with_reserve_factor(15)
         .with_market_token(market_token)
+        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
-    // Set arbitrary market/common exchange ratio and credit lines (not part of this test)
-    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(borrower).unwrap();
     suite.set_high_credit_line(lender).unwrap();
 
@@ -214,10 +211,9 @@ fn query_reserve_with_uncharged_interest() {
         .with_interest(10, 0)
         .with_reserve_factor(15)
         .with_market_token(market_token)
+        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
-    // Set arbitrary market/common exchange ratio and credit lines (not part of this test)
-    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(borrower).unwrap();
     suite.set_high_credit_line(lender).unwrap();
 

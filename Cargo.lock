@@ -415,7 +415,7 @@ dependencies = [
  "cw-utils",
  "cw2",
  "cw20",
- "isotonic-oracle",
+ "isotonic-osmosis-oracle",
  "isotonic-token",
  "schemars",
  "serde",

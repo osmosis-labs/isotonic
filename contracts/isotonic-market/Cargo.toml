@@ -20,7 +20,7 @@ cw-storage-plus = "0.13.0"
 cw-utils = "0.13.0"
 cw2 = "0.13.0"
 cw20 = "0.13.0"
-isotonic-oracle = { path = "../isotonic-oracle", version = "0.5.0", features = ["library"] }
+isotonic-osmosis-oracle = { path = "../isotonic-osmosis-oracle", version = "0.5.0", features = ["library"] }
 isotonic-token = { path = "../isotonic-token", version = "0.5.0", features = ["library"] }
 schemars = "0.8.3"
 serde = { version = "1.0.127", default-features = false, features = ["derive"] }

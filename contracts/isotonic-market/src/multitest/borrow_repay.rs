@@ -1,19 +1,19 @@
 use cosmwasm_std::{coin, Decimal, Uint128};
 use utils::credit_line::CreditLineValues;
 
-use super::suite::SuiteBuilder;
+use super::suite::{SuiteBuilder, COMMON};
 use crate::error::ContractError;
 
 #[test]
 fn borrow_works() {
     let borrower = "borrower";
+    let market_token = "ATOM";
     let mut suite = SuiteBuilder::new()
         .with_contract_funds(coin(150, "ATOM"))
-        .with_market_token("ATOM")
+        .with_market_token(market_token)
+        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
-    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
-    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(borrower).unwrap();
 
     // At first, the borrower has no b-token, and the contract has some base assets
@@ -34,10 +34,9 @@ fn borrow_and_repay() {
     let mut suite = SuiteBuilder::new()
         .with_contract_funds(coin(150, market_token))
         .with_market_token(market_token)
+        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
-    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
-    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(borrower).unwrap();
 
     // Borrow some tokens
@@ -53,14 +52,13 @@ fn borrow_and_repay() {
 #[test]
 fn cant_borrow_with_debt_higher_then_credit_line() {
     let borrower = "borrower";
+    let market_token = "ATOM";
     let mut suite = SuiteBuilder::new()
-        .with_funds(borrower, &[coin(100, "ATOM")])
+        .with_funds(borrower, &[coin(100, market_token)])
         .with_collateral_ratio(Decimal::percent(70))
         .with_market_token("ATOM")
+        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
-
-    // Set arbitrary market/common exchange ratio (not part of this test)
-    suite.set_token_ratio_one().unwrap();
 
     suite.deposit(borrower, &[coin(100, "ATOM")]).unwrap();
 
@@ -90,14 +88,13 @@ fn cant_borrow_with_debt_higher_then_credit_line() {
 #[test]
 fn cant_borrow_more_then_credit_line() {
     let borrower = "borrower";
+    let market_token = "ATOM";
     let mut suite = SuiteBuilder::new()
-        .with_funds(borrower, &[coin(100, "ATOM")])
+        .with_funds(borrower, &[coin(100, market_token)])
         .with_collateral_ratio(Decimal::percent(70))
         .with_market_token("ATOM")
+        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
-
-    // Set arbitrary market/common exchange ratio (not part of this test)
-    suite.set_token_ratio_one().unwrap();
 
     suite.deposit(borrower, &[coin(100, "ATOM")]).unwrap();
 
@@ -135,10 +132,9 @@ fn repay_small_amounts() {
     let mut suite = SuiteBuilder::new()
         .with_contract_funds(coin(100, market_token))
         .with_market_token(market_token)
+        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
-    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
-    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(borrower).unwrap();
 
     // Borrow some tokens
@@ -162,10 +158,9 @@ fn overpay_repay() {
         .with_funds(borrower, &[coin(50, market_token)])
         .with_contract_funds(coin(100, market_token))
         .with_market_token(market_token)
+        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
-    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
-    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(borrower).unwrap();
 
     // Borrow some tokens
