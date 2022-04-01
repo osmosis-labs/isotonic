@@ -428,21 +428,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "isotonic-oracle"
-version = "0.5.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cosmwasm-storage",
- "cw-storage-plus",
- "cw2",
- "schemars",
- "serde",
- "thiserror",
- "utils",
-]
-
-[[package]]
 name = "isotonic-osmosis-oracle"
 version = "0.5.0"
 dependencies = [
