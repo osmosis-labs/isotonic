@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Result as AnyResult;
-use cosmwasm_std::{Addr, Coin, Decimal, StdResult};
+use cosmwasm_std::{Addr, Coin, Decimal};
 use cw_multi_test::{Contract, ContractWrapper, Executor};
 use derivative::Derivative;
 use osmo_bindings::{OsmosisMsg, OsmosisQuery};
@@ -38,7 +38,7 @@ impl SuiteBuilder {
             controller: &Addr,
             oracle: &Addr,
         ) -> AnyResult<()> {
-            app.init_modules(|router, _, storage| -> StdResult<()> {
+            app.init_modules(|router, _, storage| -> AnyResult<()> {
                 for (pool_id, (coin1, coin2)) in pools.clone() {
                     router
                         .custom
