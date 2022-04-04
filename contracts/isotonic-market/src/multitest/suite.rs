@@ -407,7 +407,7 @@ impl Suite {
         )
     }
 
-    /// Attempts to borrow the full "borrowableable" amount (as determined by the borrowable query),
+    /// Attempts to borrow the full "borrowable" amount (as determined by the borrowable query),
     /// then performs a couple checks to make sure nothing more than that could be borrowed.
     pub fn attempt_borrow_max(&mut self, sender: &str) -> AnyResult<()> {
         let borrowable = self.query_borrowable(sender)?;
