@@ -20,7 +20,7 @@ fn oracle_price_not_set() {
     assert_eq!(
         StdError::generic_err(
             "Querier contract error: Generic error: \
-            Querier contract error: There is no info about the prices for this trading pair"
+            Querier contract error: There is no info about the prices for this trading pair: atom, COMMON"
         ),
         err.downcast().unwrap(),
     );
