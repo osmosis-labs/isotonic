@@ -153,17 +153,46 @@ fn query_withdrawable_when_only_lending() {
     let lender = "lender";
     let mut suite = SuiteBuilder::new()
         .with_funds(lender, &[coin(100, "ATOM")])
+        .with_pool(1, (coin(100, COMMON), coin(100, "ATOM")))
         .with_market_token("ATOM")
         .build();
 
     // Set arbitrary market/common exchange ratio and credit line (not part of this test)
-    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(lender).unwrap();
 
     // Deposit some tokens so we have something to withdraw.
     suite.deposit(lender, &[coin(100, "ATOM")]).unwrap();
 
     suite.assert_withdrawable(lender, 100);
+
+    suite.attempt_withdraw_max(lender).unwrap();
+}
+
+#[test]
+fn query_withdrawable_up_to_credit_line() {
+    let lender = "lender";
+    let mut suite = SuiteBuilder::new()
+        .with_funds(lender, &[coin(100, "ATOM")])
+        .with_pool(1, (coin(100, COMMON), coin(100, "ATOM")))
+        .with_market_token("ATOM")
+        .with_collateral_ratio(Decimal::percent(50))
+        .build();
+
+    suite
+        .set_credit_line(
+            lender,
+            CreditLineValues {
+                collateral: Uint128::new(100),
+                credit_line: Uint128::new(50),
+                debt: Uint128::new(40),
+            },
+        )
+        .unwrap();
+
+    // Deposit some tokens so we have something to withdraw.
+    suite.deposit(lender, &[coin(100, "ATOM")]).unwrap();
+
+    suite.assert_withdrawable(lender, 20);
 
     suite.attempt_withdraw_max(lender).unwrap();
 }
