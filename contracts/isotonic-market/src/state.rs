@@ -6,7 +6,7 @@ use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw_storage_plus::Item;
 use isotonic_token::msg::TokenInfoResponse;
 
-pub const SECONDS_IN_YEAR: u128 = 31_556_736;
+pub const SECONDS_IN_YEAR: u128 = 365 * 24 * 3600;
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct Config {

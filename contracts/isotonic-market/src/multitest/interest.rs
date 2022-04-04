@@ -161,18 +161,16 @@ fn charge_interest_borrow() {
     // btoken 1120 + 13.66% - 800 = 472.992
     suite.repay(borrower, coin(800, market_token)).unwrap();
 
-    // TODO: rounding error
     assert_eq!(
         suite.query_btoken_info().unwrap().total_supply,
-        DisplayAmount::raw(474u128)
+        DisplayAmount::raw(472u128)
     );
 
     // Repay the rest of debt (borrower had extra 500 tokens)
     suite.repay(borrower, coin(474, market_token)).unwrap();
-    // TODO: rounding error
     assert_eq!(
         suite.query_btoken_info().unwrap().total_supply,
-        DisplayAmount::raw(1u128)
+        DisplayAmount::zero()
     );
 }
 
@@ -220,27 +218,26 @@ fn charge_interest_deposit() {
     suite.advance_seconds(YEAR);
 
     // Repay some tokens
-    // Now utilisation is 57.84%,
+    // Now utilisation is 57.85%,
     // interest rate 15.57%
     // amount of btokens - 1600 + 20% interests = 1920
     // 1920 * 15.57% = 298.94 ltokens interests are made
-    // ltokens should go up to 3616.94
-    // 3616.94 + 1000 = 4616.94 ltokens
+    // ltokens should go up to 3618.14
+    // 3618.14 + 1000 = 4618.14 ltokens
     suite
         .deposit(lender, &[Coin::new(1000, market_token)])
         .unwrap();
 
     assert_eq!(
         suite.query_ltoken_info().unwrap().total_supply,
-        DisplayAmount::raw(4617u128)
+        DisplayAmount::raw(4618u128)
     );
 
     // Borrower pays all of his debt
     suite.repay(borrower, coin(2219, market_token)).unwrap();
     assert_eq!(
         suite.query_btoken_info().unwrap().total_supply,
-        // TODO: rounding error
-        DisplayAmount::raw(1u128)
+        DisplayAmount::zero()
     );
 
     // ...which allows to withdraw all tokens with interests

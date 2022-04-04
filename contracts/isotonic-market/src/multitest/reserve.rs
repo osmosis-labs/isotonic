@@ -1,9 +1,10 @@
 use super::suite::SuiteBuilder;
 
-use cosmwasm_std::{coin, Coin, Uint128};
+use cosmwasm_std::{coin, Coin, Decimal, Uint128};
 use isotonic_token::DisplayAmount;
 
 use crate::state::SECONDS_IN_YEAR;
+use utils::assert_approx_eq;
 
 #[test]
 fn after_full_year() {
@@ -103,10 +104,14 @@ fn after_half_year() {
         .deposit(lender, &[Coin::new(1000, market_token)])
         .unwrap();
 
-    // TODO: rounding error
-    assert_eq!(
-        suite.query_ltoken_info().unwrap().total_supply,
-        DisplayAmount::raw(5288u128)
+    assert_approx_eq!(
+        suite
+            .query_ltoken_info()
+            .unwrap()
+            .total_supply
+            .display_amount(),
+        5288u128,
+        Decimal::permille(1),
     );
 
     assert_eq!(suite.query_reserve().unwrap(), Uint128::new(57));
@@ -157,10 +162,9 @@ fn charged_couple_times() {
         .deposit(lender, &[Coin::new(1000, market_token)])
         .unwrap();
 
-    // TODO: rounding error
     assert_eq!(
         suite.query_ltoken_info().unwrap().total_supply,
-        DisplayAmount::raw(3047u128)
+        DisplayAmount::raw(3048u128)
     );
 
     assert_eq!(suite.query_reserve().unwrap(), Uint128::new(7));
@@ -185,9 +189,14 @@ fn charged_couple_times() {
         .deposit(lender, &[Coin::new(1000, market_token)])
         .unwrap();
 
-    assert_eq!(
-        suite.query_ltoken_info().unwrap().total_supply,
-        DisplayAmount::raw(4136u128)
+    assert_approx_eq!(
+        suite
+            .query_ltoken_info()
+            .unwrap()
+            .total_supply
+            .display_amount(),
+        4136u128,
+        Decimal::permille(1),
     );
 
     assert_eq!(suite.query_reserve().unwrap(), Uint128::new(20));

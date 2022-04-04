@@ -871,11 +871,9 @@ mod query {
         let utilisation = utilisation(&tokens_info);
         let rate = cfg.rates.calculate_interest_rate(utilisation);
 
-        let borrower = dbg!(
-            (Decimal::one() + rate / Uint128::new(charge_periods))
-                .checked_pow(charge_periods as u32)?
-                - Decimal::one()
-        );
+        let borrower = (Decimal::one() + rate / Uint128::new(charge_periods))
+            .checked_pow(charge_periods as u32)?
+            - Decimal::one();
         let lender = borrower * utilisation * (Decimal::one() - cfg.reserve_factor);
 
         Ok(ApyResponse { borrower, lender })

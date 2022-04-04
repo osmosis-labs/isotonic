@@ -14,7 +14,7 @@ use crate::msg::{
 };
 use crate::state::{
     Distribution, TokenInfo, WithdrawAdjustment, BALANCES, CONTROLLER, DISTRIBUTION, MULTIPLIER,
-    POINTS_SHIFT, TOKEN_INFO, TOTAL_SUPPLY, WITHDRAW_ADJUSTMENT,
+    POINTS_SCALE, TOKEN_INFO, TOTAL_SUPPLY, WITHDRAW_ADJUSTMENT,
 };
 
 // version info for migration info
@@ -53,7 +53,7 @@ pub fn instantiate(
 
     TOTAL_SUPPLY.save(deps.storage, &Uint128::zero())?;
     CONTROLLER.save(deps.storage, &deps.api.addr_validate(&msg.controller)?)?;
-    MULTIPLIER.save(deps.storage, &Decimal::one())?;
+    MULTIPLIER.save(deps.storage, &Decimal::from_ratio(1u128, 100_000u128))?;
 
     Ok(Response::new())
 }
@@ -86,18 +86,13 @@ fn can_transfer(
 /// Performs tokens transfer.
 fn transfer_tokens(
     mut deps: DepsMut,
-    env: Env,
     sender: &Addr,
     recipient: &Addr,
     amount: Uint128,
-    check_can_transfer: bool,
+    multiplier: Decimal,
 ) -> Result<(), ContractError> {
     if amount == Uint128::zero() {
         return Err(ContractError::InvalidZeroAmount {});
-    }
-
-    if check_can_transfer {
-        can_transfer(deps.as_ref(), &env, sender.to_string(), amount)?;
     }
 
     let distribution = DISTRIBUTION.load(deps.storage)?;
@@ -109,7 +104,7 @@ fn transfer_tokens(
             let balance = balance.unwrap_or_default();
             balance
                 .checked_sub(amount)
-                .map_err(|_| ContractError::insufficient_tokens(balance, amount))
+                .map_err(|_| ContractError::insufficient_tokens(balance, amount, multiplier))
         },
     )?;
     apply_points_correction(deps.branch(), sender, ppt, -(amount.u128() as i128))?;
@@ -132,10 +127,17 @@ fn transfer(
     recipient: Addr,
     amount: DisplayAmount,
 ) -> Result<Response, ContractError> {
+    can_transfer(
+        deps.as_ref(),
+        &env,
+        info.sender.to_string(),
+        amount.display_amount(),
+    )?;
+
     let multiplier = MULTIPLIER.load(deps.storage)?;
     let amount = amount.to_stored_amount(multiplier);
 
-    transfer_tokens(deps, env, &info.sender, &recipient, amount, true)?;
+    transfer_tokens(deps, &info.sender, &recipient, amount, multiplier)?;
 
     let res = Response::new()
         .add_attribute("action", "transfer")
@@ -149,7 +151,6 @@ fn transfer(
 /// Handler for `ExecuteMsg::TransferFrom`
 fn transfer_from(
     deps: DepsMut,
-    env: Env,
     info: MessageInfo,
     sender: Addr,
     recipient: Addr,
@@ -163,7 +164,7 @@ fn transfer_from(
     let multiplier = MULTIPLIER.load(deps.storage)?;
     let amount = amount.to_stored_amount(multiplier);
 
-    transfer_tokens(deps, env, &sender, &recipient, amount, false)?;
+    transfer_tokens(deps, &sender, &recipient, amount, multiplier)?;
 
     let res = Response::new()
         .add_attribute("action", "transfer")
@@ -183,10 +184,17 @@ fn send(
     amount: DisplayAmount,
     msg: Binary,
 ) -> Result<Response, ContractError> {
+    can_transfer(
+        deps.as_ref(),
+        &env,
+        info.sender.to_string(),
+        amount.display_amount(),
+    )?;
+
     let multiplier = MULTIPLIER.load(deps.storage)?;
     let amount = amount.to_stored_amount(multiplier);
 
-    transfer_tokens(deps, env, &info.sender, &recipient, amount, true)?;
+    transfer_tokens(deps, &info.sender, &recipient, amount, multiplier)?;
 
     let res = Response::new()
         .add_attribute("action", "send")
@@ -275,7 +283,7 @@ pub fn burn_from(
             let balance = balance.unwrap_or_default();
             balance
                 .checked_sub(amount)
-                .map_err(|_| ContractError::insufficient_tokens(balance, amount))
+                .map_err(|_| ContractError::insufficient_tokens(balance, amount, multiplier))
         },
     )?;
     apply_points_correction(
@@ -288,7 +296,7 @@ pub fn burn_from(
     TOTAL_SUPPLY.update(deps.storage, |supply| -> Result<_, ContractError> {
         supply
             .checked_sub(amount)
-            .map_err(|_| ContractError::insufficient_tokens(supply, amount))
+            .map_err(|_| ContractError::insufficient_tokens(supply, amount, multiplier))
     })?;
 
     let res = Response::new()
@@ -349,8 +357,16 @@ pub fn distribute(
         return Ok(Response::new());
     }
 
+    // Distribution calculation:
+    // 1. Distributed amount is turned into points by scalling them by POINTS_SCALE;
+    // 2. The leftover from any previous distribution is added to be distributed now;
+    // 3. Calculating how much points would be distributed to receivers per token they own;
+    // 4. It is very much possible, that non-whole points should be paid for single token. To
+    //    overcome this, we distribute as much points as it is possible without non-whole division,
+    //    and leftover is stored for next distribution.
+    // 5. Distributed points per token are accumulated;
     let leftover: u128 = distribution.points_leftover.into();
-    let points = (amount << POINTS_SHIFT) + leftover;
+    let points = amount * POINTS_SCALE + leftover;
     let points_per_token = points / total_supply;
     distribution.points_leftover = (points % total_supply).into();
 
@@ -426,7 +442,7 @@ pub fn execute(
         } => {
             let recipient = deps.api.addr_validate(&recipient)?;
             let sender = deps.api.addr_validate(&sender)?;
-            transfer_from(deps, env, info, sender, recipient, amount)
+            transfer_from(deps, info, sender, recipient, amount)
         }
         Send {
             contract,
@@ -545,7 +561,7 @@ pub fn withdrawable_funds(
     let withdrawn: u128 = adjustment.withdrawn_funds.into();
     let points = (ppt * tokens) as i128;
     let points = points + correction;
-    let amount = points as u128 >> POINTS_SHIFT;
+    let amount = points as u128 / POINTS_SCALE;
     let amount = amount - withdrawn;
 
     Ok(coin(amount, &distribution.denom))
@@ -588,21 +604,22 @@ mod tests {
         let res = instantiate(deps.as_mut(), env, info, instantiate_msg).unwrap();
         assert_eq!(0, res.messages.len());
 
+        let basic_mul = Decimal::from_ratio(1u128, 100_000u128);
         // Multiplier is 1.0 at first
-        assert_eq!(Decimal::one(), MULTIPLIER.load(&deps.storage).unwrap());
+        assert_eq!(basic_mul, MULTIPLIER.load(&deps.storage).unwrap());
 
         // We rebase by 1.2, multiplier is 1.2
         let info = mock_info(controller, &[]);
         rebase(deps.as_mut(), info.clone(), Decimal::percent(120)).unwrap();
         assert_eq!(
-            Decimal::percent(120),
+            basic_mul * Decimal::percent(120),
             MULTIPLIER.load(&deps.storage).unwrap()
         );
 
         // We rebase by 1.2, multiplier is 1.44
         rebase(deps.as_mut(), info, Decimal::percent(120)).unwrap();
         assert_eq!(
-            Decimal::percent(144),
+            basic_mul * Decimal::percent(144),
             MULTIPLIER.load(&deps.storage).unwrap()
         );
     }
@@ -623,17 +640,19 @@ mod tests {
         let res = instantiate(deps.as_mut(), env, info, instantiate_msg).unwrap();
         assert_eq!(0, res.messages.len());
 
+        let basic_mul = MULTIPLIER.load(&deps.storage).unwrap();
+
         let info = mock_info(controller, &[]);
         rebase(deps.as_mut(), info, Decimal::percent(120)).unwrap();
         assert_eq!(
-            Decimal::percent(120),
+            basic_mul * Decimal::percent(120),
             MULTIPLIER.load(&deps.storage).unwrap()
         );
 
         let res = query_multiplier(deps.as_ref()).unwrap();
         assert_eq!(
             MultiplierResponse {
-                multiplier: Decimal::percent(120)
+                multiplier: basic_mul * Decimal::percent(120)
             },
             res
         );
