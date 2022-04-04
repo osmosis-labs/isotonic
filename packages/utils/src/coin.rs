@@ -1,7 +1,7 @@
-use cosmwasm_std::{Decimal, Uint128, Coin as StdCoin};
+use cosmwasm_std::{Coin as StdCoin, Decimal, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{ops::Mul, convert::From};
+use std::{convert::From, ops::Mul};
 use thiserror::Error;
 
 use crate::token::Token;
@@ -31,24 +31,41 @@ impl Coin {
 
     pub fn checked_add(self, rhs: Self) -> Result<Self, CoinError> {
         if self.denom == rhs.denom {
-            Ok(Self { amount: self.amount + rhs.amount, denom: self.denom })
+            Ok(Self {
+                amount: self.amount + rhs.amount,
+                denom: self.denom,
+            })
         } else {
-            Err(CoinError::IncorrectDenoms { operation: "addition".to_owned(), denom1: self.denom, denom2: rhs.denom })
+            Err(CoinError::IncorrectDenoms {
+                operation: "addition".to_owned(),
+                denom1: self.denom,
+                denom2: rhs.denom,
+            })
         }
     }
 
     pub fn checked_sub(self, rhs: Self) -> Result<Self, CoinError> {
         if self.denom == rhs.denom {
-            Ok(Self { amount: self.amount - rhs.amount, denom: self.denom })
+            Ok(Self {
+                amount: self.amount - rhs.amount,
+                denom: self.denom,
+            })
         } else {
-            Err(CoinError::IncorrectDenoms { operation: "subtraction".to_owned(), denom1: self.denom, denom2: rhs.denom })
+            Err(CoinError::IncorrectDenoms {
+                operation: "subtraction".to_owned(),
+                denom1: self.denom,
+                denom2: rhs.denom,
+            })
         }
     }
 }
 
 impl From<StdCoin> for Coin {
     fn from(c: StdCoin) -> Self {
-        Coin { amount: c.amount, denom: Token::Native(c.denom) }
+        Coin {
+            amount: c.amount,
+            denom: Token::Native(c.denom),
+        }
     }
 }
 
@@ -56,13 +73,21 @@ impl Mul<Decimal> for Coin {
     type Output = Self;
 
     fn mul(self, rhs: Decimal) -> Self::Output {
-        Self { denom: self.denom, amount: self.amount * rhs }
+        Self {
+            denom: self.denom,
+            amount: self.amount * rhs,
+        }
     }
 }
 
 #[derive(Error, Debug, PartialEq)]
 pub enum CoinError {
-    #[error("Operation {operation} is not allowed, because denoms does not match: {denom1} {denom2}")]
-    IncorrectDenoms { operation: String, denom1: Token, denom2: Token },
+    #[error(
+        "Operation {operation} is not allowed, because denoms does not match: {denom1} {denom2}"
+    )]
+    IncorrectDenoms {
+        operation: String,
+        denom1: Token,
+        denom2: Token,
+    },
 }
-
