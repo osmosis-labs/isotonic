@@ -88,6 +88,8 @@ pub enum QueryMsg {
     },
     /// How much can a given account withdraw?
     Withdrawable { account: String },
+    /// How much can a given account borrow?
+    Borrowable { account: String },
     /// Returns current utilisation and interest rates
     Interest {},
     /// Returns PriceRate, structure representing sell/buy ratio for local(market)/common denoms

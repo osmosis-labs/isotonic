@@ -176,3 +176,58 @@ fn overpay_repay() {
     // Initial amount - surplus was returned
     assert_eq!(suite.query_asset_balance(borrower).unwrap(), 50);
 }
+
+#[test]
+fn query_borrowable() {
+    let lender = "lender";
+    let borrower = "borrower";
+    let mut suite = SuiteBuilder::new()
+        .with_funds(lender, &[coin(100, "ATOM")])
+        .with_market_token("ATOM")
+        .build();
+
+    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+    suite.set_high_credit_line(lender).unwrap();
+    suite
+        .set_credit_line(
+            borrower,
+            CreditLineValues {
+                collateral: Uint128::new(100),
+                credit_line: Uint128::new(50),
+                debt: Uint128::new(10),
+            },
+        )
+        .unwrap();
+
+    // Deposit some tokens so we have something to borrow.
+    suite.deposit(lender, &[coin(100, "ATOM")]).unwrap();
+
+    // Only 40 tokens can be borrowed due to credit health
+    // (credit_line - debt)
+    suite.assert_borrowable(borrower, 40);
+    suite.attempt_borrow_max(borrower).unwrap();
+}
+
+#[test]
+fn query_borrowable_with_limited_liquidity() {
+    let lender = "lender";
+    let borrower = "borrower";
+    let mut suite = SuiteBuilder::new()
+        .with_funds(lender, &[coin(20, "ATOM")])
+        .with_market_token("ATOM")
+        .build();
+
+    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
+    suite.set_token_ratio_one().unwrap();
+    suite.set_high_credit_line(lender).unwrap();
+    suite.set_high_credit_line(borrower).unwrap();
+
+    // Deposit some tokens so we have something to borrow.
+    suite.deposit(lender, &[coin(20, "ATOM")]).unwrap();
+
+    // Borrower has a high credit line, but there's only 20 tokens liquid
+    // in the market.
+    suite.assert_borrowable(borrower, 20);
+    suite.attempt_borrow_max(borrower).unwrap();
+}

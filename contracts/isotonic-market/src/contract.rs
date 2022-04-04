@@ -230,7 +230,7 @@ mod cr_utils {
         ))
     }
 
-    fn query_available_tokens(
+    pub fn query_available_tokens(
         deps: Deps,
         config: &Config,
         account: String,
@@ -680,6 +680,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractErro
             let token = deps.api.addr_validate(&token)?;
             to_binary(&query::transferable_amount(deps, token, account)?)?
         }
+        Withdrawable { account } => to_binary(&query::withdrawable(deps, env, account)?)?,
+        Borrowable { account } => to_binary(&query::borrowable(deps, env, account)?)?,
         Interest {} => {
             let cfg = CONFIG.load(deps.storage)?;
             to_binary(&query::interest(&cfg, &token_info(deps, &cfg)?)?)?
@@ -691,7 +693,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractErro
         }
         Reserve {} => to_binary(&query::reserve(deps, env)?)?,
         Apy {} => to_binary(&query::apy(deps)?)?,
-        Withdrawable { account } => to_binary(&query::withdrawable(deps, env, account)?)?,
     };
     Ok(res)
 }
@@ -791,6 +792,42 @@ mod query {
         } else {
             Err(ContractError::UnrecognisedToken(token.to_string()))
         }
+    }
+
+    /// Handler for `QueryMsg::Withdrawable`
+    pub fn withdrawable(deps: Deps, env: Env, account: String) -> Result<Coin, ContractError> {
+        use std::cmp::min;
+
+        let cfg = CONFIG.load(deps.storage)?;
+
+        let transferable = cr_utils::transferable_amount(deps, &cfg, &account)?;
+        let ltoken_balance = ltoken_balance(deps, &cfg, &account)?;
+        let allowed_to_withdraw = min(transferable, ltoken_balance.amount);
+        let withdrawable = min(
+            allowed_to_withdraw,
+            deps.querier
+                .query_balance(env.contract.address, &cfg.market_token)?
+                .amount,
+        );
+
+        Ok(coin(withdrawable.u128(), cfg.market_token))
+    }
+
+    /// Handler for `QueryMsg::Borrowable`
+    pub fn borrowable(deps: Deps, env: Env, account: String) -> Result<Coin, ContractError> {
+        use std::cmp::min;
+
+        let cfg = CONFIG.load(deps.storage)?;
+
+        let available = cr_utils::query_available_tokens(deps, &cfg, account)?;
+        let borrowable = min(
+            available,
+            deps.querier
+                .query_balance(env.contract.address, &cfg.market_token)?
+                .amount,
+        );
+
+        Ok(coin(borrowable.u128(), cfg.market_token))
     }
 
     pub fn token_info(deps: Deps, config: &Config) -> Result<TokensInfo, ContractError> {
@@ -893,25 +930,6 @@ mod query {
         let lender = borrower * utilisation * (Decimal::one() - cfg.reserve_factor);
 
         Ok(ApyResponse { borrower, lender })
-    }
-
-    /// Handler for `QueryMsg::Withdrawable`
-    pub fn withdrawable(deps: Deps, env: Env, account: String) -> Result<Coin, ContractError> {
-        use std::cmp::min;
-
-        let cfg = CONFIG.load(deps.storage)?;
-
-        let transferable = cr_utils::transferable_amount(deps, &cfg, &account)?;
-        let ltoken_balance = ltoken_balance(deps, &cfg, &account)?;
-        let allowed_to_withdraw = min(transferable, ltoken_balance.amount);
-        let withdrawable = min(
-            allowed_to_withdraw,
-            deps.querier
-                .query_balance(env.contract.address, &cfg.market_token)?
-                .amount,
-        );
-
-        Ok(coin(withdrawable.u128(), cfg.market_token))
     }
 }
 

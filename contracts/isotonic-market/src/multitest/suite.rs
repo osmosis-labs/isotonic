@@ -407,6 +407,27 @@ impl Suite {
         )
     }
 
+    /// Attempts to borrow the full "borrowableable" amount (as determined by the borrowable query),
+    /// then performs a couple checks to make sure nothing more than that could be borrowed.
+    pub fn attempt_borrow_max(&mut self, sender: &str) -> AnyResult<()> {
+        let borrowable = self.query_borrowable(sender)?;
+        let borrowable_in_common = borrowable.amount * self.query_price_market_per_common()?.rate;
+        self.borrow(sender, borrowable.amount.u128())?;
+
+        // mock the change in credit line
+        let mut crl = self
+            .query_total_credit_line(sender)?
+            .validate(self.common_token())?;
+        crl.debt += borrowable_in_common;
+        self.set_credit_line(sender, crl)?;
+
+        // double check we cannot borrow anything above this amount
+        self.assert_borrowable(sender, 0);
+        assert!(self.borrow(sender, 1).is_err());
+
+        Ok(())
+    }
+
     /// Repay borrowed tokens from the lending pool and burn b-token
     pub fn repay(&mut self, sender: &str, funds: Coin) -> AnyResult<AppResponse> {
         self.app.execute_contract(
@@ -606,6 +627,16 @@ impl Suite {
         Ok(response)
     }
 
+    pub fn query_borrowable(&self, account: impl ToString) -> AnyResult<Coin> {
+        let response: Coin = self.app.wrap().query_wasm_smart(
+            self.contract.clone(),
+            &QueryMsg::Borrowable {
+                account: account.to_string(),
+            },
+        )?;
+        Ok(response)
+    }
+
     /// Queries the tokens balance of the account
     pub fn query_price_market_per_common(&self) -> AnyResult<PriceRate> {
         let resp: PriceRate = self.app.wrap().query_wasm_smart(
@@ -701,5 +732,10 @@ impl Suite {
     pub fn assert_withdrawable(&self, account: impl ToString, amount: u128) {
         let withdrawable = self.query_withdrawable(account).unwrap();
         assert_eq!(withdrawable.amount, amount.into());
+    }
+
+    pub fn assert_borrowable(&self, account: impl ToString, amount: u128) {
+        let borrowable = self.query_borrowable(account).unwrap();
+        assert_eq!(borrowable.amount, amount.into());
     }
 }
