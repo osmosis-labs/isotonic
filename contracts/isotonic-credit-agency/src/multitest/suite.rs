@@ -227,7 +227,7 @@ impl Suite {
         &mut self.app
     }
 
-    pub fn add_pool(&mut self, pools: &[(u64, (Coin, Coin))]) -> AnyResult<()> {
+    pub fn set_pool(&mut self, pools: &[(u64, (Coin, Coin))]) -> AnyResult<()> {
         let owner = self.owner.clone();
         let oracle = self.oracle_contract.clone();
 

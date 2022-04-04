@@ -297,7 +297,7 @@ fn receive_reward_different_denom_fails_if_debtor_has_not_enough_reward_tokens()
     suite.advance_seconds(YEAR_IN_SECONDS);
 
     suite
-        .add_pool(&[(2, (coin(150, COMMON), coin(100, reward_denom)))])
+        .set_pool(&[(2, (coin(150, COMMON), coin(100, reward_denom)))])
         .unwrap();
 
     // Repay some tokens to trigger interest rate charges
@@ -405,7 +405,7 @@ fn receive_reward_in_different_denoms_no_interest_rates() {
     );
 
     suite
-        .add_pool(&[(1, (coin(300, COMMON), coin(100, atom)))])
+        .set_pool(&[(1, (coin(300, COMMON), coin(100, atom)))])
         .unwrap();
     let total_credit_line = suite.query_total_credit_line(debtor).unwrap();
     assert_eq!(
@@ -560,7 +560,7 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
 
     // change ATOM price to 3.0 per common denom
     suite
-        .add_pool(&[(1, (coin(300, COMMON), coin(100, atom)))])
+        .set_pool(&[(1, (coin(300, COMMON), coin(100, atom)))])
         .unwrap();
 
     // current interest rates
