@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Result as AnyResult;
-use cosmwasm_std::{Addr, Coin, Decimal, StdResult};
+use cosmwasm_std::{Addr, Coin, Decimal};
 use cw_multi_test::{Contract, ContractWrapper, Executor};
 use derivative::Derivative;
 use osmo_bindings::{OsmosisMsg, OsmosisQuery};
@@ -38,7 +38,7 @@ impl SuiteBuilder {
             controller: &Addr,
             oracle: &Addr,
         ) -> AnyResult<()> {
-            app.init_modules(|router, _, storage| -> StdResult<()> {
+            app.init_modules(|router, _, storage| -> AnyResult<()> {
                 for (pool_id, (coin1, coin2)) in pools.clone() {
                     router
                         .custom
@@ -101,15 +101,27 @@ pub struct Suite {
 }
 
 impl Suite {
-    pub fn query_price(&self, sell: &str, buy: &str) -> StdResult<Decimal> {
+    pub fn query_price(&self, sell: &str, buy: &str) -> AnyResult<Decimal> {
         let resp: PriceResponse = self.app.wrap().query_wasm_smart(
             self.osmosis_oracle.clone(),
             &QueryMsg::Price {
-                sell: sell.to_string(),
-                buy: buy.to_string(),
+                sell: sell.to_owned(),
+                buy: buy.to_owned(),
             },
         )?;
 
         Ok(resp.rate)
+    }
+
+    pub fn query_pool_id(&self, denom1: &str, denom2: &str) -> AnyResult<u64> {
+        let resp: u64 = self.app.wrap().query_wasm_smart(
+            self.osmosis_oracle.clone(),
+            &QueryMsg::PoolId {
+                denom1: denom1.to_owned(),
+                denom2: denom2.to_owned(),
+            },
+        )?;
+
+        Ok(resp)
     }
 }

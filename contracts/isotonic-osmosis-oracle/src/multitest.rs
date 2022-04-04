@@ -1,3 +1,3 @@
 mod instantiate;
-mod query_price;
+mod query;
 mod suite;

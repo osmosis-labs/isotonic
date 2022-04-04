@@ -517,9 +517,9 @@ checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
 name = "osmo-bindings"
-version = "0.2.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a03e411713e3db230f171b2e1c9bff104f9ea3f5d3a78d714b284d8b52c6a9b"
+checksum = "167668a15e05084ae48e9568a99fa875f90b8e9f4f7059fae35ad8a7b9678766"
 dependencies = [
  "cosmwasm-std",
  "schemars",
@@ -528,9 +528,9 @@ dependencies = [
 
 [[package]]
 name = "osmo-bindings-test"
-version = "0.2.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a264bca4837dc4a38b5c27f22bc49741bd5267506feb6b21ef1c63183f8ce4e"
+checksum = "3ecc7ccbf92b3fa67c7e0fbca431a19d388fe69cb88045717e352a81ddcbef12"
 dependencies = [
  "anyhow",
  "cosmwasm-std",

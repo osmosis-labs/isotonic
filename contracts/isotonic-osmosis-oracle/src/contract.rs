@@ -54,11 +54,12 @@ pub fn execute(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
     use QueryMsg::*;
 
     let res = match msg {
-        Price { sell, buy } => to_binary(&query::price(deps, env, sell, buy)?)?,
+        Price { sell, buy } => to_binary(&query::price(deps, sell, buy)?)?,
+        PoolId { denom1, denom2 } => to_binary(&query::pool_id(deps, &denom1, &denom2)?)?,
     };
 
     Ok(res)
@@ -98,18 +99,8 @@ mod query {
 
     use super::*;
 
-    pub fn price(
-        deps: Deps,
-        _env: Env,
-        sell: String,
-        buy: String,
-    ) -> Result<PriceResponse, ContractError> {
-        let pool_id = POOLS
-            .may_load(deps.storage, sorted_tuple(&sell, &buy))?
-            .ok_or_else(|| ContractError::NoInfo {
-                denom1: sell.clone(),
-                denom2: buy.clone(),
-            })?;
+    pub fn price(deps: Deps, sell: String, buy: String) -> Result<PriceResponse, ContractError> {
+        let pool_id = pool_id(deps, &sell, &buy)?;
 
         let price: SpotPriceResponse =
             deps.querier
@@ -123,6 +114,15 @@ mod query {
                 }))?;
 
         Ok(PriceResponse { rate: price.price })
+    }
+
+    pub fn pool_id(deps: Deps, denom1: &str, denom2: &str) -> Result<u64, ContractError> {
+        POOLS
+            .may_load(deps.storage, sorted_tuple(denom1, denom2))?
+            .ok_or_else(|| ContractError::NoInfo {
+                denom1: denom1.to_owned(),
+                denom2: denom2.to_owned(),
+            })
     }
 }
 
@@ -162,7 +162,7 @@ mod tests {
                 mock_env(),
                 mock_info(admin, &[]),
                 InstantiateMsg {
-                    controller: "admin".to_string(),
+                    controller: "admin".to_owned(),
                 },
             )
             .unwrap();
@@ -189,18 +189,15 @@ mod tests {
             mock_info("admin", &[]),
             ExecuteMsg::RegisterPool {
                 pool_id: 2,
-                denom1: "ATOM".to_string(),
-                denom2: "OSMO".to_string(),
+                denom1: "ATOM".to_owned(),
+                denom2: "OSMO".to_owned(),
             },
         )
         .unwrap();
 
         let pools = helpers::list_pools(deps.as_ref());
         assert_eq!(pools.len(), 1);
-        assert_eq!(
-            pools.get(&("ATOM".to_string(), "OSMO".to_string())),
-            Some(&2)
-        );
+        assert_eq!(pools.get(&("ATOM".to_owned(), "OSMO".to_owned())), Some(&2));
     }
 
     #[test]
@@ -216,18 +213,15 @@ mod tests {
             mock_info("admin", &[]),
             ExecuteMsg::RegisterPool {
                 pool_id: 2,
-                denom1: "OSMO".to_string(),
-                denom2: "ATOM".to_string(),
+                denom1: "OSMO".to_owned(),
+                denom2: "ATOM".to_owned(),
             },
         )
         .unwrap();
 
         let pools = helpers::list_pools(deps.as_ref());
         assert_eq!(pools.len(), 1);
-        assert_eq!(
-            pools.get(&("ATOM".to_string(), "OSMO".to_string())),
-            Some(&2)
-        );
+        assert_eq!(pools.get(&("ATOM".to_owned(), "OSMO".to_owned())), Some(&2));
     }
 
     #[test]
@@ -241,8 +235,8 @@ mod tests {
             mock_info("eve", &[]),
             ExecuteMsg::RegisterPool {
                 pool_id: 2,
-                denom1: "OSMO".to_string(),
-                denom2: "ATOM".to_string(),
+                denom1: "OSMO".to_owned(),
+                denom2: "ATOM".to_owned(),
             },
         );
 

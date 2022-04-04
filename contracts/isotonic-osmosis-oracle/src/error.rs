@@ -12,6 +12,6 @@ pub enum ContractError {
     #[error("Unauthorized")]
     Unauthorized {},
 
-    #[error("There is no info about the prices for this trading pair")]
+    #[error("There is no info about the prices for this trading pair: {denom1}, {denom2}")]
     NoInfo { denom1: String, denom2: String },
 }
