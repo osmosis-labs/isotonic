@@ -1,9 +1,10 @@
-use cosmwasm_std::{coin, coins, Addr};
+use cosmwasm_std::{coin, coins, Addr, Decimal};
 
-use super::suite::{SuiteBuilder, COMMON};
+use super::suite::SuiteBuilder;
 use crate::error::ContractError;
 
 use utils::coin::Coin;
+use utils::token::Token;
 
 #[test]
 fn enter_market() {
@@ -74,8 +75,6 @@ fn enter_market_by_borrow() {
         .with_gov(gov)
         .with_funds(actor1, &coins(500, denom1))
         .with_funds(actor2, &coins(500, denom2))
-        .with_pool(1, (coin(100, COMMON), coin(100, denom1)))
-        .with_pool(2, (coin(100, COMMON), coin(100, denom2)))
         .build();
 
     suite
@@ -84,6 +83,13 @@ fn enter_market_by_borrow() {
 
     suite
         .create_market_quick(gov, "eth", denom2, None, None, None)
+        .unwrap();
+
+    suite
+        .oracle_set_price_market_per_common(Token::Native(denom1.to_owned()), Decimal::one())
+        .unwrap();
+    suite
+        .oracle_set_price_market_per_common(Token::Native(denom2.to_owned()), Decimal::one())
         .unwrap();
 
     // Creating some liquidity on actor1
@@ -177,8 +183,6 @@ fn cent_exit_market_with_borrowed_tokens() {
         .with_gov(gov)
         .with_funds(actor1, &coins(500, denom1))
         .with_funds(actor2, &coins(500, denom2))
-        .with_pool(1, (coin(100, COMMON), coin(100, denom1)))
-        .with_pool(2, (coin(100, COMMON), coin(100, denom2)))
         .build();
 
     suite
@@ -187,6 +191,13 @@ fn cent_exit_market_with_borrowed_tokens() {
 
     suite
         .create_market_quick(gov, "eth", denom2, None, None, None)
+        .unwrap();
+
+    suite
+        .oracle_set_price_market_per_common(Token::Native(denom1.to_owned()), Decimal::one())
+        .unwrap();
+    suite
+        .oracle_set_price_market_per_common(Token::Native(denom2.to_owned()), Decimal::one())
         .unwrap();
 
     suite
@@ -240,8 +251,6 @@ fn cent_exit_market_with_not_enough_liquidity() {
         .with_gov(gov)
         .with_funds(actor1, &coins(500, denom1))
         .with_funds(actor2, &coins(500, denom2))
-        .with_pool(1, (coin(100, COMMON), coin(100, denom1)))
-        .with_pool(2, (coin(100, COMMON), coin(100, denom2)))
         .build();
 
     suite
@@ -250,6 +259,13 @@ fn cent_exit_market_with_not_enough_liquidity() {
 
     suite
         .create_market_quick(gov, "eth", denom2, None, None, None)
+        .unwrap();
+
+    suite
+        .oracle_set_price_market_per_common(Token::Native(denom1.to_owned()), Decimal::one())
+        .unwrap();
+    suite
+        .oracle_set_price_market_per_common(Token::Native(denom2.to_owned()), Decimal::one())
         .unwrap();
 
     suite
@@ -304,9 +320,6 @@ fn exit_market_with_ltokens() {
         .with_gov(gov)
         .with_funds(actor1, &[coin(500, denom1), coin(200, denom3)])
         .with_funds(actor2, &coins(500, denom2))
-        .with_pool(1, (coin(100, COMMON), coin(100, denom1)))
-        .with_pool(2, (coin(100, COMMON), coin(100, denom2)))
-        .with_pool(3, (coin(100, COMMON), coin(100, denom3)))
         .build();
 
     suite
@@ -319,6 +332,16 @@ fn exit_market_with_ltokens() {
 
     suite
         .create_market_quick(gov, "usdc", denom3, None, None, None)
+        .unwrap();
+
+    suite
+        .oracle_set_price_market_per_common(Token::Native(denom1.to_owned()), Decimal::one())
+        .unwrap();
+    suite
+        .oracle_set_price_market_per_common(Token::Native(denom2.to_owned()), Decimal::one())
+        .unwrap();
+    suite
+        .oracle_set_price_market_per_common(Token::Native(denom3.to_owned()), Decimal::one())
         .unwrap();
 
     suite

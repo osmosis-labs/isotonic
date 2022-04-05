@@ -1,7 +1,7 @@
 use cosmwasm_std::{coin, Decimal, StdError, Uint128};
 use utils::credit_line::CreditLineValues;
 
-use super::suite::{SuiteBuilder, COMMON};
+use super::suite::SuiteBuilder;
 use crate::error::ContractError;
 
 #[test]
@@ -72,8 +72,10 @@ fn query_transferable_amount() {
         .with_market_token(market_token)
         .with_funds(lender, &[coin(100, market_token)])
         .with_collateral_ratio(Decimal::percent(80))
-        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
+
+    // Set arbitrary market/common exchange ratio (not part of this test)
+    suite.set_token_ratio_one().unwrap();
 
     // Set zero credit line in mock
     suite

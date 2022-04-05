@@ -1,9 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_binary, Addr, Binary, Env, MessageInfo, Reply};
+use cosmwasm_std::{to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response};
 use cw2::set_contract_version;
 use cw_utils::parse_reply_instantiate_data;
-use osmo_bindings::{OsmosisMsg, OsmosisQuery};
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, SudoMsg};
@@ -11,11 +10,6 @@ use crate::state::{Config, CONFIG, NEXT_REPLY_ID};
 
 use either::Either;
 use utils::token::Token;
-
-pub type Response = cosmwasm_std::Response<OsmosisMsg>;
-pub type SubMsg = cosmwasm_std::SubMsg<OsmosisMsg>;
-pub type Deps<'a> = cosmwasm_std::Deps<'a, OsmosisQuery>;
-pub type DepsMut<'a> = cosmwasm_std::DepsMut<'a, OsmosisQuery>;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:isotonic-credit-agency";
@@ -63,13 +57,13 @@ pub fn execute(
     use ExecuteMsg::*;
 
     match msg {
-        CreateMarket(market_cfg) => execute::create_market(deps, env, info, market_cfg),
+        CreateMarket(market_cfg) => exec::create_market(deps, env, info, market_cfg),
         Liquidate {
             account,
             collateral_denom,
         } => {
             let account = deps.api.addr_validate(&account)?;
-            execute::liquidate(
+            exec::liquidate(
                 deps,
                 info,
                 account,
@@ -80,16 +74,16 @@ pub fn execute(
         }
         EnterMarket { account } => {
             let account = deps.api.addr_validate(&account)?;
-            execute::enter_market(deps, info, account)
+            exec::enter_market(deps, info, account)
         }
         ExitMarket { market } => {
             let market = deps.api.addr_validate(&market)?;
-            execute::exit_market(deps, info, market)
+            exec::exit_market(deps, info, market)
         }
     }
 }
 
-mod execute {
+mod exec {
     use super::*;
 
     use cosmwasm_std::{ensure_eq, StdError, SubMsg, WasmMsg};
@@ -556,7 +550,7 @@ mod sudo {
     use super::*;
     use crate::state::{MarketState, MARKETS};
 
-    use cosmwasm_std::{Order, WasmMsg};
+    use cosmwasm_std::{Order, SubMsg, WasmMsg};
 
     use isotonic_market::msg::{ExecuteMsg as MarketExecuteMsg, MigrateMsg as MarketMigrateMsg};
 

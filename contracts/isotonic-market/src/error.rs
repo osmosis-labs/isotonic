@@ -46,8 +46,10 @@ pub enum ContractError {
     #[error("Insufficient amount of btokens on account {account}: {btokens} to liquidate debt")]
     LiquidationInsufficientBTokens { account: String, btokens: Uint128 },
 
-    #[error("Unauthorized - requires sender to be a Market's Credit Agency")]
-    RequiresCreditAgency {},
+    #[error(
+        "Unauthorized - Liquidation helpers call requires sender to be a Market's Credit Agency"
+    )]
+    LiquidationRequiresCreditAgency {},
 
     #[error("{0}")]
     InvalidCommonTokenDenom(#[from] InvalidCommonTokenDenom),

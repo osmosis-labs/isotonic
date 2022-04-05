@@ -1,7 +1,8 @@
-use super::suite::{SuiteBuilder, COMMON};
+use super::suite::SuiteBuilder;
 
-use cosmwasm_std::{coin, Uint128};
+use cosmwasm_std::{coin, Decimal, Uint128};
 use utils::credit_line::CreditLineValues;
+use utils::token::Token;
 
 #[test]
 fn lender_on_one_market() {
@@ -10,13 +11,19 @@ fn lender_on_one_market() {
     let mut suite = SuiteBuilder::new()
         .with_gov("gov")
         .with_funds(lender, &[coin(1000, market_denom)])
-        // Sets sell/buy rate between market denom/common denom as 2.0,
-        // which means selling 1000 market denom will result in 2000 common denom
-        .with_pool(1, (coin(200, COMMON), coin(100, market_denom)))
         .build();
 
     suite
         .create_market_quick("gov", "osmo", market_denom, None, None, None)
+        .unwrap();
+
+    // Sets sell/buy rate between market denom/common denom as 2.0,
+    // which means selling 1000 market denom will result in 2000 common denom
+    suite
+        .oracle_set_price_market_per_common(
+            Token::Native(market_denom.to_owned()),
+            Decimal::percent(200),
+        )
         .unwrap();
 
     suite
@@ -52,13 +59,6 @@ fn lender_on_three_markets() {
                 coin(7, third_denom),
             ],
         )
-        // Sets sell/buy rate between market denom/common denom as 2.0,
-        // selling 1000 OSMO denom gives 2000 common denom
-        .with_pool(1, (coin(200, COMMON), coin(100, first_denom)))
-        // here - selling 500 ETH denom gives 250 common denom
-        .with_pool(2, (coin(50, COMMON), coin(100, second_denom)))
-        // here - selling 7 BTC denom gives 7000 common denom
-        .with_pool(3, (coin(100_000, COMMON), coin(100, third_denom)))
         .build();
 
     suite
@@ -69,6 +69,29 @@ fn lender_on_three_markets() {
         .unwrap();
     suite
         .create_market_quick("gov", "bitcoin", third_denom, None, None, None)
+        .unwrap();
+
+    // Sets sell/buy rate between market denom/common denom as 2.0,
+    // selling 1000 OSMO denom gives 2000 common denom
+    suite
+        .oracle_set_price_market_per_common(
+            Token::Native(first_denom.to_owned()),
+            Decimal::percent(200),
+        )
+        .unwrap();
+    // here - selling 500 ETH denom gives 250 common denom
+    suite
+        .oracle_set_price_market_per_common(
+            Token::Native(second_denom.to_owned()),
+            Decimal::percent(50),
+        )
+        .unwrap();
+    // here - selling 7 BTC denom gives 7000 common denom
+    suite
+        .oracle_set_price_market_per_common(
+            Token::Native(third_denom.to_owned()),
+            Decimal::percent(100_000),
+        )
         .unwrap();
 
     suite
@@ -112,11 +135,6 @@ fn lender_on_two_markets_with_two_borrowers() {
         .with_funds(lender, &[coin(100, first_denom), coin(500, second_denom)])
         .with_funds(borrower_one, &[coin(1000, first_denom)])
         .with_funds(borrower_two, &[coin(1500, second_denom)])
-        // Sets sell/buy rate between market denom/common denom as 2.0,
-        // selling 1000 market denom gives 2000 common denom
-        .with_pool(1, (coin(200, COMMON), coin(100, first_denom)))
-        // here - selling 500 ETH denom gives 250 common denom
-        .with_pool(2, (coin(50, COMMON), coin(100, second_denom)))
         .build();
 
     suite
@@ -124,6 +142,22 @@ fn lender_on_two_markets_with_two_borrowers() {
         .unwrap();
     suite
         .create_market_quick("gov", "ethereum", second_denom, None, None, None)
+        .unwrap();
+
+    // Sets sell/buy rate between market denom/common denom as 2.0,
+    // selling 1000 market denom gives 2000 common denom
+    suite
+        .oracle_set_price_market_per_common(
+            Token::Native(first_denom.to_owned()),
+            Decimal::percent(200),
+        )
+        .unwrap();
+    // here - selling 500 ETH denom gives 250 common denom
+    suite
+        .oracle_set_price_market_per_common(
+            Token::Native(second_denom.to_owned()),
+            Decimal::percent(50),
+        )
         .unwrap();
 
     // Lender deposits all his money
@@ -207,11 +241,6 @@ fn two_lenders_with_borrower_on_two_markets() {
         .with_funds(lender_one, &[coin(500, first_denom)])
         .with_funds(lender_two, &[coin(300, second_denom)])
         .with_funds(borrower, &[coin(3000, first_denom)])
-        // Sets sell/buy rate between market denom/common denom as 1.5,
-        // selling 500 market denom gives 750 common denom
-        .with_pool(1, (coin(150, COMMON), coin(100, first_denom)))
-        // here - selling 300 ETH denom gives 150 common denom
-        .with_pool(2, (coin(50, COMMON), coin(100, second_denom)))
         .build();
 
     suite
@@ -219,6 +248,22 @@ fn two_lenders_with_borrower_on_two_markets() {
         .unwrap();
     suite
         .create_market_quick("gov", "ethereum", second_denom, None, None, None)
+        .unwrap();
+
+    // Sets sell/buy rate between market denom/common denom as 1.5,
+    // selling 500 market denom gives 750 common denom
+    suite
+        .oracle_set_price_market_per_common(
+            Token::Native(first_denom.to_owned()),
+            Decimal::percent(150),
+        )
+        .unwrap();
+    // here - selling 300 ETH denom gives 150 common denom
+    suite
+        .oracle_set_price_market_per_common(
+            Token::Native(second_denom.to_owned()),
+            Decimal::percent(50),
+        )
         .unwrap();
 
     // Lenders deposits all his money

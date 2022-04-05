@@ -1,4 +1,4 @@
-use super::suite::{SuiteBuilder, COMMON};
+use super::suite::SuiteBuilder;
 
 use cosmwasm_std::{coin, Coin, Decimal, Timestamp};
 use isotonic_token::DisplayAmount;
@@ -17,9 +17,10 @@ fn query_interest() {
     let mut suite = SuiteBuilder::new()
         .with_funds(lender, &[coin(150, market_token)])
         .with_market_token(market_token)
-        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
+    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
+    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(borrower).unwrap();
 
     // At first, the lender has no l-token, and the contract has no base asset.
@@ -116,9 +117,10 @@ fn charge_interest_borrow() {
         .with_funds(borrower, &[coin(500, market_token)])
         .with_interest(4, 20)
         .with_market_token(market_token)
-        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
+    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
+    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(borrower).unwrap();
 
     // Deposit some tokens
@@ -183,9 +185,10 @@ fn charge_interest_deposit() {
         .with_funds(borrower, &[coin(2300, market_token)])
         .with_interest(4, 20)
         .with_market_token(market_token)
-        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
+    // Set arbitrary market/common exchange ratio and credit lines (not part of this test)
+    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(borrower).unwrap();
     suite.set_high_credit_line(lender).unwrap();
 
@@ -261,9 +264,10 @@ fn query_balance_with_uncharged_interest() {
         .with_funds(borrower, &[coin(500, market_token)])
         .with_interest(10, 20)
         .with_market_token(market_token)
-        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
+    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
+    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(borrower).unwrap();
 
     suite
@@ -302,9 +306,9 @@ fn compounding_interest() {
         .with_interest(40, 0) // 40% annual, 10% quarterly
         .with_reserve_factor(15)
         .with_market_token(market_token)
-        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
+    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(borrower).unwrap();
     suite.set_high_credit_line(lender).unwrap();
 
@@ -334,9 +338,9 @@ fn compounding_interest_charge_triggered_every_epoch() {
         .with_interest(40, 0) // 40% annual, 10% quarterly
         .with_reserve_factor(15)
         .with_market_token(market_token)
-        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
+    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(borrower).unwrap();
     suite.set_high_credit_line(lender).unwrap();
 
@@ -369,9 +373,10 @@ fn query_last_charged_with_uncharged_interest() {
         .with_interest(10, 0)
         .with_reserve_factor(15)
         .with_market_token(market_token)
-        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
+    // Set arbitrary market/common exchange ratio and credit lines (not part of this test)
+    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(borrower).unwrap();
     suite.set_high_credit_line(lender).unwrap();
 

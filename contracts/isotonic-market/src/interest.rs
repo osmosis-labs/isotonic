@@ -1,9 +1,8 @@
 use crate::math::DecimalExt;
-use cosmwasm_std::{Decimal, Env, Fraction, Uint128};
+use cosmwasm_std::{Decimal, Deps, Env, Fraction, Uint128};
 use isotonic_token::msg::TokenInfoResponse;
 
 use crate::{
-    contract::Deps,
     state::{Config, TokensInfo, CONFIG, RESERVE, SECONDS_IN_YEAR},
     ContractError,
 };

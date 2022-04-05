@@ -1,4 +1,4 @@
-use super::suite::{SuiteBuilder, COMMON};
+use super::suite::SuiteBuilder;
 use crate::{error::ContractError, msg::MarketConfig};
 
 use isotonic_token::error::ContractError as TokenContractError;
@@ -53,11 +53,14 @@ fn account_doesnt_have_debt_bigger_then_credit_line() {
         .with_funds(liquidator, &coins(5000, denom))
         .with_funds(debtor, &coins(500, denom))
         .with_liquidation_price(Decimal::percent(92))
-        .with_pool(1, (coin(100, COMMON), coin(100, denom)))
         .build();
 
     suite
         .create_market_quick("gov", "osmo", denom, Decimal::percent(80), None, None)
+        .unwrap();
+
+    suite
+        .oracle_set_price_market_per_common(Token::Native(denom.to_owned()), Decimal::percent(100))
         .unwrap();
 
     suite
@@ -113,11 +116,14 @@ fn liquidating_whole_debt() {
         .with_funds(liquidator, &coins(5000, denom))
         .with_funds(debtor, &coins(600, denom))
         .with_liquidation_price(Decimal::percent(92))
-        .with_pool(1, (coin(100, COMMON), coin(100, denom)))
         .build();
 
     suite
         .create_market_quick("gov", "osmo", denom, Decimal::percent(80), None, None)
+        .unwrap();
+
+    suite
+        .oracle_set_price_market_per_common(Token::Native(denom.to_owned()), Decimal::percent(100))
         .unwrap();
 
     suite
@@ -217,12 +223,14 @@ fn receive_reward_in_different_denom_fails_if_theres_no_reward_market() {
         .with_funds(liquidator, &coins(5000, denom))
         .with_funds(debtor, &coins(600, denom))
         .with_liquidation_price(Decimal::percent(92))
-        .with_pool(1, (coin(100, COMMON), coin(100, denom)))
-        .with_pool(2, (coin(100, COMMON), coin(150, reward_denom)))
         .build();
 
     suite
         .create_market_quick("gov", "osmo", denom, Decimal::percent(80), None, None)
+        .unwrap();
+
+    suite
+        .oracle_set_price_market_per_common(Token::Native(denom.to_owned()), Decimal::percent(100))
         .unwrap();
 
     suite
@@ -234,6 +242,13 @@ fn receive_reward_in_different_denom_fails_if_theres_no_reward_market() {
         .unwrap();
 
     suite.advance_seconds(YEAR_IN_SECONDS);
+
+    suite
+        .oracle_set_price_market_per_common(
+            Token::Native(reward_denom.to_owned()),
+            Decimal::percent(150),
+        )
+        .unwrap();
 
     // Repay some tokens to trigger interest rate charges
     suite
@@ -267,8 +282,6 @@ fn receive_reward_different_denom_fails_if_debtor_has_not_enough_reward_tokens()
         .with_funds(liquidator, &coins(5000, denom))
         .with_funds(debtor, &[coin(600, denom), coin(500, reward_denom)])
         .with_liquidation_price(Decimal::percent(92))
-        .with_pool(1, (coin(100, COMMON), coin(100, denom)))
-        .with_pool(2, (coin(25, COMMON), coin(100, reward_denom)))
         .build();
 
     // create market with very high interest rates
@@ -288,6 +301,16 @@ fn receive_reward_different_denom_fails_if_debtor_has_not_enough_reward_tokens()
         .unwrap();
 
     suite
+        .oracle_set_price_market_per_common(Token::Native(denom.to_owned()), Decimal::percent(100))
+        .unwrap();
+    suite
+        .oracle_set_price_market_per_common(
+            Token::Native(reward_denom.to_owned()),
+            Decimal::percent(25),
+        )
+        .unwrap();
+
+    suite
         .deposit_tokens_on_market(debtor, coin(500, denom))
         .unwrap();
     suite
@@ -297,7 +320,13 @@ fn receive_reward_different_denom_fails_if_debtor_has_not_enough_reward_tokens()
     suite.advance_seconds(YEAR_IN_SECONDS);
 
     suite
-        .set_pool(&[(2, (coin(150, COMMON), coin(100, reward_denom)))])
+        .oracle_set_price_market_per_common(Token::Native(denom.to_owned()), Decimal::percent(100))
+        .unwrap();
+    suite
+        .oracle_set_price_market_per_common(
+            Token::Native(reward_denom.to_owned()),
+            Decimal::percent(150),
+        )
         .unwrap();
 
     // Repay some tokens to trigger interest rate charges
@@ -353,8 +382,6 @@ fn receive_reward_in_different_denoms_no_interest_rates() {
         .with_funds(liquidator, &coins(160000, ust))
         .with_funds(debtor, &coins(5000, atom))
         .with_liquidation_price(Decimal::percent(92))
-        .with_pool(1, (coin(400, COMMON), coin(100, atom)))
-        .with_pool(2, (coin(10, COMMON), coin(100, ust)))
         .build();
 
     // create market atom osmo
@@ -378,6 +405,13 @@ fn receive_reward_in_different_denoms_no_interest_rates() {
             (Decimal::percent(3), Decimal::percent(20)), // interest rates (base, slope)
             None,
         )
+        .unwrap();
+
+    suite
+        .oracle_set_price_market_per_common(Token::Native(atom.to_owned()), Decimal::percent(400))
+        .unwrap();
+    suite
+        .oracle_set_price_market_per_common(Token::Native(ust.to_owned()), Decimal::percent(10))
         .unwrap();
 
     // debtor deposits 4000 ust
@@ -405,7 +439,7 @@ fn receive_reward_in_different_denoms_no_interest_rates() {
     );
 
     suite
-        .set_pool(&[(1, (coin(300, COMMON), coin(100, atom)))])
+        .oracle_set_price_market_per_common(Token::Native(atom.to_owned()), Decimal::percent(300))
         .unwrap();
     let total_credit_line = suite.query_total_credit_line(debtor).unwrap();
     assert_eq!(
@@ -476,8 +510,6 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
         .with_funds(liquidator, &coins(100_000, ust))
         .with_funds(debtor, &coins(5000, atom))
         .with_liquidation_price(Decimal::percent(92))
-        .with_pool(1, (coin(400, COMMON), coin(100, atom)))
-        .with_pool(2, (coin(10, COMMON), coin(100, ust)))
         .build();
 
     suite
@@ -522,6 +554,13 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
         )
         .unwrap();
 
+    suite
+        .oracle_set_price_market_per_common(Token::Native(atom.to_owned()), Decimal::percent(400))
+        .unwrap();
+    suite
+        .oracle_set_price_market_per_common(Token::Native(ust.to_owned()), Decimal::percent(10))
+        .unwrap();
+
     // investments from the others
     suite
         .deposit_tokens_on_market(others, coin(10000, atom))
@@ -560,7 +599,7 @@ fn receive_reward_in_different_denoms_with_six_months_interests() {
 
     // change ATOM price to 3.0 per common denom
     suite
-        .set_pool(&[(1, (coin(300, COMMON), coin(100, atom)))])
+        .oracle_set_price_market_per_common(Token::Native(atom.to_owned()), Decimal::percent(300))
         .unwrap();
 
     // current interest rates

@@ -2,6 +2,8 @@ use cosmwasm_std::{Binary, Coin, Decimal, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+pub use cw20::Cw20ReceiveMsg;
+
 use crate::display_amount::DisplayAmount;
 use utils::token::Token;
 
