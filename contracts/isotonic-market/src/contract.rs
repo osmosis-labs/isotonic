@@ -1,11 +1,11 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    coin, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    MessageInfo, Reply, Response, StdError, StdResult, SubMsg, Timestamp, Uint128, WasmMsg,
+    coin, to_binary, Addr, BankMsg, Binary, Coin, Decimal, Env, MessageInfo, Reply, StdError,
+    StdResult, Timestamp, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
-use cw_utils::parse_reply_instantiate_data;
+use osmo_bindings::{OsmosisMsg, OsmosisQuery};
 
 use crate::contract::query::token_info;
 use crate::error::ContractError;
@@ -17,6 +17,11 @@ use crate::msg::{
 use crate::state::{Config, CONFIG, RESERVE};
 
 use utils::token::Token;
+
+pub type Response = cosmwasm_std::Response<OsmosisMsg>;
+pub type SubMsg = cosmwasm_std::SubMsg<OsmosisMsg>;
+pub type Deps<'a> = cosmwasm_std::Deps<'a, OsmosisQuery>;
+pub type DepsMut<'a> = cosmwasm_std::DepsMut<'a, OsmosisQuery>;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:isotonic-market";
@@ -109,41 +114,49 @@ pub fn instantiate(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg.id {
-        LTOKEN_INIT_REPLY_ID | BTOKEN_INIT_REPLY_ID => token_instantiate_reply(deps, env, msg),
+        LTOKEN_INIT_REPLY_ID | BTOKEN_INIT_REPLY_ID => {
+            reply::token_instantiate_reply(deps, env, msg)
+        }
         _ => Err(ContractError::UnrecognisedReply(msg.id)),
     }
 }
 
-fn token_instantiate_reply(
-    deps: DepsMut,
-    _env: Env,
-    msg: Reply,
-) -> Result<Response, ContractError> {
-    let id = msg.id;
-    let res =
-        parse_reply_instantiate_data(msg).map_err(|err| ContractError::ReplyParseFailure {
-            id,
-            err: err.to_string(),
-        })?;
+mod reply {
+    use super::*;
 
-    let mut response = Response::new();
+    use cw_utils::parse_reply_instantiate_data;
 
-    let addr = deps.api.addr_validate(&res.contract_address)?;
-    if id == LTOKEN_INIT_REPLY_ID {
-        CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
-            config.ltoken_contract = addr.clone();
-            response = Response::new().add_attribute("ltoken", addr);
-            Ok(config)
-        })?
-    } else {
-        CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
-            config.btoken_contract = addr.clone();
-            response = Response::new().add_attribute("btoken", addr);
-            Ok(config)
-        })?
-    };
+    pub fn token_instantiate_reply(
+        deps: DepsMut,
+        _env: Env,
+        msg: Reply,
+    ) -> Result<Response, ContractError> {
+        let id = msg.id;
+        let res =
+            parse_reply_instantiate_data(msg).map_err(|err| ContractError::ReplyParseFailure {
+                id,
+                err: err.to_string(),
+            })?;
 
-    Ok(response)
+        let mut response = Response::new();
+
+        let addr = deps.api.addr_validate(&res.contract_address)?;
+        if id == LTOKEN_INIT_REPLY_ID {
+            CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
+                config.ltoken_contract = addr.clone();
+                response = Response::new().add_attribute("ltoken", addr);
+                Ok(config)
+            })?
+        } else {
+            CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
+                config.btoken_contract = addr.clone();
+                response = Response::new().add_attribute("btoken", addr);
+                Ok(config)
+            })?
+        };
+
+        Ok(response)
+    }
 }
 
 /// Execution entry point
@@ -258,6 +271,8 @@ mod cr_utils {
 }
 
 mod execute {
+    use cosmwasm_std::CosmosMsg;
+
     use crate::{
         interest::{calculate_interest, epochs_passed, InterestUpdate},
         msg::CreditAgencyExecuteMsg,
@@ -546,7 +561,7 @@ mod execute {
     ) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
         if cfg.credit_agency != info.sender {
-            return Err(ContractError::LiquidationRequiresCreditAgency {});
+            return Err(ContractError::RequiresCreditAgency {});
         }
 
         let funds = validate_funds(&info.funds, &cfg.market_token)?;
@@ -600,7 +615,7 @@ mod execute {
     ) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
         if cfg.credit_agency != info.sender {
-            return Err(ContractError::LiquidationRequiresCreditAgency {});
+            return Err(ContractError::RequiresCreditAgency {});
         }
 
         let mut response = Response::new();
@@ -685,7 +700,7 @@ mod query {
 
     use cosmwasm_std::{coin, Coin, Decimal, Uint128};
     use cw20::BalanceResponse;
-    use isotonic_oracle::msg::{PriceResponse, QueryMsg as OracleQueryMsg};
+    use isotonic_osmosis_oracle::msg::{PriceResponse, QueryMsg as OracleQueryMsg};
     use isotonic_token::msg::QueryMsg as TokenQueryMsg;
     use utils::credit_line::{CreditLineResponse, CreditLineValues};
     use utils::price::{coin_times_price_rate, PriceRate};
@@ -812,8 +827,8 @@ mod query {
             let price_response: PriceResponse = deps.querier.query_wasm_smart(
                 config.price_oracle.clone(),
                 &OracleQueryMsg::Price {
-                    sell: Token::Native(config.market_token.clone()),
-                    buy: Token::Native(config.common_token.clone()),
+                    sell: config.market_token.clone(),
+                    buy: config.common_token.clone(),
                 },
             )?;
             Ok(PriceRate {

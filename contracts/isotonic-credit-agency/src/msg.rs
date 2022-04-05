@@ -1,8 +1,7 @@
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use isotonic_market::msg::MigrateMsg as MarketMigrateMsg;
 
-use utils::interest::Interest;
-use utils::token::Token;
+use utils::{interest::Interest, token::Token};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

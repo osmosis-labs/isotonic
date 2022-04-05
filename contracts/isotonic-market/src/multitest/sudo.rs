@@ -1,4 +1,4 @@
-use super::suite::SuiteBuilder;
+use super::suite::{SuiteBuilder, COMMON};
 use crate::state::SECONDS_IN_YEAR;
 
 use cosmwasm_std::{coin, Coin, Decimal, Uint128};
@@ -32,10 +32,9 @@ fn adjust_reserve_factor() {
         .with_interest(4, 20)
         .with_reserve_factor(10)
         .with_market_token(market_token)
+        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
-    // Set arbitrary market/common exchange ratio and credit lines (not part of this test)
-    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(borrower).unwrap();
     suite.set_high_credit_line(lender).unwrap();
 
@@ -107,10 +106,9 @@ fn adjust_interest_rates() {
         .with_interest(4, 20)
         .with_reserve_factor(0)
         .with_market_token(market_token)
+        .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
 
-    // Set arbitrary market/common exchange ratio and credit lines (not part of this test)
-    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(borrower).unwrap();
     suite.set_high_credit_line(lender).unwrap();
 

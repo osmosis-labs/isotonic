@@ -1,6 +1,6 @@
 use cosmwasm_std::{Addr, Decimal};
 
-use super::suite::SuiteBuilder;
+use super::suite::{SuiteBuilder, COMMON};
 use crate::state::Config;
 
 #[test]
@@ -16,7 +16,7 @@ fn market_instantiate_and_query_config() {
             isotonic_market_id: 2,
             isotonic_token_id: 3,
             reward_token: "ENG".to_owned(),
-            common_token: "common".to_owned(),
+            common_token: COMMON.to_owned(),
             liquidation_price: Decimal::percent(92),
         },
         suite.query_config().unwrap()
