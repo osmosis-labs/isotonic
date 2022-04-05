@@ -411,13 +411,14 @@ impl Suite {
     /// then performs a couple checks to make sure nothing more than that could be borrowed.
     pub fn attempt_borrow_max(&mut self, sender: &str) -> AnyResult<()> {
         let borrowable = self.query_borrowable(sender)?;
-        let borrowable_in_common = borrowable.amount * self.query_price_market_per_common()?.rate;
+        let borrowable_in_common =
+            borrowable.amount * self.query_price_market_per_common()?.rate_sell_per_buy;
         self.borrow(sender, borrowable.amount.u128())?;
 
         // mock the change in credit line
         let mut crl = self
             .query_total_credit_line(sender)?
-            .validate(self.common_token())?;
+            .validate(&self.common_token())?;
         crl.debt += borrowable_in_common;
         self.set_credit_line(sender, crl)?;
 

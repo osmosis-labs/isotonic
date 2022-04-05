@@ -183,11 +183,11 @@ fn query_borrowable() {
     let borrower = "borrower";
     let mut suite = SuiteBuilder::new()
         .with_funds(lender, &[coin(100, "ATOM")])
+        .with_pool(1, (coin(100, COMMON), coin(100, "ATOM")))
         .with_market_token("ATOM")
         .build();
 
     // Set arbitrary market/common exchange ratio and credit line (not part of this test)
-    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(lender).unwrap();
     suite
         .set_credit_line(
@@ -215,11 +215,11 @@ fn query_borrowable_with_limited_liquidity() {
     let borrower = "borrower";
     let mut suite = SuiteBuilder::new()
         .with_funds(lender, &[coin(20, "ATOM")])
+        .with_pool(1, (coin(100, COMMON), coin(100, "ATOM")))
         .with_market_token("ATOM")
         .build();
 
     // Set arbitrary market/common exchange ratio and credit line (not part of this test)
-    suite.set_token_ratio_one().unwrap();
     suite.set_high_credit_line(lender).unwrap();
     suite.set_high_credit_line(borrower).unwrap();
 
