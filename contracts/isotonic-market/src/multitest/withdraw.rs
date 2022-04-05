@@ -147,3 +147,75 @@ fn can_withdraw_up_to_credit_line() {
         err.downcast().unwrap()
     );
 }
+
+#[test]
+fn query_withdrawable_when_only_lending() {
+    let lender = "lender";
+    let mut suite = SuiteBuilder::new()
+        .with_funds(lender, &[coin(100, "ATOM")])
+        .with_pool(1, (coin(100, COMMON), coin(100, "ATOM")))
+        .with_market_token("ATOM")
+        .build();
+
+    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
+    suite.set_high_credit_line(lender).unwrap();
+
+    // Deposit some tokens so we have something to withdraw.
+    suite.deposit(lender, &[coin(100, "ATOM")]).unwrap();
+
+    suite.assert_withdrawable(lender, 100);
+
+    suite.attempt_withdraw_max(lender).unwrap();
+}
+
+#[test]
+fn query_withdrawable_up_to_credit_line() {
+    let lender = "lender";
+    let mut suite = SuiteBuilder::new()
+        .with_funds(lender, &[coin(100, "ATOM")])
+        .with_pool(1, (coin(100, COMMON), coin(100, "ATOM")))
+        .with_market_token("ATOM")
+        .with_collateral_ratio(Decimal::percent(50))
+        .build();
+
+    suite
+        .set_credit_line(
+            lender,
+            CreditLineValues {
+                collateral: Uint128::new(100),
+                credit_line: Uint128::new(50),
+                debt: Uint128::new(40),
+            },
+        )
+        .unwrap();
+
+    // Deposit some tokens so we have something to withdraw.
+    suite.deposit(lender, &[coin(100, "ATOM")]).unwrap();
+
+    suite.assert_withdrawable(lender, 20);
+
+    suite.attempt_withdraw_max(lender).unwrap();
+}
+
+#[test]
+fn query_withdrawable_not_enough_liquid() {
+    let lender = "lender";
+    let borrower = "borrower";
+    let mut suite = SuiteBuilder::new()
+        .with_funds(lender, &[coin(100, "ATOM")])
+        .with_pool(1, (coin(100, COMMON), coin(100, "ATOM")))
+        .with_market_token("ATOM")
+        .with_collateral_ratio(Decimal::percent(50))
+        .build();
+
+    suite.set_high_credit_line(borrower).unwrap();
+    suite.set_high_credit_line(lender).unwrap();
+
+    suite.deposit(lender, &[coin(100, "ATOM")]).unwrap();
+    suite.borrow(borrower, 40).unwrap();
+
+    // Technically, the lender is allowed to withdraw the whole 100 tokens, but
+    // the contract doesn't have enough liquidity to cover that!
+    suite.assert_withdrawable(lender, 60);
+    suite.attempt_withdraw_max(lender).unwrap();
+}

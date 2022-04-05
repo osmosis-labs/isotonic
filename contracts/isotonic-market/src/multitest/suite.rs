@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result as AnyResult};
 use std::collections::HashMap;
+use utils::price::PriceRate;
 
 use cosmwasm_std::{Addr, Coin, Decimal, StdResult, Uint128};
 use cw20::BalanceResponse;
@@ -16,7 +17,7 @@ use utils::{
 };
 
 use super::ca_mock::{
-    contract as contract_credit_agency, ExecuteMsg as CAExecuteMsg,
+    self, contract as contract_credit_agency, ExecuteMsg as CAExecuteMsg,
     InstantiateMsg as CAInstantiateMsg,
 };
 use crate::msg::{
@@ -290,6 +291,7 @@ impl SuiteBuilder {
             market_token,
             common_token,
             ca_contract,
+            collateral_ratio: self.collateral_ratio,
         }
     }
 }
@@ -311,6 +313,8 @@ pub struct Suite {
     common_token: Token,
     /// Credit Agency contract address
     ca_contract: Addr,
+    /// Ratio of how much tokens can be borrowed for one unit, 0 <= x < 1
+    collateral_ratio: Decimal,
 }
 
 impl Suite {
@@ -364,6 +368,31 @@ impl Suite {
             },
             &[],
         )
+    }
+
+    /// Attempts to withdraw the full "withdrawable" amount (as determined by the withdrawable query),
+    /// then performs a couple checks to make sure nothing more than that could be withdrawn.
+    pub fn attempt_withdraw_max(&mut self, sender: &str) -> AnyResult<()> {
+        let withdrawable = self.query_withdrawable(sender)?;
+        let withdrawable_in_common =
+            withdrawable.amount * self.query_price_market_per_common()?.rate_sell_per_buy;
+        self.withdraw(sender, withdrawable.amount.u128())?;
+
+        // mock the change in credit line
+        let mut crl = self
+            .query_total_credit_line(sender)?
+            .validate(&self.common_token())?;
+        crl.collateral = crl.collateral.saturating_sub(withdrawable_in_common);
+        crl.credit_line = crl
+            .credit_line
+            .saturating_sub(withdrawable_in_common * self.collateral_ratio);
+        self.set_credit_line(sender, crl)?;
+
+        // double check we cannot withdraw anything above this amount
+        self.assert_withdrawable(sender, 0);
+        assert!(self.withdraw(sender, 1).is_err());
+
+        Ok(())
     }
 
     /// Borrow base asset from the lending pool and mint b-token
@@ -473,6 +502,17 @@ impl Suite {
         Ok(resp)
     }
 
+    /// Queries the total credit line from the mock CA
+    pub fn query_total_credit_line(&self, account: impl ToString) -> AnyResult<CreditLineResponse> {
+        let resp: CreditLineResponse = self.app.wrap().query_wasm_smart(
+            self.credit_agency(),
+            &ca_mock::QueryMsg::TotalCreditLine {
+                account: account.to_string(),
+            },
+        )?;
+        Ok(resp)
+    }
+
     /// Queries the tokens balance of the account
     pub fn query_tokens_balance(&self, account: impl ToString) -> AnyResult<TokensBalanceResponse> {
         let resp: TokensBalanceResponse = self.app.wrap().query_wasm_smart(
@@ -556,6 +596,25 @@ impl Suite {
         Ok(response)
     }
 
+    pub fn query_withdrawable(&self, account: impl ToString) -> AnyResult<Coin> {
+        let response: Coin = self.app.wrap().query_wasm_smart(
+            self.contract.clone(),
+            &QueryMsg::Withdrawable {
+                account: account.to_string(),
+            },
+        )?;
+        Ok(response)
+    }
+
+    /// Queries the tokens balance of the account
+    pub fn query_price_market_per_common(&self) -> AnyResult<PriceRate> {
+        let resp: PriceRate = self.app.wrap().query_wasm_smart(
+            self.contract.clone(),
+            &QueryMsg::PriceMarketLocalPerCommon {},
+        )?;
+        Ok(resp)
+    }
+
     /// Migrates the contract, possibly changing some cfg values via MigrateMsg.
     pub fn migrate(&mut self, new_code_id: u64, msg: &MigrateMsg) -> AnyResult<AppResponse> {
         let owner = self.owner.clone();
@@ -637,5 +696,10 @@ impl Suite {
     pub fn assert_collateral(&self, account: impl ToString, amount: u128) {
         let crl = self.query_credit_line(account).unwrap();
         assert_eq!(crl.collateral.amount, amount.into());
+    }
+
+    pub fn assert_withdrawable(&self, account: impl ToString, amount: u128) {
+        let withdrawable = self.query_withdrawable(account).unwrap();
+        assert_eq!(withdrawable.amount, amount.into());
     }
 }
