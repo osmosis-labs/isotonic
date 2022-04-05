@@ -86,9 +86,9 @@ pub enum QueryMsg {
         /// Address that wishes to transfer
         account: String,
     },
-    /// How much can a given account withdraw?
+    /// Returns the amount that the given account can withdraw
     Withdrawable { account: String },
-    /// How much can a given account borrow?
+    /// Returns the amount that the given account can borrow
     Borrowable { account: String },
     /// Returns current utilisation and interest rates
     Interest {},
