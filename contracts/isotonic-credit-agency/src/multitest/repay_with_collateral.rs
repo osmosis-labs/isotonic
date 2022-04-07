@@ -17,8 +17,11 @@ fn on_two_markets() {
         .with_funds(deposit_one, &[coin(10_000, first_denom)])
         .with_funds(deposit_two, &[coin(10_000, second_denom)])
         .with_funds(user, &[coin(5000, first_denom)])
-        .with_pool(1, (coin(110, COMMON), coin(100, first_denom)))
-        .with_pool(2, (coin(90, COMMON), coin(100, second_denom)))
+        .with_pool(1, (coin(200, second_denom), coin(100, first_denom)))
+        .with_pool(2, (coin(50, first_denom), coin(100, second_denom)))
+        // COMMON denom has same value as first_denom
+        .with_pool(3, (coin(100, COMMON), coin(100, first_denom)))
+        .with_pool(4, (coin(50, COMMON), coin(100, second_denom)))
         .build();
 
     suite
@@ -48,12 +51,12 @@ fn on_two_markets() {
     assert_eq!(
         total_credit_line,
         CreditLineValues {
-            // 3_000 deposited * 1.1 oracle's price
-            collateral: Uint128::new(3300),
-            // 3300 collateral * 1.1 oracle's price * 0.5 default collateral_ratio
-            credit_line: Uint128::new(1650), // <- I need to check this later, this is not right
-            // 1000 borrowed * 0.9 oracle's price
-            debt: Uint128::new(900)
+            // 3_000 deposited * 1.0 oracle's price
+            collateral: Uint128::new(3000),
+            // 3000 collateral * 1.0 oracle's price * 0.5 default collateral_ratio
+            credit_line: Uint128::new(1500),
+            // 1000 borrowed * 0.5 oracle's price
+            debt: Uint128::new(500)
         }
         .make_response(suite.common_token().clone())
     );

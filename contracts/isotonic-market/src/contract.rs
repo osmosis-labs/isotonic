@@ -354,7 +354,7 @@ mod cr_utils {
 mod execute {
     use cosmwasm_std::CosmosMsg;
     use isotonic_osmosis_oracle::msg::QueryMsg as OracleQueryMsg;
-    use osmo_bindings::{Step, Swap, SwapAmountWithLimit};
+    use osmo_bindings::{Swap, SwapAmountWithLimit};
 
     use crate::{
         interest::{calculate_interest, epochs_passed, InterestUpdate},
@@ -775,18 +775,22 @@ mod execute {
         )?;
         let swap = Swap::new(
             pool_id_market_common,
-            cfg.market_token.clone(),
-            cfg.common_token.clone(),
+            cfg.market_token,
+            buy.denom.clone(),
         );
+        // TODO: For now it will only swap market_token <-> buy.denom (final)
+        // when route is supported in osmosis-bindings, uncomment this section
+        //     cfg.common_token.clone(),
+        // );
 
-        let pool_id_common_buy: u64 = deps.querier.query_wasm_smart(
-            cfg.price_oracle.clone(),
-            &OracleQueryMsg::PoolId {
-                denom1: cfg.market_token,
-                denom2: buy.denom.clone(),
-            },
-        )?;
-        // let route = dbg!(vec![Step::new(pool_id_common_buy, buy.denom.clone())]);
+        // let pool_id_common_buy: u64 = deps.querier.query_wasm_smart(
+        //     cfg.price_oracle.clone(),
+        //     &OracleQueryMsg::PoolId {
+        //         denom1: cfg.market_token,
+        //         denom2: buy.denom.clone(),
+        //     },
+        // )?;
+        // let route = vec![Step::new(pool_id_common_buy, buy.denom.clone())];
         let route = vec![];
 
         let amount = SwapAmountWithLimit::ExactOut {
