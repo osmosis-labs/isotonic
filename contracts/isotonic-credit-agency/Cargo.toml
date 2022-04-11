@@ -22,7 +22,8 @@ cw2 = "0.13.0"
 isotonic-market = { path = "../isotonic-market", version = "0.5.0", features = ["library"] }
 isotonic-osmosis-oracle = { path = "../isotonic-osmosis-oracle", version = "0.5.0", features = ["library"] }
 isotonic-token = { path = "../isotonic-token", version = "0.5.0", features = ["library"] }
-osmo-bindings = "0.5.0"
+osmo-bindings = { git = "https://github.com/confio/osmosis-bindings", rev = "9d67da34195e8f4153e6bb36c2f623317f5f7f3a" }
+#osmo-bindings = "0.5.0"
 schemars = "0.8.3"
 serde = { version = "1.0.127", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.26" }
@@ -33,5 +34,5 @@ either = "1.6"
 anyhow = "1"
 cosmwasm-schema = { version = "1.0.0-beta6" }
 cw-multi-test = "0.13.0"
-osmo-bindings-test = "0.5.0"
-
+osmo-bindings-test = { git = "https://github.com/confio/osmosis-bindings", rev = "9d67da34195e8f4153e6bb36c2f623317f5f7f3a" }
+#osmo-bindings-test = "0.5.0"
