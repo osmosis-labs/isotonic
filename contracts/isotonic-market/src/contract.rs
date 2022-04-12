@@ -223,11 +223,11 @@ mod cr_utils {
     ) -> Result<Uint128, ContractError> {
         // Price is defined as common/local
         // (see price_market_local_per_common function from this file)
-        Ok(divide(
+        divide(
             common_tokens,
             query::price_market_local_per_common(deps)?.rate_sell_per_buy,
         )
-        .map_err(|_| ContractError::ZeroPrice {})?)
+        .map_err(|_| ContractError::ZeroPrice {})
     }
 
     pub fn query_available_tokens(
