@@ -1021,3 +1021,16 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
 
     Ok(Response::new())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn divide_u128_by_decimal_rounding() {
+        assert_eq!(
+            cr_utils::divide(60u128.into(), Decimal::percent(60)),
+            100u128.into()
+        );
+    }
+}
