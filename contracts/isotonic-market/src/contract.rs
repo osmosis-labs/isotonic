@@ -213,9 +213,8 @@ mod cr_utils {
 
     use cosmwasm_std::Fraction;
 
-    // TODO: Check for rounding error https://github.com/confio/isotonic/issues/40
     pub fn divide(top: Uint128, bottom: Decimal) -> Uint128 {
-        top * bottom.inv().unwrap_or_else(Decimal::zero)
+        top * bottom.denominator() / bottom.numerator()
     }
 
     fn available_local_tokens(
