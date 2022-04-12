@@ -240,8 +240,6 @@ fn withdraw_whole_deposit() {
         .with_market_token("ATOM")
         .build();
 
-    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
-
     let inputs = [
         1,
         99,
@@ -285,8 +283,6 @@ fn withdraw_whole_deposit_after_being_repaid() {
         .with_market_token("ATOM")
         .build();
 
-    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
-
     let inputs = [
         1,
         99,
@@ -313,4 +309,39 @@ fn withdraw_whole_deposit_after_being_repaid() {
         suite.assert_withdrawable(lender, input);
         suite.attempt_withdraw_max(lender).unwrap();
     }
+}
+
+// regression: #40
+#[test]
+fn withdraw_all_with_matching_collateral() {
+    let lender = "lender";
+    let charge_period = 100;
+    let mut suite = SuiteBuilder::new()
+        .with_funds(lender, &[coin(10_000_000_000_000_000_000, "ATOM")])
+        .with_charge_period(charge_period)
+        .with_collateral_ratio(Decimal::percent(60))
+        .with_pool(
+            1,
+            (
+                coin(10_000_000_000_000_000_000, COMMON),
+                coin(10_000_000_000_000_000_000, "ATOM"),
+            ),
+        )
+        .with_market_token("ATOM")
+        .build();
+
+    suite.deposit(lender, &[coin(100, "ATOM")]).unwrap();
+    suite
+        .set_credit_line(
+            lender,
+            CreditLineValues {
+                collateral: 100u128.into(),
+                credit_line: 60u128.into(),
+                debt: 0u128.into(),
+            },
+        )
+        .unwrap();
+
+    suite.assert_withdrawable(lender, 100);
+    suite.attempt_withdraw_max(lender).unwrap();
 }
