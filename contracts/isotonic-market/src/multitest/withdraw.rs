@@ -226,8 +226,10 @@ fn query_withdrawable_not_enough_liquid() {
 #[test]
 fn withdraw_whole_deposit() {
     let lender = "lender";
+    let charge_period = 100;
     let mut suite = SuiteBuilder::new()
         .with_funds(lender, &[coin(10_000_000_000_000_000_000, "ATOM")])
+        .with_charge_period(charge_period)
         .with_pool(
             1,
             (
@@ -257,6 +259,11 @@ fn withdraw_whole_deposit() {
     for input in inputs {
         suite.set_high_credit_line(lender).unwrap();
         suite.deposit(lender, &[coin(input, "ATOM")]).unwrap();
+
+        // no interest should be charged/earned here as there are no borrowers,
+        // so this shouldn't matter
+        suite.advance_seconds(charge_period * 2);
+
         suite.assert_withdrawable(lender, input);
         suite.attempt_withdraw_max(lender).unwrap();
     }
