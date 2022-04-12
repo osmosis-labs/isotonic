@@ -219,3 +219,91 @@ fn query_withdrawable_not_enough_liquid() {
     suite.assert_withdrawable(lender, 60);
     suite.attempt_withdraw_max(lender).unwrap();
 }
+
+// Below: regression tests for rounding issues when withdrawing deposited money
+// this possibly belongs with acceptance/system/whatever tests
+
+#[test]
+fn withdraw_whole_deposit() {
+    let lender = "lender";
+    let mut suite = SuiteBuilder::new()
+        .with_funds(lender, &[coin(10_000_000_000_000_000_000, "ATOM")])
+        .with_pool(
+            1,
+            (
+                coin(10_000_000_000_000_000_000, COMMON),
+                coin(10_000_000_000_000_000_000, "ATOM"),
+            ),
+        )
+        .with_market_token("ATOM")
+        .build();
+
+    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
+
+    let inputs = [
+        1,
+        99,
+        100,
+        999_999,
+        1_000_000,
+        999_999_999_999,
+        1_000_000_000_000,
+        999_999_999_999_999_999,
+        1_000_000_000_000_000_000,
+        9_999_999_999_999_999_999,
+        10_000_000_000_000_000_000,
+    ];
+
+    for input in inputs {
+        suite.set_high_credit_line(lender).unwrap();
+        suite.deposit(lender, &[coin(input, "ATOM")]).unwrap();
+        suite.assert_withdrawable(lender, input);
+        suite.attempt_withdraw_max(lender).unwrap();
+    }
+}
+
+#[test]
+fn withdraw_whole_deposit_after_being_repaid() {
+    let lender = "lender";
+    let borrower = "borrower";
+    let mut suite = SuiteBuilder::new()
+        .with_funds(lender, &[coin(10_000_000_000_000_000_000, "ATOM")])
+        .with_pool(
+            1,
+            (
+                coin(10_000_000_000_000_000_000, COMMON),
+                coin(10_000_000_000_000_000_000, "ATOM"),
+            ),
+        )
+        .with_market_token("ATOM")
+        .build();
+
+    // Set arbitrary market/common exchange ratio and credit line (not part of this test)
+
+    let inputs = [
+        1,
+        99,
+        100,
+        999_999,
+        1_000_000,
+        999_999_999_999,
+        1_000_000_000_000,
+        999_999_999_999_999_999,
+        1_000_000_000_000_000_000,
+    ];
+
+    for input in inputs {
+        suite.set_high_credit_line(lender).unwrap();
+        suite.set_high_credit_line(borrower).unwrap();
+
+        suite.deposit(lender, &[coin(input, "ATOM")]).unwrap();
+
+        suite.assert_borrowable(borrower, input);
+        suite.attempt_borrow_max(borrower).unwrap();
+
+        suite.repay(borrower, coin(input, "ATOM")).unwrap();
+
+        suite.assert_withdrawable(lender, input);
+        suite.attempt_withdraw_max(lender).unwrap();
+    }
+}
