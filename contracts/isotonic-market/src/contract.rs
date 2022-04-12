@@ -211,10 +211,10 @@ mod cr_utils {
 
     use super::*;
 
-    use cosmwasm_std::Fraction;
+    use cosmwasm_std::{DivideByZeroError, Fraction};
 
-    pub fn divide(top: Uint128, bottom: Decimal) -> Uint128 {
-        top * bottom.denominator() / bottom.numerator()
+    pub fn divide(top: Uint128, bottom: Decimal) -> Result<Uint128, DivideByZeroError> {
+        (top * bottom.denominator()).checked_div(bottom.numerator())
     }
 
     fn available_local_tokens(
@@ -226,7 +226,8 @@ mod cr_utils {
         Ok(divide(
             common_tokens,
             query::price_market_local_per_common(deps)?.rate_sell_per_buy,
-        ))
+        )
+        .map_err(|_| ContractError::ZeroPrice {})?)
     }
 
     pub fn query_available_tokens(
@@ -264,7 +265,8 @@ mod cr_utils {
         account: impl Into<String>,
     ) -> Result<Uint128, ContractError> {
         let available = query_available_tokens(deps, config, account.into())?;
-        let can_transfer = divide(available, config.collateral_ratio);
+        let can_transfer = divide(available, config.collateral_ratio)
+            .map_err(|_| ContractError::ZeroCollateralRatio {})?;
         Ok(can_transfer)
     }
 }
@@ -627,7 +629,16 @@ mod execute {
 
         // calculate repaid value
         let price_rate = query::price_market_local_per_common(deps.as_ref())?.rate_sell_per_buy;
-        let repaid_value = cr_utils::divide(amount, price_rate * liquidation_price);
+
+        if price_rate == Decimal::zero() {
+            return Err(ContractError::ZeroPrice {});
+        }
+
+        if liquidation_price == Decimal::zero() {
+            return Err(ContractError::ZeroLiquidationPrice {});
+        }
+
+        let repaid_value = cr_utils::divide(amount, price_rate * liquidation_price).unwrap();
 
         // transfer claimed amount of ltokens from account source to destination
         let msg = to_binary(&isotonic_token::msg::ExecuteMsg::TransferFrom {
@@ -1028,7 +1039,7 @@ mod tests {
     #[test]
     fn divide_u128_by_decimal_rounding() {
         assert_eq!(
-            cr_utils::divide(60u128.into(), Decimal::percent(60)),
+            cr_utils::divide(60u128.into(), Decimal::percent(60)).unwrap(),
             100u128.into()
         );
     }

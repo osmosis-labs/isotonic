@@ -37,6 +37,15 @@ pub enum ContractError {
     #[error("Sent unsupported token, must deposit '{0}' in the lending pool")]
     InvalidDenom(String),
 
+    #[error("Fatal: market token price is zero")]
+    ZeroPrice {},
+
+    #[error("Fatal: market collateral ratio is zero")]
+    ZeroCollateralRatio {},
+
+    #[error("Liquidation price cannot be zero")]
+    ZeroLiquidationPrice {},
+
     #[error("Cannot borrow amount {amount} for {account}")]
     CannotBorrow { amount: Uint128, account: String },
 
