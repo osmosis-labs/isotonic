@@ -185,6 +185,9 @@ pub fn execute(
         } => {
             let source = deps.api.addr_validate(&source)?;
             let destination = deps.api.addr_validate(&destination)?;
+            if liquidation_price == Decimal::zero() {
+                return Err(ContractError::ZeroLiquidationPrice {});
+            }
             execute::transfer_from(
                 deps,
                 env,
@@ -630,15 +633,8 @@ mod execute {
         // calculate repaid value
         let price_rate = query::price_market_local_per_common(deps.as_ref())?.rate_sell_per_buy;
 
-        if price_rate == Decimal::zero() {
-            return Err(ContractError::ZeroPrice {});
-        }
-
-        if liquidation_price == Decimal::zero() {
-            return Err(ContractError::ZeroLiquidationPrice {});
-        }
-
-        let repaid_value = cr_utils::divide(amount, price_rate * liquidation_price).unwrap();
+        let repaid_value = cr_utils::divide(amount, price_rate * liquidation_price)
+            .map_err(|_| ContractError::ZeroPrice {})?;
 
         // transfer claimed amount of ltokens from account source to destination
         let msg = to_binary(&isotonic_token::msg::ExecuteMsg::TransferFrom {
