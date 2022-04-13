@@ -185,6 +185,9 @@ pub fn execute(
         } => {
             let source = deps.api.addr_validate(&source)?;
             let destination = deps.api.addr_validate(&destination)?;
+            if liquidation_price == Decimal::zero() {
+                return Err(ContractError::ZeroLiquidationPrice {});
+            }
             execute::transfer_from(
                 deps,
                 env,
@@ -211,11 +214,10 @@ mod cr_utils {
 
     use super::*;
 
-    use cosmwasm_std::Fraction;
+    use cosmwasm_std::{DivideByZeroError, Fraction};
 
-    // TODO: Check for rounding error https://github.com/confio/isotonic/issues/40
-    pub fn divide(top: Uint128, bottom: Decimal) -> Uint128 {
-        top * bottom.inv().unwrap_or_else(Decimal::zero)
+    pub fn divide(top: Uint128, bottom: Decimal) -> Result<Uint128, DivideByZeroError> {
+        (top * bottom.denominator()).checked_div(bottom.numerator())
     }
 
     fn available_local_tokens(
@@ -224,10 +226,11 @@ mod cr_utils {
     ) -> Result<Uint128, ContractError> {
         // Price is defined as common/local
         // (see price_market_local_per_common function from this file)
-        Ok(divide(
+        divide(
             common_tokens,
             query::price_market_local_per_common(deps)?.rate_sell_per_buy,
-        ))
+        )
+        .map_err(|_| ContractError::ZeroPrice {})
     }
 
     pub fn query_available_tokens(
@@ -265,7 +268,8 @@ mod cr_utils {
         account: impl Into<String>,
     ) -> Result<Uint128, ContractError> {
         let available = query_available_tokens(deps, config, account.into())?;
-        let can_transfer = divide(available, config.collateral_ratio);
+        let can_transfer = divide(available, config.collateral_ratio)
+            .map_err(|_| ContractError::ZeroCollateralRatio {})?;
         Ok(can_transfer)
     }
 }
@@ -628,7 +632,9 @@ mod execute {
 
         // calculate repaid value
         let price_rate = query::price_market_local_per_common(deps.as_ref())?.rate_sell_per_buy;
-        let repaid_value = cr_utils::divide(amount, price_rate * liquidation_price);
+
+        let repaid_value = cr_utils::divide(amount, price_rate * liquidation_price)
+            .map_err(|_| ContractError::ZeroPrice {})?;
 
         // transfer claimed amount of ltokens from account source to destination
         let msg = to_binary(&isotonic_token::msg::ExecuteMsg::TransferFrom {
@@ -1020,4 +1026,17 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
     })?;
 
     Ok(Response::new())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn divide_u128_by_decimal_rounding() {
+        assert_eq!(
+            cr_utils::divide(60u128.into(), Decimal::percent(60)).unwrap(),
+            100u128.into()
+        );
+    }
 }

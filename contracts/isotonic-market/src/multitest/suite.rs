@@ -594,8 +594,8 @@ impl Suite {
         self.set_credit_line(
             account,
             CreditLineValues {
-                collateral: Uint128::new(10000),
-                credit_line: Uint128::new(10000),
+                collateral: Uint128::new(10_000_000_000_000_000_000),
+                credit_line: Uint128::new(10_000_000_000_000_000_000),
                 debt: Uint128::zero(),
             },
         )
