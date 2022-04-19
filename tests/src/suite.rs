@@ -21,6 +21,8 @@ use isotonic_credit_agency::msg::{
 };
 use isotonic_credit_agency::state::Config;
 
+use crate::MarketBuilder;
+
 pub const COMMON: &str = "COMMON";
 
 fn contract_osmosis_oracle() -> Box<dyn Contract<OsmosisMsg, OsmosisQuery>> {
@@ -77,6 +79,7 @@ pub struct SuiteBuilder {
     liquidation_price: Decimal,
     common_token: String,
     pools: HashMap<u64, (Coin, Coin)>,
+    markets: Vec<MarketBuilder>,
 }
 
 impl SuiteBuilder {
@@ -88,6 +91,7 @@ impl SuiteBuilder {
             liquidation_price: Decimal::percent(92),
             common_token: COMMON.to_owned(),
             pools: HashMap::new(),
+            markets: vec![],
         }
     }
 
@@ -119,6 +123,11 @@ impl SuiteBuilder {
 
     pub fn with_pool(mut self, id: u64, pool: (Coin, Coin)) -> Self {
         self.pools.insert(id, pool);
+        self
+    }
+
+    pub fn with_market(mut self, market: MarketBuilder) -> Self {
+        self.markets.push(market);
         self
     }
 
@@ -188,12 +197,25 @@ impl SuiteBuilder {
             )
             .unwrap();
 
+        for market in self.markets {
+            app.execute_contract(
+                owner.clone(),
+                credit_agency.clone(),
+                &isotonic_credit_agency::msg::ExecuteMsg::CreateMarket(
+                    market.build(oracle_contract.as_str()),
+                ),
+                &[],
+            )
+            .unwrap();
+        }
+
         let funds = self.funds;
 
-        app.init_modules(|router, _, storage| -> AnyResult<()> {
+        app.init_modules(move |router, _, storage| -> AnyResult<()> {
             for (addr, coin) in funds {
                 router.bank.init_balance(storage, &addr, coin)?;
             }
+
             Ok(())
         })
         .unwrap();

@@ -744,6 +744,7 @@ dependencies = [
  "anyhow",
  "cosmwasm-std",
  "cw-multi-test",
+ "derivative",
  "isotonic-credit-agency",
  "isotonic-market",
  "isotonic-osmosis-oracle",
