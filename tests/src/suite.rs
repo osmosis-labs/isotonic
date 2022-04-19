@@ -1,7 +1,7 @@
 use anyhow::Result as AnyResult;
 use std::collections::HashMap;
 
-use cosmwasm_std::{Addr, Coin, ContractInfoResponse, Decimal};
+use cosmwasm_std::{coin, Addr, Coin, ContractInfoResponse, Decimal};
 use cw_multi_test::{AppResponse, Contract, ContractWrapper, Executor};
 use isotonic_market::msg::{
     ExecuteMsg as MarketExecuteMsg, MigrateMsg as MarketMigrateMsg, QueryMsg as MarketQueryMsg,
@@ -290,49 +290,6 @@ impl Suite {
         });
     }
 
-    pub fn create_market(&mut self, caller: &str, cfg: MarketConfig) -> AnyResult<AppResponse> {
-        self.app.execute_contract(
-            Addr::unchecked(caller),
-            self.credit_agency.clone(),
-            &ExecuteMsg::CreateMarket(cfg),
-            &[],
-        )
-    }
-
-    pub fn create_market_quick(
-        &mut self,
-        caller: &str,
-        isotonic_token: &str,
-        market_token: &str,
-        collateral_ratio: impl Into<Option<Decimal>>,
-        interest_rates: impl Into<Option<(Decimal, Decimal)>>,
-        reserve_factor: impl Into<Option<Decimal>>,
-    ) -> AnyResult<AppResponse> {
-        self.create_market(
-            caller,
-            MarketConfig {
-                name: isotonic_token.to_string(),
-                symbol: isotonic_token.to_string(),
-                decimals: 9,
-                market_token: Token::Native(market_token.to_string()),
-                market_cap: None,
-                interest_rate: match interest_rates.into() {
-                    Some((base, slope)) => Interest::Linear { base, slope },
-                    None => Interest::Linear {
-                        base: Decimal::percent(3),
-                        slope: Decimal::percent(20),
-                    },
-                },
-                interest_charge_period: SECONDS_IN_YEAR as u64, // seconds
-                collateral_ratio: collateral_ratio
-                    .into()
-                    .unwrap_or_else(|| Decimal::percent(50)),
-                price_oracle: self.oracle_contract.to_string(),
-                reserve_factor: reserve_factor.into().unwrap_or_else(|| Decimal::percent(0)),
-            },
-        )
-    }
-
     pub fn enter_market(&mut self, market: &str, addr: &str) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             Addr::unchecked(market),
@@ -429,17 +386,26 @@ impl Suite {
     }
 
     /// Deposit tokens on market selected by denom of Coin
-    pub fn deposit_tokens_on_market(
-        &mut self,
-        account: &str,
-        tokens: Coin,
-    ) -> AnyResult<AppResponse> {
+    pub fn deposit(&mut self, account: &str, tokens: Coin) -> AnyResult<AppResponse> {
         let market = self.query_market(tokens.denom.as_str())?;
 
         self.app.execute_contract(
             Addr::unchecked(account),
             market.market,
             &MarketExecuteMsg::Deposit {},
+            &[tokens],
+        )
+    }
+
+    pub fn withdraw(&mut self, account: &str, tokens: Coin) -> AnyResult<AppResponse> {
+        let market = self.query_market(tokens.denom.as_str())?;
+
+        self.app.execute_contract(
+            Addr::unchecked(account),
+            market.market,
+            &MarketExecuteMsg::Withdraw {
+                amount: tokens.amount,
+            },
             &[tokens],
         )
     }
@@ -495,6 +461,36 @@ impl Suite {
             &MarketExecuteMsg::Repay {},
             &[tokens],
         )
+    }
+
+    /// Attempts to withdraw the full "withdrawable" amount (as determined by the withdrawable query),
+    /// then performs a couple checks to make sure nothing more than that could be withdrawn.
+    pub fn attempt_withdraw_max(&mut self, sender: &str, token: &str) -> AnyResult<()> {
+        let withdrawable = self.query_withdrawable(sender, token)?;
+        self.withdraw(sender, withdrawable)?;
+
+        // double check we cannot withdraw anything above this amount
+        self.assert_withdrawable(sender, coin(0, token));
+        assert!(self.withdraw(sender, coin(1, token)).is_err());
+
+        Ok(())
+    }
+
+    pub fn assert_withdrawable(&self, account: impl ToString, coin: Coin) {
+        let withdrawable = self.query_withdrawable(account, &coin.denom).unwrap();
+        assert_eq!(withdrawable.amount, coin.amount.into());
+    }
+
+    pub fn query_withdrawable(&self, account: impl ToString, denom: &str) -> AnyResult<Coin> {
+        let market = self.query_market(denom)?;
+
+        let response: Coin = self.app.wrap().query_wasm_smart(
+            market.market,
+            &isotonic_market::msg::QueryMsg::Withdrawable {
+                account: account.to_string(),
+            },
+        )?;
+        Ok(response)
     }
 
     pub fn list_entered_markets(
@@ -556,6 +552,22 @@ impl Suite {
             .wrap()
             .query_wasm_smart(market.market, &MarketQueryMsg::Configuration {})?;
         Ok(resp)
+    }
+
+    pub fn query_price(&self, buy: &str, sell: &str) -> AnyResult<Decimal> {
+        let price: isotonic_osmosis_oracle::msg::PriceResponse = self
+            .app
+            .wrap()
+            .query_wasm_smart(
+                self.oracle_contract.clone(),
+                &isotonic_osmosis_oracle::msg::QueryMsg::Price {
+                    sell: sell.to_string(),
+                    buy: buy.to_string(),
+                },
+            )
+            .unwrap();
+
+        Ok(price.rate)
     }
 
     pub fn query_contract_code_id(&mut self, contract_denom: &str) -> AnyResult<u64> {

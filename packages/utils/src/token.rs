@@ -39,6 +39,22 @@ impl Token {
         }
     }
 
+    /// Return native token name or `None`
+    pub fn as_native(&self) -> Option<&str> {
+        match self {
+            Token::Native(token) => Some(token),
+            _ => None,
+        }
+    }
+
+    /// Returns cw20 token address or `None`
+    pub fn as_cw20(&self) -> Option<&str> {
+        match self {
+            Token::Cw20(addr) => Some(addr),
+            _ => None,
+        }
+    }
+
     /// Checks is token is native
     pub fn is_native(&self) -> bool {
         matches!(self, Token::Native(_))
