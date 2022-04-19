@@ -21,6 +21,8 @@ pub type DepsMut<'a> = cosmwasm_std::DepsMut<'a, OsmosisQuery>;
 const CONTRACT_NAME: &str = "crates.io:isotonic-credit-agency";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+const SEND_AFTER_SWAP: u64 = 666;
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
@@ -52,7 +54,6 @@ pub fn instantiate(
         .add_attribute("owner", info.sender))
 }
 
-/// Execution entry point
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
@@ -96,14 +97,14 @@ pub fn execute(
 mod execute {
     use super::*;
 
-    use cosmwasm_std::{coin, ensure_eq, Coin, StdError, SubMsg, WasmMsg};
+    use cosmwasm_std::{coin, ensure_eq, Coin, CosmosMsg, StdError, SubMsg, WasmMsg};
     use utils::{
         credit_line::{CreditLineResponse, CreditLineValues},
         price::{coin_times_price_rate, PriceRate},
     };
 
     use crate::{
-        msg::MarketConfig,
+        msg::{MarketConfig, RepayAfterSwap},
         state::{MarketState, ENTERED_MARKETS, MARKETS, REPLY_IDS},
     };
     use isotonic_market::{
@@ -409,19 +410,18 @@ mod execute {
             funds: vec![],
         });
 
-        let msg = to_binary(&MarketExecuteMsg::RepayTo {
-            account: sender.to_string(),
-            amount: amount_to_repay.amount,
-        })?;
-        let repay_to_msg = SubMsg::new(WasmMsg::Execute {
-            contract_addr: debt_market.to_string(),
-            msg,
-            funds: vec![],
+        let repay_after_swap_msg = CosmosMsg::Custom(RepayAfterSwap {
+            recipient: sender.to_string(),
+            amount_to_repay: amount_to_repay.amount,
+            debt_market: debt_market.to_string(),
         });
 
         Ok(Response::new()
             .add_submessage(swap_withdraw_from_msg)
-            .add_submessage(repay_to_msg))
+            .add_submessage(SubMsg::reply_on_success(
+                repay_after_swap_msg,
+                SEND_AFTER_SWAP,
+            )))
     }
 }
 
@@ -594,13 +594,21 @@ mod query {
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
-    reply::handle_market_instantiation_response(deps, env, msg)
+    match msg.id {
+        SEND_AFTER_SWAP => reply::send_after_swap(deps, env, msg),
+        _ => reply::handle_market_instantiation_response(deps, env, msg),
+    }
 }
 
 mod reply {
-    use crate::state::{MarketState, MARKETS, REPLY_IDS};
-
     use super::*;
+
+    use cosmwasm_std::{from_binary, SubMsg, WasmMsg};
+    use cw_utils::parse_reply_execute_data;
+
+    use crate::msg::RepayAfterSwap;
+    use crate::state::{MarketState, MARKETS, REPLY_IDS};
+    use isotonic_market::msg::ExecuteMsg as MarketExecuteMsg;
 
     pub fn handle_market_instantiation_response(
         deps: DepsMut,
@@ -624,6 +632,41 @@ mod reply {
         )?;
 
         Ok(Response::new().add_attribute(format!("market_{}", market_token), addr))
+    }
+
+    pub fn send_after_swap(
+        deps: DepsMut,
+        _env: Env,
+        msg: Reply,
+    ) -> Result<Response, ContractError> {
+        let id = msg.id;
+        let res: RepayAfterSwap = {
+            let res =
+                parse_reply_execute_data(msg).map_err(|err| ContractError::ReplyParseFailure {
+                    id,
+                    err: err.to_string(),
+                })?;
+            if let Some(data) = res.data {
+                from_binary(&data)?
+            } else {
+                return Err(ContractError::ReplyParseFailure {
+                    id,
+                    err: "Reply was empty".to_owned(),
+                });
+            }
+        };
+
+        let msg = to_binary(&MarketExecuteMsg::RepayTo {
+            account: res.recipient.to_string(),
+            amount: res.amount_to_repay,
+        })?;
+        let repay_to_msg = SubMsg::new(WasmMsg::Execute {
+            contract_addr: res.debt_market,
+            msg,
+            funds: vec![],
+        });
+
+        Ok(Response::new().add_submessage(repay_to_msg))
     }
 }
 

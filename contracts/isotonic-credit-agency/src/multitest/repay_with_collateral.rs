@@ -1,6 +1,6 @@
 use super::suite::{SuiteBuilder, COMMON};
 
-use cosmwasm_std::{coin, Uint128, Decimal};
+use cosmwasm_std::{coin, Decimal, Uint128};
 use utils::credit_line::CreditLineValues;
 
 #[test]
@@ -23,10 +23,24 @@ fn on_two_markets() {
         .build();
 
     suite
-        .create_market_quick("gov", "osmo", osmo_denom, None, (Decimal::zero(), Decimal::zero()), None)
+        .create_market_quick(
+            "gov",
+            "osmo",
+            osmo_denom,
+            None,
+            (Decimal::zero(), Decimal::zero()),
+            None,
+        )
         .unwrap();
     suite
-        .create_market_quick("gov", "ethereum", eth_denom, None, (Decimal::zero(), Decimal::zero()), None)
+        .create_market_quick(
+            "gov",
+            "ethereum",
+            eth_denom,
+            None,
+            (Decimal::zero(), Decimal::zero()),
+            None,
+        )
         .unwrap();
 
     suite
