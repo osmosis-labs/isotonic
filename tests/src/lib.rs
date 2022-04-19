@@ -1,2 +1,3 @@
-#[cfg(test)]
 mod suite;
+
+pub use suite::{Suite, SuiteBuilder};
