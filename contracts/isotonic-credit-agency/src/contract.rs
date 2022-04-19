@@ -384,17 +384,16 @@ mod execute {
             &MarketQueryMsg::PriceMarketLocalPerCommon {},
         )?;
         let debt_per_common_rate = debt_per_common_rate.rate_sell_per_buy;
-        let amount_to_repay = coin(
+        let amount_to_repay_common = coin(
             (amount_to_repay.amount * debt_per_common_rate).u128(),
             cfg.common_token,
         );
 
         let util_collateral: utils::coin::Coin = max_collateral.clone().into();
-
         let simulated_credit_line = tcr
             .credit_line
             .checked_sub(util_collateral * collateral_market_cfg.collateral_ratio)?;
-        let simulated_debt = tcr.debt.checked_sub(amount_to_repay.clone().into())?;
+        let simulated_debt = tcr.debt.checked_sub(amount_to_repay_common.into())?;
         if simulated_debt > simulated_credit_line {
             return Err(ContractError::RepayingLoanUsingCollateralFailed {});
         }

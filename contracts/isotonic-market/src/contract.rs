@@ -29,7 +29,6 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const LTOKEN_INIT_REPLY_ID: u64 = 1;
 const BTOKEN_INIT_REPLY_ID: u64 = 2;
-const PRICE_RESPONSE_AFTER_SWAP_ID: u64 = 3;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -118,7 +117,6 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
         LTOKEN_INIT_REPLY_ID | BTOKEN_INIT_REPLY_ID => {
             reply::token_instantiate_reply(deps, env, msg)
         }
-        PRICE_RESPONSE_AFTER_SWAP_ID => reply::burn_after_swap(deps, env, msg),
         _ => Err(ContractError::UnrecognisedReply(msg.id)),
     }
 }
@@ -126,9 +124,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
 mod reply {
     use super::*;
 
-    use cosmwasm_std::{from_binary, CosmosMsg};
-    use cw_utils::{parse_reply_execute_data, parse_reply_instantiate_data};
-    use osmo_bindings::{EstimatePriceResponse, SwapAmount};
+    use cw_utils::parse_reply_instantiate_data;
 
     pub fn token_instantiate_reply(
         deps: DepsMut,
@@ -159,74 +155,6 @@ mod reply {
             })?
         };
 
-        Ok(response)
-    }
-
-    pub fn burn_after_swap(
-        mut deps: DepsMut,
-        env: Env,
-        msg: Reply,
-    ) -> Result<Response, ContractError> {
-        let id = msg.id;
-        let estimate_price_response: EstimatePriceResponse = {
-            let res =
-                parse_reply_execute_data(msg).map_err(|err| ContractError::ReplyParseFailure {
-                    id,
-                    err: err.to_string(),
-                })?;
-            if let Some(data) = res.data {
-                from_binary(&data)?
-            } else {
-                return Err(ContractError::ReplyParseFailure {
-                    id,
-                    err: "Reply was empty".to_owned(),
-                });
-            }
-        };
-
-        let amount = match estimate_price_response.amount {
-            SwapAmount::Out(amount) => amount,
-            _ => {
-                return Err(ContractError::ReplyParseFailure {
-                    id,
-                    err: "Reply was empty".to_owned(),
-                });
-            }
-        };
-
-        let mut response = Response::new();
-
-        // Create rebase messagess for tokens based on interest and supply
-        let charge_msgs = execute::charge_interest(deps.branch(), env)?;
-        if !charge_msgs.is_empty() {
-            response = response.add_submessages(charge_msgs);
-        }
-
-        let cfg = CONFIG.load(deps.storage)?;
-        let sender = TO_BURN_AND_WITHDRAW.load(deps.storage)?;
-
-        // Burn the L tokens
-        let burn_msg = to_binary(&isotonic_token::msg::ExecuteMsg::BurnFrom {
-            owner: sender.to_string(),
-            amount: isotonic_token::DisplayAmount::raw(amount),
-        })?;
-        let wrapped_msg = SubMsg::new(WasmMsg::Execute {
-            contract_addr: cfg.ltoken_contract.to_string(),
-            msg: burn_msg,
-            funds: vec![],
-        });
-
-        // Send the base assets from contract to lender
-        let send_msg = CosmosMsg::Bank(BankMsg::Send {
-            to_address: sender.to_string(),
-            amount: vec![coin(amount.u128(), cfg.market_token)],
-        });
-
-        response = response
-            .add_attribute("action", "withdraw after swap")
-            .add_attribute("sender", sender)
-            .add_submessage(wrapped_msg)
-            .add_message(send_msg);
         Ok(response)
     }
 }
@@ -281,7 +209,9 @@ pub fn execute(
             account,
             sell_limit,
             buy,
-        } => execute::swap_withdraw_from(deps, info.sender, account, sell_limit, buy),
+        } => {
+            execute::swap_withdraw_from(deps, info.sender, account, sell_limit, buy)
+        },
     }
 }
 
@@ -775,41 +705,71 @@ mod execute {
         )?;
         let swap = Swap::new(
             pool_id_market_common,
-            cfg.market_token,
-            buy.denom.clone(),
+            cfg.market_token.clone(),
+            cfg.common_token.clone(),
         );
-        // TODO: For now it will only swap market_token <-> buy.denom (final)
-        // when route is supported in osmosis-bindings, uncomment this section
-        //     cfg.common_token.clone(),
-        // );
 
-        // let pool_id_common_buy: u64 = deps.querier.query_wasm_smart(
-        //     cfg.price_oracle.clone(),
-        //     &OracleQueryMsg::PoolId {
-        //         denom1: cfg.market_token,
-        //         denom2: buy.denom.clone(),
-        //     },
-        // )?;
-        // let route = vec![Step::new(pool_id_common_buy, buy.denom.clone())];
-        let route = vec![];
+        let pool_id_common_buy: u64 = deps.querier.query_wasm_smart(
+            cfg.price_oracle.clone(),
+            &OracleQueryMsg::PoolId {
+                denom1: cfg.common_token.clone(),
+                denom2: buy.denom.clone(),
+            },
+        )?;
+        let route = vec![osmo_bindings::Step::new(pool_id_common_buy, buy.denom.clone())];
 
         let amount = SwapAmountWithLimit::ExactOut {
             output: buy.amount,
             max_input: sell_limit,
         };
 
-        let swap_msg = CosmosMsg::Custom(dbg!(OsmosisMsg::Swap {
+        use osmo_bindings::{SwapAmount, EstimatePriceResponse};
+        use cosmwasm_std::QueryRequest;
+
+        let estimate: EstimatePriceResponse =
+          deps.querier
+              .query(&QueryRequest::Custom(OsmosisQuery::EstimateSwap {
+                  sender: account.clone(),
+                  first: swap.clone(),
+                  route: route.clone(),
+                  amount: SwapAmount::Out(buy.amount),
+              }))?;
+
+        let estimate = match estimate.amount {
+            SwapAmount::In(a) => a,
+            SwapAmount::Out(a) => a,
+        };
+
+        // Burn the L tokens
+        let burn_msg = to_binary(&isotonic_token::msg::ExecuteMsg::BurnFrom {
+            owner: account.clone(),
+            amount: isotonic_token::DisplayAmount::raw(estimate),
+        })?;
+        let burn_msg = SubMsg::new(WasmMsg::Execute {
+            contract_addr: cfg.ltoken_contract.to_string(),
+            msg: burn_msg,
+            funds: vec![],
+        });
+
+        // Send the base assets from contract to lender
+        let send_msg = CosmosMsg::Bank(BankMsg::Send {
+            to_address: sender.to_string(),
+            amount: vec![coin(estimate.u128(), cfg.market_token)],
+        });
+
+        let swap_msg = CosmosMsg::Custom(OsmosisMsg::Swap {
             first: swap,
             route,
             amount,
-        }));
+        });
 
         TO_BURN_AND_WITHDRAW.save(deps.storage, &account)?;
 
-        Ok(Response::new().add_submessage(SubMsg::reply_on_success(
-            swap_msg,
-            PRICE_RESPONSE_AFTER_SWAP_ID,
-        )))
+        Ok(Response::new()
+            .add_submessage(burn_msg)
+            .add_message(swap_msg)
+            .add_message(send_msg)
+        )
     }
 }
 
