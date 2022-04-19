@@ -1,4 +1,5 @@
 use anyhow::Result as AnyResult;
+use derivative::Derivative;
 use std::collections::HashMap;
 
 use cosmwasm_std::{coin, Addr, Coin, ContractInfoResponse, Decimal};
@@ -21,8 +22,6 @@ use isotonic_credit_agency::msg::{
 use isotonic_credit_agency::state::Config;
 
 use crate::MarketBuilder;
-
-pub const COMMON: &str = "COMMON";
 
 fn contract_osmosis_oracle() -> Box<dyn Contract<OsmosisMsg, OsmosisQuery>> {
     let contract = ContractWrapper::new(
@@ -69,31 +68,24 @@ fn contract_token() -> Box<dyn Contract<OsmosisMsg, OsmosisQuery>> {
 }
 
 /// Builder for test suite
-#[derive(Debug)]
+#[derive(Derivative, Debug)]
+#[derivative(Default = "new")]
 pub struct SuiteBuilder {
+    #[derivative(Default(value = "\"owner\".to_string()"))]
     gov_contract: String,
+    #[derivative(Default(value = "\"reward\".to_string()"))]
     reward_token: String,
     /// Initial funds to provide for testing
     funds: Vec<(Addr, Vec<Coin>)>,
+    #[derivative(Default(value = "Decimal::percent(92)"))]
     liquidation_price: Decimal,
+    #[derivative(Default(value = "\"COMMON\".to_string()"))]
     common_token: String,
     pools: HashMap<u64, (Coin, Coin)>,
     markets: Vec<MarketBuilder>,
 }
 
 impl SuiteBuilder {
-    pub fn new() -> Self {
-        Self {
-            gov_contract: "owner".to_string(),
-            reward_token: "reward".to_string(),
-            funds: vec![],
-            liquidation_price: Decimal::percent(92),
-            common_token: COMMON.to_owned(),
-            pools: HashMap::new(),
-            markets: vec![],
-        }
-    }
-
     pub fn with_gov(mut self, gov: impl ToString) -> Self {
         self.gov_contract = gov.to_string();
         self
@@ -477,7 +469,7 @@ impl Suite {
 
     pub fn assert_withdrawable(&self, account: impl ToString, coin: Coin) {
         let withdrawable = self.query_withdrawable(account, &coin.denom).unwrap();
-        assert_eq!(withdrawable.amount, coin.amount.into());
+        assert_eq!(withdrawable.amount, coin.amount);
     }
 
     pub fn query_withdrawable(&self, account: impl ToString, denom: &str) -> AnyResult<Coin> {

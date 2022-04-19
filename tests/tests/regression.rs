@@ -6,15 +6,9 @@ use tests::{MarketBuilder, SuiteBuilder};
 #[test]
 fn withdraw_all_with_matching_collateral() {
     let mut suite = SuiteBuilder::new()
-        .with_funds("alice", &[coin(10_000_000_000_000_000_000, "ATOM")])
+        .with_funds("alice", &[coin(1_000_000, "ATOM")])
         .with_common_token("OSMO")
-        .with_pool(
-            1,
-            (
-                coin(10_000_000_000_000_000_000, "OSMO"),
-                coin(10_000_000_000_000_000_000, "ATOM"),
-            ),
-        )
+        .with_pool(1, (coin(1_000_000, "OSMO"), coin(1_000_000, "ATOM")))
         .with_market(MarketBuilder::new("ATOM").with_collateral_ratio(Decimal::percent(60)))
         .build();
 
