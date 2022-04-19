@@ -5,7 +5,6 @@ use tests::{MarketBuilder, SuiteBuilder};
 // regression: #40
 #[test]
 fn withdraw_all_with_matching_collateral() {
-    let charge_period = 100;
     let mut suite = SuiteBuilder::new()
         .with_funds("alice", &[coin(10_000_000_000_000_000_000, "ATOM")])
         .with_common_token("OSMO")
@@ -16,11 +15,7 @@ fn withdraw_all_with_matching_collateral() {
                 coin(10_000_000_000_000_000_000, "ATOM"),
             ),
         )
-        .with_market(
-            MarketBuilder::new("ATOM")
-                .with_charge_period(charge_period)
-                .with_collateral_ratio(Decimal::percent(60)),
-        )
+        .with_market(MarketBuilder::new("ATOM").with_collateral_ratio(Decimal::percent(60)))
         .build();
 
     suite.deposit("alice", coin(100, "ATOM")).unwrap();
