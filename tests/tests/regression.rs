@@ -1,8 +1,5 @@
-use cosmwasm_std::{coin, Decimal, Uint128};
-use utils::credit_line::CreditLineValues;
+use cosmwasm_std::{coin, Decimal};
 
-use isotonic_market::ContractError;
-use isotonic_token::error::ContractError as TokenContractError;
 use tests::{MarketBuilder, SuiteBuilder};
 
 // regression: #40

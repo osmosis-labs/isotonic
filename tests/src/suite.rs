@@ -7,17 +7,16 @@ use isotonic_market::msg::{
     ExecuteMsg as MarketExecuteMsg, MigrateMsg as MarketMigrateMsg, QueryMsg as MarketQueryMsg,
     TokensBalanceResponse,
 };
-use isotonic_market::state::SECONDS_IN_YEAR;
 use isotonic_osmosis_oracle::msg::{
     ExecuteMsg as OracleExecuteMsg, InstantiateMsg as OracleInstantiateMsg,
 };
 use osmo_bindings::{OsmosisMsg, OsmosisQuery};
 use osmo_bindings_test::{OsmosisApp, Pool};
-use utils::{credit_line::CreditLineResponse, interest::Interest, token::Token};
+use utils::{credit_line::CreditLineResponse, token::Token};
 
 use isotonic_credit_agency::msg::{
     ExecuteMsg, InstantiateMsg, IsOnMarketResponse, ListEnteredMarketsResponse,
-    ListMarketsResponse, MarketConfig, MarketResponse, QueryMsg, SudoMsg,
+    ListMarketsResponse, MarketResponse, QueryMsg, SudoMsg,
 };
 use isotonic_credit_agency::state::Config;
 
