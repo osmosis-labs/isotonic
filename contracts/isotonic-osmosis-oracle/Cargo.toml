@@ -18,8 +18,7 @@ cosmwasm-std = "1.0.0-beta6"
 cosmwasm-storage = "1.0.0-beta6"
 cw-storage-plus = "0.13.0"
 cw2 = "0.13.0"
-osmo-bindings = { git = "https://github.com/confio/osmosis-bindings", rev = "9d67da34195e8f4153e6bb36c2f623317f5f7f3a" }
-# osmo-bindings = "0.5.0"
+osmo-bindings = "0.5.1"
 schemars = "0.8.3"
 serde = { version = "1.0.127", default-features = false, features = ["derive"] }
 thiserror = "1.0.26"
@@ -30,5 +29,4 @@ anyhow = "1"
 cosmwasm-schema = "1.0.0-beta6"
 cw-multi-test = "0.13.0"
 derivative = "2"
-osmo-bindings-test = { git = "https://github.com/confio/osmosis-bindings", rev = "9d67da34195e8f4153e6bb36c2f623317f5f7f3a" }
-# osmo-bindings-test = "0.5.0"
+osmo-bindings-test = "0.5.1"
