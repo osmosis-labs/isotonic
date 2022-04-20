@@ -150,10 +150,3 @@ pub struct ListEnteredMarketsResponse {
 pub struct IsOnMarketResponse {
     pub participating: bool,
 }
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
-pub struct RepayAfterSwap {
-    pub recipient: String,
-    pub amount_to_repay: Uint128,
-    pub debt_market: String,
-}

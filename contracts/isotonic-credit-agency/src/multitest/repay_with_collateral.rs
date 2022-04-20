@@ -60,18 +60,18 @@ fn on_two_markets() {
         .unwrap();
 
     let total_credit_line = suite.query_total_credit_line(user).unwrap();
-    // assert_eq!(
-    //     total_credit_line,
-    //     CreditLineValues {
-    //         // 1000 OSMO deposited * 2.0 oracle's price
-    //         collateral: Uint128::new(2000),
-    //         // 1000 OSMO collateral * 2.0 oracle's price * 0.5 default collateral_ratio
-    //         credit_line: Uint128::new(1000),
-    //         // 1000 ETH borrowed * 0.5 oracle's price
-    //         debt: Uint128::new(500)
-    //     }
-    //     .make_response(suite.common_token().clone())
-    // );
+    assert_eq!(
+        total_credit_line,
+        CreditLineValues {
+            // 1000 OSMO deposited * 2.0 oracle's price
+            collateral: Uint128::new(2000),
+            // 1000 OSMO collateral * 2.0 oracle's price * 0.5 default collateral_ratio
+            credit_line: Uint128::new(1000),
+            // 1000 ETH borrowed * 0.5 oracle's price
+            debt: Uint128::new(500)
+        }
+        .make_response(suite.common_token().clone())
+    );
 
     suite
         .repay_with_collateral(user, coin(1000, osmo_denom), coin(1000, eth_denom))
@@ -80,12 +80,9 @@ fn on_two_markets() {
     assert_eq!(
         total_credit_line,
         CreditLineValues {
-            // 3_000 deposited * 1.5 oracle's price
-            collateral: Uint128::new(4500),
-            // 4500 collateral * 1.5 oracle's price * 0.5 default collateral_ratio
-            credit_line: Uint128::new(2250),
-            // 1000 borrowed * 0.5 oracle's price
-            debt: Uint128::new(500)
+            collateral: Uint128::new(1256),
+            credit_line: Uint128::new(628),
+            debt: Uint128::zero()
         }
         .make_response(suite.common_token().clone())
     );

@@ -209,9 +209,7 @@ pub fn execute(
             account,
             sell_limit,
             buy,
-        } => {
-            execute::swap_withdraw_from(deps, info.sender, account, sell_limit, buy)
-        },
+        } => execute::swap_withdraw_from(deps, info.sender, account, sell_limit, buy),
     }
 }
 
@@ -716,24 +714,27 @@ mod execute {
                 denom2: buy.denom.clone(),
             },
         )?;
-        let route = vec![osmo_bindings::Step::new(pool_id_common_buy, buy.denom.clone())];
+        let route = vec![osmo_bindings::Step::new(
+            pool_id_common_buy,
+            buy.denom.clone(),
+        )];
 
         let amount = SwapAmountWithLimit::ExactOut {
             output: buy.amount,
             max_input: sell_limit,
         };
 
-        use osmo_bindings::{SwapAmount, EstimatePriceResponse};
         use cosmwasm_std::QueryRequest;
+        use osmo_bindings::{EstimatePriceResponse, SwapAmount};
 
         let estimate: EstimatePriceResponse =
-          deps.querier
-              .query(&QueryRequest::Custom(OsmosisQuery::EstimateSwap {
-                  sender: account.clone(),
-                  first: swap.clone(),
-                  route: route.clone(),
-                  amount: SwapAmount::Out(buy.amount),
-              }))?;
+            deps.querier
+                .query(&QueryRequest::Custom(OsmosisQuery::EstimateSwap {
+                    sender: account.clone(),
+                    first: swap.clone(),
+                    route: route.clone(),
+                    amount: SwapAmount::Out(buy.amount),
+                }))?;
 
         let estimate = match estimate.amount {
             SwapAmount::In(a) => a,
@@ -754,7 +755,7 @@ mod execute {
         // Send the base assets from contract to lender
         let send_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: sender.to_string(),
-            amount: vec![coin(estimate.u128(), cfg.market_token)],
+            amount: vec![buy],
         });
 
         let swap_msg = CosmosMsg::Custom(OsmosisMsg::Swap {
@@ -768,8 +769,7 @@ mod execute {
         Ok(Response::new()
             .add_submessage(burn_msg)
             .add_message(swap_msg)
-            .add_message(send_msg)
-        )
+            .add_message(send_msg))
     }
 }
 
