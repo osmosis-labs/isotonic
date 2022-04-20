@@ -14,7 +14,7 @@ use crate::msg::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, QueryTotalCreditLine, SudoMsg,
     TransferableAmountResponse,
 };
-use crate::state::{Config, CONFIG, RESERVE, TO_BURN_AND_WITHDRAW};
+use crate::state::{Config, CONFIG, RESERVE};
 
 use utils::token::Token;
 
@@ -280,9 +280,9 @@ mod cr_utils {
 }
 
 mod execute {
-    use cosmwasm_std::CosmosMsg;
+    use cosmwasm_std::{CosmosMsg, QueryRequest};
     use isotonic_osmosis_oracle::msg::QueryMsg as OracleQueryMsg;
-    use osmo_bindings::{Swap, SwapAmountWithLimit};
+    use osmo_bindings::{Swap, SwapAmountWithLimit, EstimatePriceResponse, SwapAmount};
 
     use crate::{
         interest::{calculate_interest, epochs_passed, InterestUpdate},
@@ -724,9 +724,6 @@ mod execute {
             max_input: sell_limit,
         };
 
-        use cosmwasm_std::QueryRequest;
-        use osmo_bindings::{EstimatePriceResponse, SwapAmount};
-
         let estimate: EstimatePriceResponse =
             deps.querier
                 .query(&QueryRequest::Custom(OsmosisQuery::EstimateSwap {
@@ -735,7 +732,6 @@ mod execute {
                     route: route.clone(),
                     amount: SwapAmount::Out(buy.amount),
                 }))?;
-
         let estimate = match estimate.amount {
             SwapAmount::In(a) => a,
             SwapAmount::Out(a) => a,
@@ -743,7 +739,7 @@ mod execute {
 
         // Burn the L tokens
         let burn_msg = to_binary(&isotonic_token::msg::ExecuteMsg::BurnFrom {
-            owner: account.clone(),
+            owner: account,
             amount: isotonic_token::DisplayAmount::raw(estimate),
         })?;
         let burn_msg = SubMsg::new(WasmMsg::Execute {
@@ -757,14 +753,11 @@ mod execute {
             to_address: sender.to_string(),
             amount: vec![buy],
         });
-
         let swap_msg = CosmosMsg::Custom(OsmosisMsg::Swap {
             first: swap,
             route,
             amount,
         });
-
-        TO_BURN_AND_WITHDRAW.save(deps.storage, &account)?;
 
         Ok(Response::new()
             .add_submessage(burn_msg)

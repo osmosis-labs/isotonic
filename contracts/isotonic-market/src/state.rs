@@ -36,7 +36,6 @@ pub struct Config {
 
 pub const CONFIG: Item<Config> = Item::new("config");
 pub const RESERVE: Item<Uint128> = Item::new("reserve");
-pub const TO_BURN_AND_WITHDRAW: Item<String> = Item::new("sender");
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct TokensInfo {
