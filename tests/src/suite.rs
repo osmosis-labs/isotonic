@@ -2,7 +2,7 @@ use anyhow::Result as AnyResult;
 use derivative::Derivative;
 use std::collections::HashMap;
 
-use cosmwasm_std::{coin, Addr, BankMsg, Coin, ContractInfoResponse, Decimal};
+use cosmwasm_std::{coin, Addr, BankMsg, Coin, ContractInfoResponse, Decimal, Uint128};
 use cw_multi_test::{AppResponse, Contract, ContractWrapper, Executor};
 use isotonic_market::msg::{
     ExecuteMsg as MarketExecuteMsg, MigrateMsg as MarketMigrateMsg, QueryMsg as MarketQueryMsg,
@@ -11,7 +11,7 @@ use isotonic_market::msg::{
 use isotonic_osmosis_oracle::msg::{
     ExecuteMsg as OracleExecuteMsg, InstantiateMsg as OracleInstantiateMsg,
 };
-use osmo_bindings::{OsmosisMsg, OsmosisQuery};
+use osmo_bindings::{OsmosisMsg, OsmosisQuery, Step, Swap};
 use osmo_bindings_test::{OsmosisApp, Pool};
 use utils::{credit_line::CreditLineResponse, token::Token};
 
@@ -213,7 +213,6 @@ impl SuiteBuilder {
 
         Suite {
             app,
-            owner,
             credit_agency,
             common_token: Token::Native(common_token),
             oracle_contract,
@@ -226,8 +225,6 @@ impl SuiteBuilder {
 pub struct Suite {
     /// The multitest app
     app: OsmosisApp,
-    /// Contract's owner
-    owner: Addr,
     /// Address of the Credit Agency contract
     credit_agency: Addr,
     /// Common token
@@ -258,40 +255,6 @@ impl Suite {
                 Ok(())
             })?;
 
-        Ok(())
-    }
-
-    pub fn set_pool(&mut self, pools: &[(u64, (Coin, Coin))]) -> AnyResult<()> {
-        let owner = self.owner.clone();
-        let oracle = self.oracle_contract.clone();
-
-        self.app
-            .init_modules(|router, _, storage| -> AnyResult<()> {
-                for (pool_id, (coin1, coin2)) in pools {
-                    router.custom.set_pool(
-                        storage,
-                        *pool_id,
-                        &Pool::new(coin1.clone(), coin2.clone()),
-                    )?;
-                }
-
-                Ok(())
-            })
-            .unwrap();
-        for (pool_id, (coin1, coin2)) in pools {
-            self.app
-                .execute_contract(
-                    owner.clone(),
-                    oracle.clone(),
-                    &OracleExecuteMsg::RegisterPool {
-                        pool_id: *pool_id,
-                        denom1: coin1.denom.clone(),
-                        denom2: coin2.denom.clone(),
-                    },
-                    &[],
-                )
-                .unwrap();
-        }
         Ok(())
     }
 
@@ -395,6 +358,54 @@ impl Suite {
             },
         )?;
         Ok(resp)
+    }
+
+    pub fn swap_exact_in(&mut self, sender: &str, sell: Coin, buy: &str) -> AnyResult<AppResponse> {
+        let common_token = self.common_token.clone().native().unwrap();
+
+        if sell.denom == common_token || buy == common_token {
+            // TODO: handle cases when swapping with/for common token
+            unimplemented!();
+        }
+
+        let pool1 = *self
+            .starting_pools
+            .iter()
+            .find(|(_, (coin1, coin2))| {
+                (coin1.denom == common_token && coin2.denom == sell.denom)
+                    || (coin2.denom == common_token && coin1.denom == sell.denom)
+            })
+            .unwrap()
+            .0;
+        let pool2 = *self
+            .starting_pools
+            .iter()
+            .find(|(_, (coin1, coin2))| {
+                (coin1.denom == common_token && coin2.denom == buy)
+                    || (coin2.denom == common_token && coin1.denom == buy)
+            })
+            .unwrap()
+            .0;
+
+        self.app.execute(
+            Addr::unchecked(sender),
+            OsmosisMsg::Swap {
+                first: Swap {
+                    pool_id: pool1,
+                    denom_in: sell.denom,
+                    denom_out: common_token,
+                },
+                route: vec![Step {
+                    pool_id: pool2,
+                    denom_out: buy.to_string(),
+                }],
+                amount: osmo_bindings::SwapAmountWithLimit::ExactIn {
+                    input: sell.amount,
+                    min_output: Uint128::zero(),
+                },
+            }
+            .into(),
+        )
     }
 
     /// Deposit tokens on market selected by denom of Coin
