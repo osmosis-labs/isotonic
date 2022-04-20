@@ -2,7 +2,7 @@ use anyhow::Result as AnyResult;
 use derivative::Derivative;
 use std::collections::HashMap;
 
-use cosmwasm_std::{coin, Addr, Coin, ContractInfoResponse, Decimal};
+use cosmwasm_std::{coin, Addr, BankMsg, Coin, ContractInfoResponse, Decimal};
 use cw_multi_test::{AppResponse, Contract, ContractWrapper, Executor};
 use isotonic_market::msg::{
     ExecuteMsg as MarketExecuteMsg, MigrateMsg as MarketMigrateMsg, QueryMsg as MarketQueryMsg,
@@ -153,7 +153,7 @@ impl SuiteBuilder {
             Ok(())
         })
         .unwrap();
-        for (pool_id, (coin1, coin2)) in self.pools {
+        for (pool_id, (coin1, coin2)) in self.pools.clone() {
             app.execute_contract(
                 owner.clone(),
                 oracle_contract.clone(),
@@ -217,6 +217,7 @@ impl SuiteBuilder {
             credit_agency,
             common_token: Token::Native(common_token),
             oracle_contract,
+            starting_pools: self.pools,
         }
     }
 }
@@ -233,11 +234,31 @@ pub struct Suite {
     common_token: Token,
     /// Address of isotonic price oracle
     pub oracle_contract: Addr,
+    /// The pool values as defined by the builder, useful for resetting
+    starting_pools: HashMap<u64, (Coin, Coin)>,
 }
 
 impl Suite {
     pub fn app(&mut self) -> &mut OsmosisApp {
         &mut self.app
+    }
+
+    /// Reset the pools to their initial values. Useful if we're using the
+    /// pools, but want to maintain the same conversion ratios in tests for simplicity
+    /// and predictable credit line values.
+    pub fn reset_pools(&mut self) -> AnyResult<()> {
+        self.app
+            .init_modules(|router, _, storage| -> AnyResult<()> {
+                for (pool_id, (coin1, coin2)) in self.starting_pools.clone() {
+                    router
+                        .custom
+                        .set_pool(storage, pool_id, &Pool::new(coin1, coin2))?;
+                }
+
+                Ok(())
+            })?;
+
+        Ok(())
     }
 
     pub fn set_pool(&mut self, pools: &[(u64, (Coin, Coin))]) -> AnyResult<()> {
@@ -402,11 +423,7 @@ impl Suite {
     }
 
     /// Borrow tokens from market selected by denom and amount of Coin
-    pub fn borrow_tokens_from_market(
-        &mut self,
-        account: &str,
-        tokens: Coin,
-    ) -> AnyResult<AppResponse> {
+    pub fn borrow(&mut self, account: &str, tokens: Coin) -> AnyResult<AppResponse> {
         let market = self.query_market(tokens.denom.as_str())?;
 
         self.app.execute_contract(
@@ -416,26 +433,6 @@ impl Suite {
                 amount: tokens.amount,
             },
             &[],
-        )
-    }
-
-    pub fn liquidate(
-        &mut self,
-        sender: &str,
-        account: &str,
-        tokens: &[Coin],
-        collateral_denom: Token,
-    ) -> AnyResult<AppResponse> {
-        let ca = self.credit_agency.clone();
-
-        self.app.execute_contract(
-            Addr::unchecked(sender),
-            ca,
-            &ExecuteMsg::Liquidate {
-                account: account.to_owned(),
-                collateral_denom,
-            },
-            tokens,
         )
     }
 
@@ -464,6 +461,33 @@ impl Suite {
         self.assert_withdrawable(sender, coin(0, token));
         assert!(self.withdraw(sender, coin(1, token)).is_err());
 
+        Ok(())
+    }
+
+    pub fn repay_with_collateral(
+        &mut self,
+        _sender: &str,
+        _collateral: Coin,
+        _amount_to_repay: Coin,
+    ) -> AnyResult<()> {
+        todo!()
+    }
+
+    pub fn liquidate(
+        &mut self,
+        _sender: &str,
+        _account: &str,
+        _collateral: &str,
+        _amount_to_repay: Coin,
+    ) -> AnyResult<()> {
+        todo!()
+    }
+
+    pub fn burn(&mut self, sender: &str, coin: Coin) -> AnyResult<()> {
+        self.app.execute(
+            Addr::unchecked(sender),
+            BankMsg::Burn { amount: vec![coin] }.into(),
+        )?;
         Ok(())
     }
 
@@ -516,6 +540,11 @@ impl Suite {
         )?;
 
         Ok(resp.participating)
+    }
+
+    pub fn query_balance(&self, owner: &str, token: &str) -> AnyResult<u128> {
+        let amount = self.app.wrap().query_balance(owner, token)?.amount;
+        Ok(amount.into())
     }
 
     /// Queries l/btokens balance on market pointed by denom for given account
