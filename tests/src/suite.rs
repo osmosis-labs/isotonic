@@ -447,11 +447,7 @@ impl Suite {
         )
     }
 
-    pub fn repay_tokens_on_market(
-        &mut self,
-        account: &str,
-        tokens: Coin,
-    ) -> AnyResult<AppResponse> {
+    pub fn repay(&mut self, account: &str, tokens: Coin) -> AnyResult<AppResponse> {
         let market = self.query_market(tokens.denom.as_str())?;
 
         self.app.execute_contract(
@@ -471,6 +467,17 @@ impl Suite {
         // double check we cannot withdraw anything above this amount
         self.assert_withdrawable(sender, coin(0, token));
         assert!(self.withdraw(sender, coin(1, token)).is_err());
+
+        Ok(())
+    }
+
+    pub fn attempt_borrow_max(&mut self, sender: &str, token: &str) -> AnyResult<()> {
+        let borrowable = self.query_borrowable(sender, token)?;
+        self.borrow(sender, borrowable)?;
+
+        // double check we cannot withdraw anything above this amount
+        self.assert_borrowable(sender, coin(0, token));
+        assert!(self.borrow(sender, coin(1, token)).is_err());
 
         Ok(())
     }
@@ -507,12 +514,29 @@ impl Suite {
         assert_eq!(withdrawable.amount, coin.amount);
     }
 
+    pub fn assert_borrowable(&self, account: impl ToString, coin: Coin) {
+        let borrowable = self.query_borrowable(account, &coin.denom).unwrap();
+        assert_eq!(borrowable.amount, coin.amount);
+    }
+
     pub fn query_withdrawable(&self, account: impl ToString, denom: &str) -> AnyResult<Coin> {
         let market = self.query_market(denom)?;
 
         let response: Coin = self.app.wrap().query_wasm_smart(
             market.market,
             &isotonic_market::msg::QueryMsg::Withdrawable {
+                account: account.to_string(),
+            },
+        )?;
+        Ok(response)
+    }
+
+    pub fn query_borrowable(&self, account: impl ToString, denom: &str) -> AnyResult<Coin> {
+        let market = self.query_market(denom)?;
+
+        let response: Coin = self.app.wrap().query_wasm_smart(
+            market.market,
+            &isotonic_market::msg::QueryMsg::Borrowable {
                 account: account.to_string(),
             },
         )?;
