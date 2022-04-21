@@ -282,7 +282,7 @@ mod cr_utils {
 mod execute {
     use cosmwasm_std::{CosmosMsg, QueryRequest};
     use isotonic_osmosis_oracle::msg::QueryMsg as OracleQueryMsg;
-    use osmo_bindings::{Swap, SwapAmountWithLimit, EstimatePriceResponse, SwapAmount};
+    use osmo_bindings::{EstimatePriceResponse, Swap, SwapAmount, SwapAmountWithLimit};
 
     use crate::{
         interest::{calculate_interest, epochs_passed, InterestUpdate},
