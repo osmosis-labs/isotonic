@@ -429,7 +429,7 @@ impl Suite {
             &MarketExecuteMsg::Withdraw {
                 amount: tokens.amount,
             },
-            &[tokens],
+            &[],
         )
     }
 

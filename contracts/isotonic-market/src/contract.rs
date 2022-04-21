@@ -272,9 +272,24 @@ mod cr_utils {
         config: &Config,
         account: impl Into<String>,
     ) -> Result<Uint128, ContractError> {
-        let available = query_available_tokens(deps, config, account.into())?;
-        let can_transfer = divide(available, config.collateral_ratio)
+        let account = account.into();
+        let credit: CreditLineResponse = deps.querier.query_wasm_smart(
+            &config.credit_agency,
+            &QueryTotalCreditLine::TotalCreditLine {
+                account: account.clone(),
+            },
+        )?;
+        let credit = credit.validate(&Token::Native(config.common_token.clone()))?;
+
+        let available = query_available_tokens(deps, config, account.clone())?;
+        let mut can_transfer = divide(available, config.collateral_ratio)
             .map_err(|_| ContractError::ZeroCollateralRatio {})?;
+        if credit.debt.u128() == 0 {
+            can_transfer = std::cmp::max(
+                can_transfer,
+                query::ltoken_balance(deps, config, &account)?.amount,
+            );
+        }
         Ok(can_transfer)
     }
 }
@@ -830,7 +845,7 @@ mod query {
         ))
     }
 
-    fn ltoken_balance(
+    pub fn ltoken_balance(
         deps: Deps,
         config: &Config,
         account: impl ToString,

@@ -1,17 +1,16 @@
-use cosmwasm_std::coin;
+use cosmwasm_std::{coin, Decimal};
 
 use tests::{MarketBuilder, SuiteBuilder};
 
 /// This can expose rounding issues.
 /// https://github.com/confio/isotonic/issues/40
 #[test]
-#[ignore]
 fn withdraw_whole_deposit() {
     let lender = "lender";
     let charge_period = 100;
     let mut suite = SuiteBuilder::new()
         .with_common_token("OSMO")
-        .with_funds(lender, &[coin(10 ^ 19, "ATOM")])
+        .with_funds(lender, &[coin(u128::MAX, "ATOM")])
         .with_market(MarketBuilder::new("ATOM").with_charge_period(charge_period))
         .with_pool(1, (coin(10 ^ 19, "OSMO"), coin(10 ^ 19, "ATOM")))
         .build();
@@ -45,29 +44,23 @@ fn withdraw_whole_deposit() {
 /// This can expose rounding issues.
 /// https://github.com/confio/isotonic/issues/40
 #[test]
-#[ignore]
 fn withdraw_whole_deposit_after_being_repaid() {
     let lender = "lender";
     let borrower = "borrower";
     let mut suite = SuiteBuilder::new()
         .with_common_token("OSMO")
-        .with_funds(lender, &[coin(10_000_000_000_000_000_000, "ATOM")])
-        .with_pool(
-            1,
-            (
-                coin(10_000_000_000_000_000_000, "OSMO"),
-                coin(10_000_000_000_000_000_000, "ATOM"),
-            ),
-        )
-        .with_pool(
-            2,
-            (
-                coin(10_000_000_000_000_000_000, "OSMO"),
-                coin(10_000_000_000_000_000_000, "ETH"),
-            ),
-        )
+        .with_liquidation_price(Decimal::one())
+        .with_funds(lender, &[coin(u128::MAX, "ATOM")])
+        .with_funds(borrower, &[coin(u128::MAX, "ETH")])
+        .with_pool(1, (coin(1, "OSMO"), coin(1, "ATOM")))
+        .with_pool(2, (coin(1, "OSMO"), coin(1, "ETH")))
         .with_market(MarketBuilder::new("ATOM"))
+        .with_market(MarketBuilder::new("ETH").with_collateral_ratio(Decimal::percent(99)))
         .build();
+
+    suite
+        .deposit(borrower, coin(100000000000000000000, "ETH"))
+        .unwrap();
 
     let inputs = [
         1,
@@ -91,5 +84,7 @@ fn withdraw_whole_deposit_after_being_repaid() {
 
         suite.assert_withdrawable(lender, coin(input, "ATOM"));
         suite.attempt_withdraw_max(lender, "ATOM").unwrap();
+
+        suite.assert_borrowable(borrower, coin(0, "ATOM"));
     }
 }
