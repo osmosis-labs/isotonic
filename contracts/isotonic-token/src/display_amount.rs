@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use cosmwasm_std::{Decimal, Fraction, Uint128, Uint256};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
