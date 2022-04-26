@@ -1,7 +1,7 @@
 use super::suite::{SuiteBuilder, COMMON};
 
 use cosmwasm_std::{coin, Decimal, Uint128};
-use utils::credit_line::CreditLineValues;
+use utils::{coin::coin_native, credit_line::CreditLineValues};
 
 #[test]
 fn on_two_markets() {
@@ -75,8 +75,8 @@ fn on_two_markets() {
     suite
         .repay_with_collateral(
             user,
-            coin(1_000_000, osmo_denom),
-            coin(1_000_000, eth_denom),
+            coin_native(1_000_000, osmo_denom),
+            coin_native(1_000_000, eth_denom),
         )
         .unwrap();
     let total_credit_line = suite.query_total_credit_line(user).unwrap();

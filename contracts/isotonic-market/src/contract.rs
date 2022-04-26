@@ -687,7 +687,7 @@ mod execute {
         sender: Addr,
         account: String,
         sell_limit: Uint128,
-        buy: Coin,
+        buy: utils::coin::Coin,
     ) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
         if cfg.credit_agency != sender {
@@ -711,12 +711,12 @@ mod execute {
             cfg.price_oracle.clone(),
             &OracleQueryMsg::PoolId {
                 denom1: cfg.common_token.clone(),
-                denom2: buy.denom.clone(),
+                denom2: buy.denom.to_string(),
             },
         )?;
         let route = vec![osmo_bindings::Step::new(
             pool_id_common_buy,
-            buy.denom.clone(),
+            buy.denom.to_string(),
         )];
 
         let amount = SwapAmountWithLimit::ExactOut {
@@ -752,7 +752,7 @@ mod execute {
 
         let send_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: sender.to_string(),
-            amount: vec![buy],
+            amount: vec![coin(buy.amount.u128(), buy.denom.to_string())],
         });
         let swap_msg = CosmosMsg::Custom(OsmosisMsg::Swap {
             first: swap,

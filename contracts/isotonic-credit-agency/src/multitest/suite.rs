@@ -500,8 +500,8 @@ impl Suite {
     pub fn repay_with_collateral(
         &mut self,
         sender: &str,
-        max_collateral: Coin,
-        amount_to_repay: Coin,
+        max_collateral: utils::coin::Coin,
+        amount_to_repay: utils::coin::Coin,
     ) -> AnyResult<AppResponse> {
         let ca = self.contract.clone();
         self.app.execute_contract(

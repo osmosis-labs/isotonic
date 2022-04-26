@@ -1,6 +1,8 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use std::fmt;
+
 /// Universal token type which is either a native token, or cw20 token
 #[derive(
     Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema, PartialOrd, Ord, Hash,
@@ -45,5 +47,14 @@ impl Token {
     /// Checks is token is cw20
     pub fn is_cw20(&self) -> bool {
         matches!(self, Token::Cw20(_))
+    }
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Token::Native(s) => write!(f, "{}", s),
+            Token::Cw20(s) => write!(f, "{}", s),
+        }
     }
 }

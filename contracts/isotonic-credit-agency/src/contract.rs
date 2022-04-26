@@ -344,9 +344,8 @@ mod execute {
         amount_to_repay: Coin,
     ) -> Result<Response, ContractError> {
         let collateral_market =
-            query::market(deps.as_ref(), max_collateral.clone().denom.to_string())?.market;
-        let debt_market =
-            query::market(deps.as_ref(), amount_to_repay.clone().denom.to_string())?.market;
+            query::market(deps.as_ref(), max_collateral.denom.to_string())?.market;
+        let debt_market = query::market(deps.as_ref(), amount_to_repay.denom.to_string())?.market;
 
         let markets = ENTERED_MARKETS
             .may_load(deps.storage, &sender)?
@@ -391,11 +390,10 @@ mod execute {
             cfg.common_token,
         );
 
-        let util_collateral = max_collateral.clone().into();
         let simulated_credit_line = tcr
             .credit_line
-            .checked_sub(util_collateral * collateral_market_cfg.collateral_ratio)?;
-        let simulated_debt = tcr.debt.checked_sub(amount_to_repay_common.into())?;
+            .checked_sub(max_collateral.clone() * collateral_market_cfg.collateral_ratio)?;
+        let simulated_debt = tcr.debt.checked_sub(amount_to_repay_common)?;
         if simulated_debt > simulated_credit_line {
             return Err(ContractError::RepayingLoanUsingCollateralFailed {});
         }
@@ -418,7 +416,10 @@ mod execute {
         let repay_to_msg = SubMsg::new(WasmMsg::Execute {
             contract_addr: debt_market.to_string(),
             msg,
-            funds: vec![amount_to_repay],
+            funds: vec![cosmwasm_std::coin(
+                amount_to_repay.amount.u128(),
+                amount_to_repay.denom.to_string(),
+            )],
         });
 
         Ok(Response::new()

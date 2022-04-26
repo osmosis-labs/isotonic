@@ -1,4 +1,4 @@
-use cosmwasm_std::{Coin as StdCoin, Decimal, Uint128, OverflowError};
+use cosmwasm_std::{Coin as StdCoin, Decimal, OverflowError, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{convert::From, ops::Mul};
