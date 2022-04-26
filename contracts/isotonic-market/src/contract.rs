@@ -205,6 +205,11 @@ pub fn execute(
                 .native()
                 .ok_or(ContractError::Cw20TokensNotSupported)?,
         ),
+        SwapWithdrawFrom {
+            account,
+            sell_limit,
+            buy,
+        } => execute::swap_withdraw_from(deps, info.sender, account, sell_limit, buy),
     }
 }
 
@@ -275,7 +280,9 @@ mod cr_utils {
 }
 
 mod execute {
-    use cosmwasm_std::CosmosMsg;
+    use cosmwasm_std::{CosmosMsg, QueryRequest};
+    use isotonic_osmosis_oracle::msg::QueryMsg as OracleQueryMsg;
+    use osmo_bindings::{EstimatePriceResponse, Swap, SwapAmount, SwapAmountWithLimit};
 
     use crate::{
         interest::{calculate_interest, epochs_passed, InterestUpdate},
@@ -673,6 +680,90 @@ mod execute {
 
         CONFIG.save(deps.storage, &cfg)?;
         Ok(Response::new())
+    }
+
+    pub fn swap_withdraw_from(
+        deps: DepsMut,
+        sender: Addr,
+        account: String,
+        sell_limit: Uint128,
+        buy: utils::coin::Coin,
+    ) -> Result<Response, ContractError> {
+        let cfg = CONFIG.load(deps.storage)?;
+        if cfg.credit_agency != sender {
+            return Err(ContractError::RequiresCreditAgency {});
+        }
+
+        let pool_id_market_common: u64 = deps.querier.query_wasm_smart(
+            cfg.price_oracle.clone(),
+            &OracleQueryMsg::PoolId {
+                denom1: cfg.market_token.clone(),
+                denom2: cfg.common_token.clone(),
+            },
+        )?;
+        let swap = Swap::new(
+            pool_id_market_common,
+            cfg.market_token.clone(),
+            cfg.common_token.clone(),
+        );
+
+        let pool_id_common_buy: u64 = deps.querier.query_wasm_smart(
+            cfg.price_oracle.clone(),
+            &OracleQueryMsg::PoolId {
+                denom1: cfg.common_token.clone(),
+                denom2: buy.denom.to_string(),
+            },
+        )?;
+        let route = vec![osmo_bindings::Step::new(
+            pool_id_common_buy,
+            buy.denom.to_string(),
+        )];
+
+        let amount = SwapAmountWithLimit::ExactOut {
+            output: buy.amount,
+            max_input: sell_limit,
+        };
+
+        let estimate: EstimatePriceResponse =
+            deps.querier
+                .query(&QueryRequest::Custom(OsmosisQuery::EstimateSwap {
+                    sender: account.clone(),
+                    first: swap.clone(),
+                    route: route.clone(),
+                    amount: SwapAmount::Out(buy.amount),
+                }))?;
+        let estimate = match estimate.amount {
+            SwapAmount::In(a) => a,
+            SwapAmount::Out(_) => {
+                return Err(ContractError::IncorrectSwapAmountResponse {});
+            }
+        };
+
+        // Burn the L tokens
+        let burn_msg = to_binary(&isotonic_token::msg::ExecuteMsg::BurnFrom {
+            owner: account,
+            amount: isotonic_token::DisplayAmount::raw(estimate),
+        })?;
+        let burn_msg = SubMsg::new(WasmMsg::Execute {
+            contract_addr: cfg.ltoken_contract.to_string(),
+            msg: burn_msg,
+            funds: vec![],
+        });
+
+        let send_msg = CosmosMsg::Bank(BankMsg::Send {
+            to_address: sender.to_string(),
+            amount: vec![coin(buy.amount.u128(), buy.denom.to_string())],
+        });
+        let swap_msg = CosmosMsg::Custom(OsmosisMsg::Swap {
+            first: swap,
+            route,
+            amount,
+        });
+
+        Ok(Response::new()
+            .add_submessage(burn_msg)
+            .add_message(swap_msg)
+            .add_message(send_msg))
     }
 }
 

@@ -153,7 +153,7 @@ impl SuiteBuilder {
             Ok(())
         })
         .unwrap();
-        for (pool_id, (coin1, coin2)) in self.pools {
+        for (pool_id, (coin1, coin2)) in self.pools.clone() {
             app.execute_contract(
                 owner.clone(),
                 oracle_contract.clone(),
@@ -204,6 +204,7 @@ impl SuiteBuilder {
             contract,
             common_token: Token::Native(common_token),
             oracle_contract,
+            starting_pools: self.pools,
         }
     }
 }
@@ -220,6 +221,8 @@ pub struct Suite {
     common_token: Token,
     /// Address of isotonic price oracle
     pub oracle_contract: Addr,
+    /// The pool values as defined by the builder, useful for resetting
+    starting_pools: HashMap<u64, (Coin, Coin)>,
 }
 
 impl Suite {
@@ -258,6 +261,25 @@ impl Suite {
                 )
                 .unwrap();
         }
+        Ok(())
+    }
+
+    /// Reset the pools to their initial values. Useful if we're using the
+    /// pools, but want to maintain the same conversion ratios in tests for simplicity
+    /// and predictable credit line values.
+    pub fn reset_pools(&mut self) -> AnyResult<()> {
+        let starting_pools = self.starting_pools.clone();
+        self.app
+            .init_modules(|router, _, storage| -> AnyResult<()> {
+                for (pool_id, (coin1, coin2)) in starting_pools {
+                    router
+                        .custom
+                        .set_pool(storage, pool_id, &Pool::new(coin1, coin2))?;
+                }
+
+                Ok(())
+            })?;
+
         Ok(())
     }
 
@@ -472,6 +494,24 @@ impl Suite {
             market.market,
             &MarketExecuteMsg::Repay {},
             &[tokens],
+        )
+    }
+
+    pub fn repay_with_collateral(
+        &mut self,
+        sender: &str,
+        max_collateral: utils::coin::Coin,
+        amount_to_repay: utils::coin::Coin,
+    ) -> AnyResult<AppResponse> {
+        let ca = self.contract.clone();
+        self.app.execute_contract(
+            Addr::unchecked(sender),
+            ca,
+            &ExecuteMsg::RepayWithCollateral {
+                max_collateral,
+                amount_to_repay,
+            },
+            &[],
         )
     }
 

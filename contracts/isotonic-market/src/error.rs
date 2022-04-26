@@ -73,4 +73,9 @@ pub enum ContractError {
 
     #[error("Cw20 tokens are not supported yet")]
     Cw20TokensNotSupported,
+
+    #[error(
+        "Osmosis returned SwapAmount::Out in response for estimate - something went wrong, abort"
+    )]
+    IncorrectSwapAmountResponse {},
 }

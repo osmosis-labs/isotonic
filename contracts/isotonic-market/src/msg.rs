@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use utils::interest::Interest;
-use utils::token::Token;
+use utils::{coin::Coin, token::Token};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -69,6 +69,14 @@ pub enum ExecuteMsg {
     },
     AdjustCommonToken {
         new_token: Token,
+    },
+    /// Withdraw some base asset, by burning L Tokens and swapping it for `buy` amount.
+    /// The bought tokens are transferred to the sender.
+    /// Only callable by the credit agency. Skips the credit line check.
+    SwapWithdrawFrom {
+        account: String,
+        sell_limit: Uint128,
+        buy: Coin,
     },
 }
 

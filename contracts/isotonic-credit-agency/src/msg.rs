@@ -1,7 +1,7 @@
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use isotonic_market::msg::MigrateMsg as MarketMigrateMsg;
 
-use utils::{interest::Interest, token::Token};
+use utils::{coin::Coin, interest::Interest, token::Token};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -43,6 +43,14 @@ pub enum ExecuteMsg {
     ///   is not affecting liquidity of sender
     ExitMarket {
         market: String,
+    },
+    /// Repay a loan by using some indicated collateral.
+    /// The collateral is traded on the Osmosis AMM.
+    RepayWithCollateral {
+        /// The maximum amount of collateral to use
+        max_collateral: Coin,
+        /// How much of the loan is trying to be repaid
+        amount_to_repay: Coin,
     },
 }
 
