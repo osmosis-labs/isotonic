@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use cosmwasm_std::{ConversionOverflowError, Decimal, Fraction, OverflowError, Uint128};
 
 // Once there's Decimal::checked_pow in cosmwasm_std, we can get rid of this trait

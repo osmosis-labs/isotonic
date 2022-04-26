@@ -2,7 +2,7 @@
 name = "isotonic-market"
 version = "0.5.0"
 authors = ["Jakub Bogucki <jakub@confio.gmbh>"]
-edition = "2018"
+edition = "2021"
 description = "Implementation of Market contract"
 repository = "https://github.com/confio/isotonic"
 

@@ -2,7 +2,7 @@
 name = "isotonic-token"
 version = "0.5.0"
 authors = ["Jakub Bogucki <jakub@confio.gmbh>"]
-edition = "2018"
+edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
