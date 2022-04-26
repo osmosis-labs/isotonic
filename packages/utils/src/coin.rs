@@ -1,4 +1,4 @@
-use cosmwasm_std::{Coin as StdCoin, Decimal, Uint128};
+use cosmwasm_std::{Coin as StdCoin, Decimal, Uint128, OverflowError};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{convert::From, ops::Mul};
@@ -32,7 +32,7 @@ impl Coin {
     pub fn checked_add(self, rhs: Self) -> Result<Self, CoinError> {
         if self.denom == rhs.denom {
             Ok(Self {
-                amount: self.amount + rhs.amount,
+                amount: self.amount.checked_add(rhs.amount)?,
                 denom: self.denom,
             })
         } else {
@@ -47,7 +47,7 @@ impl Coin {
     pub fn checked_sub(self, rhs: Self) -> Result<Self, CoinError> {
         if self.denom == rhs.denom {
             Ok(Self {
-                amount: self.amount - rhs.amount,
+                amount: self.amount.checked_sub(rhs.amount)?,
                 denom: self.denom,
             })
         } else {
@@ -58,6 +58,14 @@ impl Coin {
             })
         }
     }
+}
+
+pub fn coin_native(amount: u128, denom: impl Into<String>) -> Coin {
+    Coin::new(amount, Token::new_native(&denom.into()))
+}
+
+pub fn coin_cw20(amount: u128, denom: impl Into<String>) -> Coin {
+    Coin::new(amount, Token::new_cw20(&denom.into()))
 }
 
 impl From<StdCoin> for Coin {
@@ -83,11 +91,14 @@ impl Mul<Decimal> for Coin {
 #[derive(Error, Debug, PartialEq)]
 pub enum CoinError {
     #[error(
-        "Operation {operation} is not allowed, because denoms does not match: {denom1} {denom2}"
+        "Operation {operation} is not allowed, because denoms does not match: {denom1:?} {denom2:?}"
     )]
     IncorrectDenoms {
         operation: String,
         denom1: Token,
         denom2: Token,
     },
+
+    #[error("{0}")]
+    Overflow(#[from] OverflowError),
 }

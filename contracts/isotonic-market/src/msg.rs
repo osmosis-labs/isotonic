@@ -1,9 +1,9 @@
-use cosmwasm_std::{Coin, Decimal, Timestamp, Uint128};
+use cosmwasm_std::{Decimal, Timestamp, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use utils::interest::Interest;
-use utils::token::Token;
+use utils::{coin::Coin, token::Token};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {

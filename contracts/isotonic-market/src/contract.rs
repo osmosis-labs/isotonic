@@ -734,7 +734,9 @@ mod execute {
                 }))?;
         let estimate = match estimate.amount {
             SwapAmount::In(a) => a,
-            SwapAmount::Out(a) => a,
+            SwapAmount::Out(_) => {
+                return Err(ContractError::IncorrectSwapAmountResponse {});
+            }
         };
 
         // Burn the L tokens
@@ -748,7 +750,6 @@ mod execute {
             funds: vec![],
         });
 
-        // Send the base assets from contract to lender
         let send_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: sender.to_string(),
             amount: vec![buy],

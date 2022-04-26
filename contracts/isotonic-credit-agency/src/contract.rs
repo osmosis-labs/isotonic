@@ -95,8 +95,9 @@ pub fn execute(
 mod execute {
     use super::*;
 
-    use cosmwasm_std::{coin, ensure_eq, Coin, StdError, SubMsg, WasmMsg};
+    use cosmwasm_std::{ensure_eq, StdError, SubMsg, WasmMsg};
     use utils::{
+        coin::{coin_native, Coin},
         credit_line::{CreditLineResponse, CreditLineValues},
         price::{coin_times_price_rate, PriceRate},
     };
@@ -342,8 +343,10 @@ mod execute {
         max_collateral: Coin,
         amount_to_repay: Coin,
     ) -> Result<Response, ContractError> {
-        let collateral_market = query::market(deps.as_ref(), max_collateral.clone().denom)?.market;
-        let debt_market = query::market(deps.as_ref(), amount_to_repay.clone().denom)?.market;
+        let collateral_market =
+            query::market(deps.as_ref(), max_collateral.clone().denom.to_string())?.market;
+        let debt_market =
+            query::market(deps.as_ref(), amount_to_repay.clone().denom.to_string())?.market;
 
         let markets = ENTERED_MARKETS
             .may_load(deps.storage, &sender)?
@@ -373,7 +376,7 @@ mod execute {
             &MarketQueryMsg::PriceMarketLocalPerCommon {},
         )?;
         let collateral_per_common_rate = collateral_per_common_rate.rate_sell_per_buy;
-        let max_collateral = coin(
+        let max_collateral = coin_native(
             (max_collateral.amount * collateral_per_common_rate).u128(),
             cfg.common_token.clone(),
         );
@@ -383,12 +386,12 @@ mod execute {
             &MarketQueryMsg::PriceMarketLocalPerCommon {},
         )?;
         let debt_per_common_rate = debt_per_common_rate.rate_sell_per_buy;
-        let amount_to_repay_common = coin(
+        let amount_to_repay_common = coin_native(
             (amount_to_repay.amount * debt_per_common_rate).u128(),
             cfg.common_token,
         );
 
-        let util_collateral: utils::coin::Coin = max_collateral.clone().into();
+        let util_collateral = max_collateral.clone().into();
         let simulated_credit_line = tcr
             .credit_line
             .checked_sub(util_collateral * collateral_market_cfg.collateral_ratio)?;
