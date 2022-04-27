@@ -75,6 +75,8 @@ pub struct SuiteBuilder {
     /// Initial funds to provide for testing
     funds: Vec<(Addr, Vec<Coin>)>,
     liquidation_price: Decimal,
+    liquidation_fee: Decimal,
+    liquidation_initiation_fee: Decimal,
     common_token: String,
     pools: HashMap<u64, (Coin, Coin)>,
 }
@@ -86,6 +88,8 @@ impl SuiteBuilder {
             reward_token: "reward".to_string(),
             funds: vec![],
             liquidation_price: Decimal::percent(92),
+            liquidation_fee: Decimal::permille(45),
+            liquidation_initiation_fee: Decimal::permille(5),
             common_token: COMMON.to_owned(),
             pools: HashMap::new(),
         }
@@ -109,6 +113,16 @@ impl SuiteBuilder {
 
     pub fn with_liquidation_price(mut self, liquidation_price: Decimal) -> Self {
         self.liquidation_price = liquidation_price;
+        self
+    }
+
+    pub fn with_liquidation_fee(mut self, liquidation_fee: Decimal) -> Self {
+        self.liquidation_fee = liquidation_fee;
+        self
+    }
+
+    pub fn with_liquidation_initiation_fee(mut self, liquidation_initiation_fee: Decimal) -> Self {
+        self.liquidation_initiation_fee = liquidation_initiation_fee;
         self
     }
 
@@ -181,6 +195,8 @@ impl SuiteBuilder {
                     reward_token: Token::Native(self.reward_token),
                     common_token: Token::Native(common_token.clone()),
                     liquidation_price: self.liquidation_price,
+                    liquidation_fee: self.liquidation_fee,
+                    liquidation_initiation_fee: self.liquidation_initiation_fee,
                 },
                 &[],
                 "credit-agency",

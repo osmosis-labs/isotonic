@@ -18,6 +18,8 @@ fn market_instantiate_and_query_config() {
             reward_token: "ENG".to_owned(),
             common_token: COMMON.to_owned(),
             liquidation_price: Decimal::percent(92),
+            liquidation_fee: Decimal::permille(45),
+            liquidation_initiation_fee: Decimal::permille(5),
         },
         suite.query_config().unwrap()
     );

@@ -43,6 +43,8 @@ pub fn instantiate(
             .native()
             .ok_or(ContractError::Cw20TokensNotSupported)?,
         liquidation_price: msg.liquidation_price,
+        liquidation_fee: msg.liquidation_fee,
+        liquidation_initiation_fee: msg.liquidation_initiation_fee,
     };
     CONFIG.save(deps.storage, &cfg)?;
     NEXT_REPLY_ID.save(deps.storage, &0)?;
@@ -646,6 +648,16 @@ pub fn sudo(deps: DepsMut, _env: Env, msg: SudoMsg) -> Result<Response, Contract
             contract,
             migrate_msg,
         } => sudo::migrate_market(deps, contract, migrate_msg),
+        AdjustLiquidation {
+            liquidation_price,
+            liquidation_fee,
+            liquidation_initiation_fee,
+        } => sudo::adjust_liquidation(
+            deps,
+            liquidation_price,
+            liquidation_fee,
+            liquidation_initiation_fee,
+        ),
     }
 }
 
@@ -653,7 +665,7 @@ mod sudo {
     use super::*;
     use crate::state::{MarketState, MARKETS};
 
-    use cosmwasm_std::{Order, WasmMsg};
+    use cosmwasm_std::{Decimal, Order, WasmMsg};
 
     use isotonic_market::msg::{ExecuteMsg as MarketExecuteMsg, MigrateMsg as MarketMigrateMsg};
 
@@ -695,6 +707,26 @@ mod sudo {
             .collect::<Vec<SubMsg>>();
 
         Ok(Response::new().add_submessages(messages))
+    }
+
+    pub fn adjust_liquidation(
+        deps: DepsMut,
+        new_liquidation_price: Option<Decimal>,
+        new_liquidation_fee: Option<Decimal>,
+        new_liquidation_initiation_fee: Option<Decimal>,
+    ) -> Result<Response, ContractError> {
+        let mut cfg = CONFIG.load(deps.storage)?;
+        if let Some(new_price) = new_liquidation_price {
+            cfg.liquidation_price = new_price;
+        }
+        if let Some(new_fee) = new_liquidation_fee {
+            cfg.liquidation_fee = new_fee;
+        }
+        if let Some(new_fee) = new_liquidation_initiation_fee {
+            cfg.liquidation_initiation_fee = new_fee;
+        }
+        CONFIG.save(deps.storage, &cfg)?;
+        Ok(Response::new())
     }
 
     fn find_market(deps: Deps, market_addr: &Addr) -> bool {
