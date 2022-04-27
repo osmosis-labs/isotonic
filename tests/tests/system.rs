@@ -12,7 +12,7 @@ fn withdraw_whole_deposit() {
         .with_common_token("OSMO")
         .with_funds(lender, &[coin(u128::MAX, "ATOM")])
         .with_market(MarketBuilder::new("ATOM").with_charge_period(charge_period))
-        .with_pool(1, (coin(10 ^ 19, "OSMO"), coin(10 ^ 19, "ATOM")))
+        .with_pool(1, (coin(100, "OSMO"), coin(100, "ATOM")))
         .build();
 
     let inputs = [
@@ -59,7 +59,7 @@ fn withdraw_whole_deposit_after_being_repaid() {
         .build();
 
     suite
-        .deposit(borrower, coin(100000000000000000000, "ETH"))
+        .deposit(borrower, coin(10_u128.pow(20), "ETH"))
         .unwrap();
 
     let inputs = [
