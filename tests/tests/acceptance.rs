@@ -15,12 +15,16 @@ use utils::{credit_line::CreditLineValues, token::Token};
 #[test]
 #[ignore]
 fn liquidate_via_amm() {
+    let alice = "alice";
+    let bob = "bob";
+    let carol = "carol";
+
     let mut suite = SuiteBuilder::new()
         .with_market(MarketBuilder::new("A").with_collateral_ratio(Decimal::percent(65)))
         .with_market(MarketBuilder::new("B").with_collateral_ratio(Decimal::percent(65)))
-        .with_funds("alice", &[coin(100_000_000_000, "A")])
+        .with_funds(alice, &[coin(100_000_000_000, "A")])
         .with_funds(
-            "bob",
+            bob,
             &[coin(100_000_000_000, "A"), coin(100_000_000_000, "B")],
         )
         .with_common_token("C")
@@ -28,23 +32,23 @@ fn liquidate_via_amm() {
         .with_pool(2, (coin(100_000_000_000, "B"), coin(100_000_000_000, "C")))
         .build();
 
-    suite.deposit("alice", coin(100_000_000, "A")).unwrap();
-    suite.deposit("bob", coin(100_000_000, "B")).unwrap();
+    suite.deposit(alice, coin(100_000_000, "A")).unwrap();
+    suite.deposit(bob, coin(100_000_000, "B")).unwrap();
 
-    suite.borrow("alice", coin(65_000_000, "B")).unwrap(); // max loan
+    suite.borrow(alice, coin(65_000_000, "B")).unwrap(); // max loan
 
     // Bob is in the green, can't be liquidated yet
     suite
-        .liquidate("carol", "alice", "A", coin(65_000_000, "B"))
+        .liquidate(carol, alice, "A", coin(65_000_000, "B"))
         .unwrap_err();
 
     // Put Bob under water, prime for liquidation
     suite
-        .swap_exact_in("bob", coin(1_000_000_000, "A"), "B")
+        .swap_exact_in(bob, coin(1_000_000_000, "A"), "B")
         .unwrap();
     assert_eq!(
         suite
-            .query_total_credit_line("alice")
+            .query_total_credit_line(alice)
             .unwrap()
             .validate(&Token::new_native("C"))
             .unwrap(),
@@ -56,13 +60,13 @@ fn liquidate_via_amm() {
     );
 
     suite
-        .liquidate("carol", "alice", "A", coin(65_000, "B"))
+        .liquidate(carol, alice, "A", coin(65_000, "B"))
         .unwrap();
 
     // Carol earns a "trigger fee" from liquidation.
     assert_eq!(
         suite
-            .query_tokens_balance("B", "carol")
+            .query_tokens_balance("B", carol)
             .unwrap()
             .ltokens
             .u128(),
@@ -71,18 +75,14 @@ fn liquidate_via_amm() {
 
     // Bob earns interest from liquidation since he's a B token lender.
     assert_eq!(
-        suite
-            .query_tokens_balance("B", "bob")
-            .unwrap()
-            .ltokens
-            .u128(),
+        suite.query_tokens_balance("B", bob).unwrap().ltokens.u128(),
         100_000_000 + 2_925_000
     );
 
     // Alice sold some of her initial deposit to pay the debt.
     assert!(
         suite
-            .query_tokens_balance("A", "carol")
+            .query_tokens_balance("A", carol)
             .unwrap()
             .ltokens
             .u128()
@@ -93,27 +93,29 @@ fn liquidate_via_amm() {
 #[test]
 #[ignore]
 fn paying_back_loan_using_collateral_one_market() {
+    let alice = "alice";
+
     let mut suite = SuiteBuilder::new()
         .with_market(MarketBuilder::new("A").with_collateral_ratio(Decimal::percent(65)))
-        .with_funds("alice", &[coin(100_000_000, "A")])
+        .with_funds(alice, &[coin(100_000_000, "A")])
         .with_common_token("C")
         .with_pool(1, (coin(100_000_000, "A"), coin(100_000_000, "C")))
         .build();
 
-    suite.deposit("alice", coin(100_000_000, "A")).unwrap();
+    suite.deposit(alice, coin(100_000_000, "A")).unwrap();
 
-    suite.borrow("alice", coin(65_000_000, "A")).unwrap();
-    suite.deposit("alice", coin(65_000_000, "A")).unwrap();
+    suite.borrow(alice, coin(65_000_000, "A")).unwrap();
+    suite.deposit(alice, coin(65_000_000, "A")).unwrap();
 
-    suite.borrow("alice", coin(42_250_000, "A")).unwrap();
-    suite.deposit("alice", coin(42_250_000, "A")).unwrap();
+    suite.borrow(alice, coin(42_250_000, "A")).unwrap();
+    suite.deposit(alice, coin(42_250_000, "A")).unwrap();
 
-    suite.borrow("alice", coin(27_462_500, "A")).unwrap();
-    suite.burn("alice", coin(27_462_500, "A")).unwrap(); // Alice buys coffee ;)
+    suite.borrow(alice, coin(27_462_500, "A")).unwrap();
+    suite.burn(alice, coin(27_462_500, "A")).unwrap(); // Alice buys coffee ;)
 
     assert_eq!(
         suite
-            .query_total_credit_line("alice")
+            .query_total_credit_line(alice)
             .unwrap()
             .validate(&Token::new_native("C"))
             .unwrap(),
@@ -123,16 +125,16 @@ fn paying_back_loan_using_collateral_one_market() {
             debt: Uint128::new(134_712_500),
         }
     );
-    assert_eq!(suite.query_balance("alice", "A").unwrap(), 0);
+    assert_eq!(suite.query_balance(alice, "A").unwrap(), 0);
 
     suite
-        .repay_with_collateral("alice", coin(207_250_000, "A"), coin(133_365_375, "A"))
+        .repay_with_collateral(alice, coin(207_250_000, "A"), coin(133_365_375, "A"))
         .unwrap();
     suite.reset_pools().unwrap();
 
     assert_eq!(
         suite
-            .query_total_credit_line("alice")
+            .query_total_credit_line(alice)
             .unwrap()
             .validate(&Token::new_native("C"))
             .unwrap(),
@@ -142,5 +144,5 @@ fn paying_back_loan_using_collateral_one_market() {
             debt: Uint128::new(1_347_125),
         }
     );
-    assert_eq!(suite.query_balance("alice", "A").unwrap(), 0);
+    assert_eq!(suite.query_balance(alice, "A").unwrap(), 0);
 }
