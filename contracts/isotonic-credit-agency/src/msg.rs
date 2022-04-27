@@ -31,10 +31,11 @@ pub struct InstantiateMsg {
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     CreateMarket(MarketConfig),
-    /// Tries to perform liquidation on passed account using collateral's denom
+    /// Tries to perform liquidation on passed account using a specific kind of collateral
     Liquidate {
         account: String,
         collateral_denom: Token,
+        amount_to_repay: Coin,
     },
     /// Ensures a given account has entered a market. Meant to be called by a specific
     /// market contract - so the sender of the msg would be the market

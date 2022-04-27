@@ -484,6 +484,7 @@ impl Suite {
         account: &str,
         tokens: &[Coin],
         collateral_denom: Token,
+        amount_to_repay: Coin,
     ) -> AnyResult<AppResponse> {
         let ca = self.contract.clone();
 
@@ -493,6 +494,7 @@ impl Suite {
             &ExecuteMsg::Liquidate {
                 account: account.to_owned(),
                 collateral_denom,
+                amount_to_repay: amount_to_repay.into(),
             },
             tokens,
         )

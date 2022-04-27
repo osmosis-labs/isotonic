@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, StdError, Uint128};
+use cosmwasm_std::{Addr, DivideByZeroError, StdError, Uint128};
 use utils::coin::Coin;
 use utils::{coin::CoinError, credit_line::InvalidCommonTokenDenom, price::PriceError};
 
@@ -83,6 +83,12 @@ pub enum ContractError {
     #[error("Cw20 tokens are not supported yet")]
     Cw20TokensNotSupported,
 
-    #[error("Repaying loan using collateral failed - your debt is bigger then your credit line")]
+    #[error("Repaying loan using collateral not allowed with these values - the account could end up undercollateralized")]
     RepayingLoanUsingCollateralFailed {},
+
+    #[error("Liquidation not allowed with these values - the account would still be undercollateralized")]
+    LiquidationUndercollateralized {},
+
+    #[error("Something went very wrong: {0}")]
+    DivisionByZero(#[from] DivideByZeroError),
 }
