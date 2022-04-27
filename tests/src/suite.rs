@@ -501,12 +501,11 @@ impl Suite {
         todo!()
     }
 
-    pub fn burn(&mut self, sender: &str, coin: Coin) -> AnyResult<()> {
+    pub fn burn(&mut self, sender: &str, coin: Coin) -> AnyResult<AppResponse> {
         self.app.execute(
             Addr::unchecked(sender),
             BankMsg::Burn { amount: vec![coin] }.into(),
-        )?;
-        Ok(())
+        )
     }
 
     pub fn assert_withdrawable(&self, account: impl ToString, coin: Coin) {
