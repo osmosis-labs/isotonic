@@ -79,7 +79,7 @@ fn liquidate_via_amm() {
         100_000_000 + 2_925_000
     );
 
-    // Bob sold some of his initial deposit to pay the debt.
+    // Alice sold some of her initial deposit to pay the debt.
     assert!(
         suite
             .query_tokens_balance("A", "carol")
