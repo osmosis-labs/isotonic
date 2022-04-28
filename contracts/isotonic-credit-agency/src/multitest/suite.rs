@@ -482,7 +482,6 @@ impl Suite {
         &mut self,
         sender: &str,
         account: &str,
-        tokens: &[Coin],
         collateral_denom: Token,
         amount_to_repay: Coin,
     ) -> AnyResult<AppResponse> {
@@ -493,10 +492,10 @@ impl Suite {
             ca,
             &ExecuteMsg::Liquidate {
                 account: account.to_owned(),
-                collateral_denom,
+                collateral_denom: Token::Native(collateral_denom.to_string()),
                 amount_to_repay: amount_to_repay.into(),
             },
-            tokens,
+            &[],
         )
     }
 

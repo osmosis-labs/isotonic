@@ -779,12 +779,12 @@ mod execute {
 
         let estimate: EstimatePriceResponse =
             deps.querier
-                .query(&QueryRequest::Custom(OsmosisQuery::EstimateSwap {
+                .query(&dbg!(QueryRequest::Custom(OsmosisQuery::EstimateSwap {
                     sender: account.clone(),
                     first: swap.clone(),
                     route: route.clone(),
                     amount: SwapAmount::Out(buy.amount),
-                }))?;
+                })))?;
         let estimate = match estimate.amount {
             SwapAmount::In(a) => a,
             SwapAmount::Out(_) => {

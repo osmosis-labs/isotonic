@@ -250,11 +250,16 @@ mod execute {
         let simulated_debt = tcr.debt.checked_sub(amount_to_repay_common)?;
 
         // this could probably reuse market::QueryMsg::TransferableAmount if we enhance it a bit?
-        let sell_limit_in_common = divide(
-            tcr.credit_line.checked_sub(simulated_debt)?.amount,
-            collateral_market_cfg.collateral_ratio,
-        )?;
-        let sell_limit = divide(sell_limit_in_common, collateral_per_common_rate)?;
+        let sell_limit = if simulated_debt.amount.is_zero() {
+            // if this is going to erase all debt, just allow the selling of all collateral
+            Uint128::MAX
+        } else {
+            let sell_limit_in_common = divide(
+                tcr.credit_line.checked_sub(simulated_debt)?.amount,
+                collateral_market_cfg.collateral_ratio,
+            )?;
+            divide(sell_limit_in_common, collateral_per_common_rate)?
+        };
 
         let msg = to_binary(&MarketExecuteMsg::SwapWithdrawFrom {
             account: account.to_string(),
