@@ -16,7 +16,7 @@ use osmo_bindings_test::{OsmosisApp, Pool};
 use utils::{credit_line::CreditLineResponse, token::Token};
 
 use isotonic_credit_agency::msg::{
-    ExecuteMsg, InstantiateMsg, IsOnMarketResponse, ListEnteredMarketsResponse,
+    ExecuteMsg as CAExecuteMsg, InstantiateMsg, IsOnMarketResponse, ListEnteredMarketsResponse,
     ListMarketsResponse, MarketResponse, QueryMsg, SudoMsg,
 };
 use isotonic_credit_agency::state::Config;
@@ -269,7 +269,7 @@ impl Suite {
         self.app.execute_contract(
             Addr::unchecked(market),
             self.credit_agency.clone(),
-            &ExecuteMsg::EnterMarket {
+            &CAExecuteMsg::EnterMarket {
                 account: addr.to_owned(),
             },
             &[],
@@ -280,7 +280,7 @@ impl Suite {
         self.app.execute_contract(
             Addr::unchecked(addr),
             self.credit_agency.clone(),
-            &ExecuteMsg::ExitMarket {
+            &CAExecuteMsg::ExitMarket {
                 market: market.to_owned(),
             },
             &[],
@@ -484,11 +484,21 @@ impl Suite {
 
     pub fn repay_with_collateral(
         &mut self,
-        _sender: &str,
-        _collateral: Coin,
-        _amount_to_repay: Coin,
-    ) -> AnyResult<()> {
-        todo!()
+        sender: &str,
+        max_collateral: utils::coin::Coin,
+        amount_to_repay: utils::coin::Coin,
+    ) -> AnyResult<AppResponse> {
+        let ca = self.credit_agency.clone();
+
+        self.app.execute_contract(
+            Addr::unchecked(sender),
+            ca,
+            &CAExecuteMsg::RepayWithCollateral {
+                max_collateral,
+                amount_to_repay,
+            },
+            &[],
+        )
     }
 
     pub fn liquidate(

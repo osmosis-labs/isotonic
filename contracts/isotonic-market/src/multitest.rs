@@ -8,6 +8,6 @@ mod interest;
 mod migration;
 mod reserve;
 mod sudo;
-mod swap_withdraw_from;
 pub mod suite;
+mod swap_withdraw_from;
 mod withdraw;

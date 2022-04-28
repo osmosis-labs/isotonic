@@ -1,16 +1,25 @@
-use cosmwasm_std::{Uint128, coin};
-use utils::coin::{Coin, coin_native};
+use cosmwasm_std::{coin, Uint128};
+use utils::coin::{coin_native, Coin};
 
 use super::suite::{SuiteBuilder, COMMON};
 use crate::error::ContractError;
 
 #[test]
 fn sender_not_ca() {
-    let mut suite = SuiteBuilder::new()
-        .build();
+    let mut suite = SuiteBuilder::new().build();
 
-    let err = suite.swap_withdraw_from("any sender", "account", Uint128::zero(), coin_native(100, "denom")).unwrap_err();
-    assert_eq!(ContractError::RequiresCreditAgency {}, err.downcast().unwrap());
+    let err = suite
+        .swap_withdraw_from(
+            "any sender",
+            "account",
+            Uint128::zero(),
+            coin_native(100, "denom"),
+        )
+        .unwrap_err();
+    assert_eq!(
+        ContractError::RequiresCreditAgency {},
+        err.downcast().unwrap()
+    );
 }
 
 #[test]
@@ -21,5 +30,4 @@ fn two_denoms() {
         .with_market_token(market_token)
         .with_pool(1, (coin(100, COMMON), coin(100, market_token)))
         .build();
-
-    }
+}
