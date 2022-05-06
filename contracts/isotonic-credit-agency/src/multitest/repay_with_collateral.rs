@@ -1,7 +1,71 @@
 use super::suite::{SuiteBuilder, COMMON};
+use crate::error::ContractError;
 
-use cosmwasm_std::{coin, Decimal, Uint128};
+use cosmwasm_std::{coin, Addr, Decimal, Uint128};
 use utils::{coin::coin_native, credit_line::CreditLineValues};
+
+#[test]
+fn not_on_market() {
+    let mut suite = SuiteBuilder::new().with_gov("gov").build();
+
+    let user = "user";
+    let osmo = "OSMO";
+    let ust = "UST";
+    suite
+        .create_market_quick(
+            "gov",
+            "osmo",
+            osmo,
+            None,
+            (Decimal::zero(), Decimal::zero()),
+            None,
+        )
+        .unwrap();
+    let osmo_market = suite.query_market(osmo).unwrap().market;
+
+    suite
+        .create_market_quick(
+            "gov",
+            "ust",
+            ust,
+            None,
+            (Decimal::zero(), Decimal::zero()),
+            None,
+        )
+        .unwrap();
+    let ust_market = suite.query_market(ust).unwrap().market;
+
+    let err = suite
+        .repay_with_collateral(
+            user,
+            coin_native(1_000_000, osmo),
+            coin_native(1_000_000, "UST"),
+        )
+        .unwrap_err();
+    assert_eq!(
+        ContractError::NotOnMarket {
+            address: Addr::unchecked(user),
+            market: osmo_market.clone()
+        },
+        err.downcast().unwrap()
+    );
+
+    suite.enter_market(osmo_market.as_str(), user).unwrap();
+    let err = suite
+        .repay_with_collateral(
+            user,
+            coin_native(1_000_000, osmo),
+            coin_native(1_000_000, ust),
+        )
+        .unwrap_err();
+    assert_eq!(
+        ContractError::NotOnMarket {
+            address: Addr::unchecked(user),
+            market: ust_market
+        },
+        err.downcast().unwrap()
+    );
+}
 
 #[test]
 fn on_two_markets() {
