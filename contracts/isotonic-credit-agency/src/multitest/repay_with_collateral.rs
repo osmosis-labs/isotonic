@@ -68,6 +68,73 @@ fn not_on_market() {
 }
 
 #[test]
+fn simulated_debt_bigger_then_credit_line() {
+    let deposit_one = "deposit1";
+    let deposit_two = "deposit2";
+    let user = "user";
+
+    let osmo_denom = "OSMO";
+    let eth_denom = "ETH";
+
+    let mut suite = SuiteBuilder::new()
+        .with_gov("gov")
+        .with_funds(deposit_one, &[coin(10_000_000, osmo_denom)])
+        .with_funds(deposit_two, &[coin(10_000_000, eth_denom)])
+        .with_funds(user, &[coin(5_000_000, osmo_denom)])
+        .with_pool(1, (coin(10_000_000, COMMON), coin(10_000_000, osmo_denom)))
+        .with_pool(2, (coin(5_000_000, COMMON), coin(10_000_000, eth_denom)))
+        .build();
+
+    suite
+        .create_market_quick(
+            "gov",
+            "osmo",
+            osmo_denom,
+            None,
+            (Decimal::zero(), Decimal::zero()),
+            None,
+        )
+        .unwrap();
+    suite
+        .create_market_quick(
+            "gov",
+            "ethereum",
+            eth_denom,
+            None,
+            (Decimal::zero(), Decimal::zero()),
+            None,
+        )
+        .unwrap();
+
+    suite
+        .deposit_tokens_on_market(deposit_one, coin(10_000_000, osmo_denom))
+        .unwrap();
+    suite
+        .deposit_tokens_on_market(deposit_two, coin(10_000_000, eth_denom))
+        .unwrap();
+
+    suite
+        .deposit_tokens_on_market(user, coin(1_000_000, osmo_denom))
+        .unwrap();
+    suite
+        .borrow_tokens_from_market(user, coin(1_000_000, eth_denom))
+        .unwrap();
+
+    // Try to repay not-whole-loan using all your collateral
+    let err = suite
+        .repay_with_collateral(
+            user,
+            coin_native(1_000_000, osmo_denom),
+            coin_native(800_000, eth_denom),
+        )
+        .unwrap_err();
+    assert_eq!(
+        ContractError::RepayingLoanUsingCollateralFailed {},
+        err.downcast().unwrap()
+    );
+}
+
+#[test]
 fn on_two_markets() {
     let deposit_one = "deposit1";
     let deposit_two = "deposit2";
