@@ -106,7 +106,6 @@ fn same_denom() {
     suite.deposit(user, &[coin(5_000_000, atom)]).unwrap();
 
     let ca = suite.credit_agency();
-    // Buy 4.5M UST, using maximally 5M ATOM tokens for that
     suite
         .swap_withdraw_from(
             ca,
@@ -142,10 +141,8 @@ fn buy_common_denom() {
         .build();
 
     suite.deposit(user, &[coin(5_000_000, atom)]).unwrap();
-    assert_eq!(suite.query_contract_asset_balance().unwrap(), 5_000_000);
 
     let ca = suite.credit_agency();
-    // Buy 4.5M UST, using maximally 5M ATOM tokens for that
     suite
         .swap_withdraw_from(
             ca,
@@ -157,6 +154,43 @@ fn buy_common_denom() {
 
     // Excluding swap fees, amount left on contract should be less or equal to 0.5M tokens
     // Similar as in two_denoms testcase, but here estimate goes through only one LP so fee
+    // is twice smaller
+    assert!(
+        matches!(suite.query_contract_asset_balance().unwrap(), x if x > 485_000 && x <= 500_000)
+    );
+}
+
+#[test]
+fn market_uses_common_token() {
+    let user = "user";
+    let atom = "ATOM";
+    let mut suite = SuiteBuilder::new()
+        .with_market_token(COMMON)
+        .with_funds(user, &[coin(5_000_000, COMMON)])
+        .with_pool(
+            1,
+            (coin(100_000_000_000, COMMON), coin(100_000_000_000, atom)),
+        )
+        .with_pool(
+            2,
+            (coin(100_000_000_000, atom), coin(100_000_000_000, COMMON)),
+        )
+        .build();
+
+    suite.deposit(user, &[coin(5_000_000, COMMON)]).unwrap();
+
+    let ca = suite.credit_agency();
+    suite
+        .swap_withdraw_from(
+            ca,
+            user,
+            Uint128::new(5_000_000),
+            coin_native(4_500_000, atom),
+        )
+        .unwrap();
+
+    // Excluding swap fees, amount left on contract should be less or equal to 0.5M tokens
+    // Similar as in buy_common_denom testcase, but here estimate goes through only one LP so fee
     // is twice smaller
     assert!(
         matches!(suite.query_contract_asset_balance().unwrap(), x if x > 485_000 && x <= 500_000)
