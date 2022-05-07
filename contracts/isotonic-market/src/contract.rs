@@ -709,6 +709,17 @@ mod execute {
             return Err(ContractError::RequiresCreditAgency {});
         }
 
+        let send_msg = CosmosMsg::Bank(BankMsg::Send {
+            to_address: sender.to_string(),
+            amount: vec![coin(buy.amount.u128(), buy.denom.to_string())],
+        });
+
+        // if swap is between same denoms, only send tokens
+        if cfg.market_token == buy.denom.to_string() {
+            return Ok(Response::new()
+                .add_message(send_msg));
+        }
+
         let pool_id_market_common: u64 = deps.querier.query_wasm_smart(
             cfg.price_oracle.clone(),
             &OracleQueryMsg::PoolId {
@@ -765,10 +776,6 @@ mod execute {
             funds: vec![],
         });
 
-        let send_msg = CosmosMsg::Bank(BankMsg::Send {
-            to_address: sender.to_string(),
-            amount: vec![coin(buy.amount.u128(), buy.denom.to_string())],
-        });
         let swap_msg = CosmosMsg::Custom(OsmosisMsg::Swap {
             first: swap,
             route,
