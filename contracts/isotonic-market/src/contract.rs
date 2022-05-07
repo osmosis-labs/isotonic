@@ -716,8 +716,7 @@ mod execute {
 
         // if swap is between same denoms, only send tokens
         if cfg.market_token == buy.denom.to_string() {
-            return Ok(Response::new()
-                .add_message(send_msg));
+            return Ok(Response::new().add_message(send_msg));
         }
 
         let pool_id_market_common: u64 = deps.querier.query_wasm_smart(
@@ -733,17 +732,21 @@ mod execute {
             cfg.common_token.clone(),
         );
 
-        let pool_id_common_buy: u64 = deps.querier.query_wasm_smart(
-            cfg.price_oracle.clone(),
-            &OracleQueryMsg::PoolId {
-                denom1: cfg.common_token.clone(),
-                denom2: buy.denom.to_string(),
-            },
-        )?;
-        let route = vec![osmo_bindings::Step::new(
-            pool_id_common_buy,
-            buy.denom.to_string(),
-        )];
+        let route = if cfg.common_token == buy.denom.to_string() {
+            vec![]
+        } else {
+            let pool_id_common_buy: u64 = deps.querier.query_wasm_smart(
+                cfg.price_oracle.clone(),
+                &OracleQueryMsg::PoolId {
+                    denom1: cfg.common_token.clone(),
+                    denom2: buy.denom.to_string(),
+                },
+            )?;
+            vec![osmo_bindings::Step::new(
+                pool_id_common_buy,
+                buy.denom.to_string(),
+            )]
+        };
 
         let amount = SwapAmountWithLimit::ExactOut {
             output: buy.amount,
