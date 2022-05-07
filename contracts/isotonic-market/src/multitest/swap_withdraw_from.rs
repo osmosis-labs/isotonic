@@ -93,3 +93,40 @@ fn sell_limit_lesser_then_required() {
         .unwrap_err();
     // TODO: How to assert querier error?
 }
+
+#[test]
+fn same_denom() {
+    let user = "user";
+    let atom = "ATOM";
+    let mut suite = SuiteBuilder::new()
+        .with_market_token(atom)
+        .with_funds(user, &[coin(5_000_000, atom)])
+        .with_pool(
+            1,
+            (coin(100_000_000_000, COMMON), coin(100_000_000_000, atom)),
+        )
+        .with_pool(
+            2,
+            (coin(100_000_000_000, atom), coin(100_000_000_000, COMMON)),
+        )
+        .build();
+
+    suite.deposit(user, &[coin(5_000_000, atom)]).unwrap();
+
+    let ca = suite.credit_agency();
+    // Buy 4.5M UST, using maximally 5M ATOM tokens for that
+    suite
+        .swap_withdraw_from(
+            ca,
+            user,
+            Uint128::new(4_500_000),
+            coin_native(4_500_000, atom),
+        )
+        .unwrap();
+
+    // Excluding swap fees, amount left on contract should be equal to 0.5M tokens,
+    // becase no fees are included
+    assert!(
+        matches!(suite.query_contract_asset_balance().unwrap(), 500_000)
+    );
+}
