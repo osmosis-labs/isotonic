@@ -91,7 +91,6 @@ fn liquidate_via_amm() {
 }
 
 #[test]
-#[ignore]
 fn paying_back_loan_using_collateral_one_market() {
     let alice = "alice";
 

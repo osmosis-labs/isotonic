@@ -36,15 +36,7 @@ fn two_denoms() {
         )
         .with_pool(
             2,
-            (coin(100_000_000_000, atom), coin(100_000_000_000, COMMON)),
-        )
-        .with_pool(
-            3,
             (coin(100_000_000_000, ust), coin(100_000_000_000, COMMON)),
-        )
-        .with_pool(
-            4,
-            (coin(100_000_000_000, COMMON), coin(100_000_000_000, ust)),
         )
         .build();
 
@@ -82,15 +74,7 @@ fn sell_limit_lesser_then_required() {
         )
         .with_pool(
             2,
-            (coin(100_000_000_000, atom), coin(100_000_000_000, COMMON)),
-        )
-        .with_pool(
-            3,
             (coin(100_000_000_000, ust), coin(100_000_000_000, COMMON)),
-        )
-        .with_pool(
-            4,
-            (coin(100_000_000_000, COMMON), coin(100_000_000_000, ust)),
         )
         .build();
 
