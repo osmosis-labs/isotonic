@@ -1,14 +1,12 @@
+use crate::error::ContractError;
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, SudoMsg};
+use crate::state::{Config, CONFIG, NEXT_REPLY_ID};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_binary, Addr, Binary, Env, MessageInfo, Reply};
 use cw2::set_contract_version;
 use cw_utils::parse_reply_instantiate_data;
 use osmo_bindings::{OsmosisMsg, OsmosisQuery};
-use utils::coin::Coin;
-
-use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, SudoMsg};
-use crate::state::{Config, CONFIG, NEXT_REPLY_ID};
 
 use either::Either;
 use utils::token::Token;
@@ -101,14 +99,12 @@ mod execute {
     use super::*;
 
     use cosmwasm_std::{
-        ensure_eq, Decimal, DivideByZeroError, Fraction, OverflowError, QueryRequest, StdError,
-        SubMsg, Uint128, WasmMsg,
+        ensure_eq, Decimal, DivideByZeroError, Fraction, StdError, SubMsg, Uint128, WasmMsg,
     };
-    use osmo_bindings::EstimatePriceResponse;
     use utils::{
         coin::{coin_native, Coin},
         credit_line::{CreditLineResponse, CreditLineValues},
-        price::{coin_times_price_rate, PriceRate},
+        price::PriceRate,
     };
 
     use crate::{
@@ -222,11 +218,14 @@ mod execute {
 
         let initiation_fee = amount_to_repay.amount * cfg.liquidation_initiation_fee;
         let lender_fee = amount_to_repay.amount * cfg.liquidation_fee;
-        let amount_to_cover = amount_to_repay
-            .amount
-            .checked_add(initiation_fee)?
-            .checked_add(lender_fee)?;
-
+        let amount_to_cover = Coin {
+            denom: amount_to_repay.denom.clone(),
+            amount: amount_to_repay
+                .amount
+                .checked_add(initiation_fee)?
+                .checked_add(lender_fee)?,
+        };
+        println!("1");
         let tcr = query::total_credit_line(deps.as_ref(), account.to_string())?;
         let total_credit_line = tcr.validate(&Token::Native(cfg.common_token.clone()))?;
         if total_credit_line.debt <= total_credit_line.credit_line {
@@ -248,12 +247,12 @@ mod execute {
             &MarketQueryMsg::PriceMarketLocalPerCommon {},
         )?;
         let debt_per_common_rate = debt_per_common_rate.rate_sell_per_buy;
-        let amount_to_cover_common = coin_native(
-            (amount_to_cover * debt_per_common_rate).u128(),
+        let amount_to_repay_common = coin_native(
+            (amount_to_repay.amount * debt_per_common_rate).u128(),
             cfg.common_token,
         );
-
-        let simulated_debt = tcr.debt.checked_sub(amount_to_cover_common)?;
+        println!("4");
+        let simulated_debt = tcr.debt.checked_sub(amount_to_repay_common)?;
 
         // this could probably reuse market::QueryMsg::TransferableAmount if we enhance it a bit?
         let sell_limit = if simulated_debt.amount.is_zero() {
@@ -266,18 +265,18 @@ mod execute {
             )?;
             divide(sell_limit_in_common, collateral_per_common_rate)?
         };
-
+        println!("5");
         let msg = to_binary(&MarketExecuteMsg::SwapWithdrawFrom {
             account: account.to_string(),
             sell_limit,
-            buy: amount_to_repay.clone(),
+            buy: amount_to_cover.clone(),
         })?;
         let swap_withdraw_from_msg = SubMsg::new(WasmMsg::Execute {
             contract_addr: collateral_market.to_string(),
             msg,
             funds: vec![],
         });
-
+        println!("6");
         let msg = to_binary(&MarketExecuteMsg::RepayTo {
             account: account.to_string(),
             amount: amount_to_repay.amount,
@@ -292,15 +291,37 @@ mod execute {
             )],
         });
 
-        // TODO: charge liquidation fees
+        let msg = to_binary(&MarketExecuteMsg::DistributeAsLTokens {})?;
+        let distribute_ltokens_msg = SubMsg::new(WasmMsg::Execute {
+            contract_addr: debt_market.to_string(),
+            msg,
+            funds: vec![cosmwasm_std::coin(
+                lender_fee.u128(),
+                amount_to_repay.denom.to_string(),
+            )],
+        });
 
+        let msg = to_binary(&MarketExecuteMsg::DepositTo {
+            account: info.sender.to_string(),
+        })?;
+        let initiation_fee_msg = SubMsg::new(WasmMsg::Execute {
+            contract_addr: debt_market.to_string(),
+            msg,
+            funds: vec![cosmwasm_std::coin(
+                initiation_fee.u128(),
+                amount_to_repay.denom.to_string(),
+            )],
+        });
+        println!("8");
         Ok(Response::new()
             .add_attribute("action", "liquidate")
             .add_attribute("liquidation_initiator", info.sender)
             .add_attribute("account", account)
             .add_attribute("collateral_denom", collateral_denom)
             .add_submessage(swap_withdraw_from_msg)
-            .add_submessage(repay_to_msg))
+            .add_submessage(repay_to_msg)
+            .add_submessage(distribute_ltokens_msg)
+            .add_submessage(initiation_fee_msg))
     }
 
     pub fn enter_market(

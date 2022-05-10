@@ -71,8 +71,6 @@ fn account_doesnt_have_debt_bigger_then_credit_line() {
 
 #[test]
 fn liquidating_whole_debt() {
-    // TODO: take liquidation fees into account when they're implemented!
-
     let debtor = "debtor";
     let liquidator = "liquidator";
     let some_investor = "investor";
@@ -84,17 +82,22 @@ fn liquidating_whole_debt() {
     let mut suite = SuiteBuilder::new()
         .with_gov("gov")
         .with_common_token(osmo)
-        .with_funds(debtor, &coins(559, atom))
+        .with_liquidation_fee(Decimal::percent(5))
+        .with_liquidation_initiation_fee(Decimal::percent(1))
+        .with_funds(debtor, &coins(580, atom))
         .with_funds(some_investor, &coins(500, juno))
-        .with_pool(1, (coin(10_000, osmo), coin(10_000, atom)))
-        .with_pool(2, (coin(8_000, osmo), coin(10_000, juno)))
+        .with_pool(
+            1,
+            (coin(100_000_000_000, osmo), coin(100_000_000_000, atom)),
+        )
+        .with_pool(2, (coin(80_000_000_000, osmo), coin(100_000_000_000, juno)))
         .build();
 
     suite
-        .create_market_quick("gov", "atom", atom, Decimal::percent(80), None, None)
+        .create_market_quick("gov", "atom", atom, Decimal::percent(70), None, None)
         .unwrap();
     suite
-        .create_market_quick("gov", "juno", juno, Decimal::percent(80), None, None)
+        .create_market_quick("gov", "juno", juno, Decimal::percent(70), None, None)
         .unwrap();
 
     // This is just to make sure the JUNO market has enough liquidity to cover the loan below.
@@ -103,14 +106,18 @@ fn liquidating_whole_debt() {
         .unwrap();
 
     suite
-        .deposit_tokens_on_market(debtor, coin(559, atom))
+        .deposit_tokens_on_market(debtor, coin(580, atom))
         .unwrap();
     suite
         .borrow_tokens_from_market(debtor, coin(500, juno))
         .unwrap();
 
+    // Prices change. The debtor is now underwater.
     suite
-        .set_pool(&[(2, (coin(10_000, osmo), coin(10_000, juno)))])
+        .set_pool(&[(
+            2,
+            (coin(100_000_000_000, osmo), coin(100_000_000_000, juno)),
+        )])
         .unwrap();
 
     suite
@@ -122,23 +129,36 @@ fn liquidating_whole_debt() {
         )
         .unwrap();
 
-    assert_eq!(
-        suite
-            .query_total_credit_line(debtor)
-            .unwrap()
-            .validate(&Token::Native(osmo.to_string()))
-            .unwrap(),
-        CreditLineValues {
-            collateral: Uint128::zero(),
-            credit_line: Uint128::zero(),
-            debt: Uint128::zero()
-        }
-    );
+    // reset pools
+    suite
+        .set_pool(&[(
+            1,
+            (coin(100_000_000_000, osmo), coin(100_000_000_000, atom)),
+        )])
+        .unwrap();
+    suite
+        .set_pool(&[(
+            2,
+            (coin(100_000_000_000, osmo), coin(100_000_000_000, juno)),
+        )])
+        .unwrap();
+
+    let liquidation_price = 500 // actual debt worth with 1:1 liquidity pools
+        + 25 // 5% liquidation fees
+        + 5  // 1% liquidation initiation fee
+        + 4; // 3% swap fees, paid twice (swap through two pools), rounded up
+    let crl = suite
+        .query_total_credit_line(debtor)
+        .unwrap()
+        .validate(&Token::Native(osmo.to_string()))
+        .unwrap();
+    assert_eq!(crl.collateral, Uint128::new(580 - liquidation_price));
+    assert!(crl.debt.is_zero());
 }
 
 /// TODO: This kind of test requires that if we're repaying debt with collateral in the same token,
-/// liquidity on the market isn't an issue. Currently the lack of liquidity in the OSMO market
-/// makes this fail.
+/// liquidity on the market isn't needed. Currently the lack of liquidity in the OSMO market
+/// makes this fail, which makes no sense.
 #[test]
 #[ignore]
 fn liquidating_whole_debt_same_market() {
