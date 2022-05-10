@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, DivideByZeroError, StdError, Uint128};
+use cosmwasm_std::{Addr, DivideByZeroError, OverflowError, StdError, Uint128};
 use utils::coin::Coin;
 use utils::{coin::CoinError, credit_line::InvalidCommonTokenDenom, price::PriceError};
 
@@ -91,4 +91,7 @@ pub enum ContractError {
 
     #[error("Something went very wrong: {0}")]
     DivisionByZero(#[from] DivideByZeroError),
+
+    #[error("{0}")]
+    Overflow(#[from] OverflowError),
 }

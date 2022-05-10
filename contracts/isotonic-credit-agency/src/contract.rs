@@ -101,8 +101,8 @@ mod execute {
     use super::*;
 
     use cosmwasm_std::{
-        ensure_eq, Decimal, DivideByZeroError, Fraction, QueryRequest, StdError, SubMsg, Uint128,
-        WasmMsg,
+        ensure_eq, Decimal, DivideByZeroError, Fraction, OverflowError, QueryRequest, StdError,
+        SubMsg, Uint128, WasmMsg,
     };
     use osmo_bindings::EstimatePriceResponse;
     use utils::{
@@ -220,6 +220,13 @@ mod execute {
 
         let cfg = CONFIG.load(deps.storage)?;
 
+        let initiation_fee = amount_to_repay.amount * cfg.liquidation_initiation_fee;
+        let lender_fee = amount_to_repay.amount * cfg.liquidation_fee;
+        let amount_to_cover = amount_to_repay
+            .amount
+            .checked_add(initiation_fee)?
+            .checked_add(lender_fee)?;
+
         let tcr = query::total_credit_line(deps.as_ref(), account.to_string())?;
         let total_credit_line = tcr.validate(&Token::Native(cfg.common_token.clone()))?;
         if total_credit_line.debt <= total_credit_line.credit_line {
@@ -241,13 +248,12 @@ mod execute {
             &MarketQueryMsg::PriceMarketLocalPerCommon {},
         )?;
         let debt_per_common_rate = debt_per_common_rate.rate_sell_per_buy;
-        let amount_to_repay_common = coin_native(
-            (amount_to_repay.amount * debt_per_common_rate).u128(),
+        let amount_to_cover_common = coin_native(
+            (amount_to_cover * debt_per_common_rate).u128(),
             cfg.common_token,
         );
 
-        // TODO: take liquidation fees into account
-        let simulated_debt = tcr.debt.checked_sub(amount_to_repay_common)?;
+        let simulated_debt = tcr.debt.checked_sub(amount_to_cover_common)?;
 
         // this could probably reuse market::QueryMsg::TransferableAmount if we enhance it a bit?
         let sell_limit = if simulated_debt.amount.is_zero() {
@@ -277,8 +283,6 @@ mod execute {
             amount: amount_to_repay.amount,
         })?;
 
-        // TODO: charge liquidation fees
-
         let repay_to_msg = SubMsg::new(WasmMsg::Execute {
             contract_addr: debt_market.to_string(),
             msg,
@@ -287,6 +291,8 @@ mod execute {
                 amount_to_repay.denom.to_string(),
             )],
         });
+
+        // TODO: charge liquidation fees
 
         Ok(Response::new()
             .add_attribute("action", "liquidate")

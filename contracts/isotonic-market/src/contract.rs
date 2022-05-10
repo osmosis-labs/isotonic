@@ -210,6 +210,7 @@ pub fn execute(
             sell_limit,
             buy,
         } => execute::swap_withdraw_from(deps, info.sender, account, sell_limit, buy),
+        DistributeAsLTokens {} => execute::distribute_as_ltokens(deps, info),
     }
 }
 
@@ -813,6 +814,42 @@ mod execute {
             .add_submessage(burn_msg)
             .add_message(swap_msg)
             .add_message(send_msg))
+    }
+
+    pub fn distribute_as_ltokens(
+        deps: DepsMut,
+        info: MessageInfo,
+    ) -> Result<Response, ContractError> {
+        let cfg = CONFIG.load(deps.storage)?;
+        let funds_sent = validate_funds(&info.funds, &cfg.market_token)?;
+
+        let ltoken_supply = query::token_info(deps.as_ref(), &cfg)?
+            .ltoken
+            .total_supply
+            .display_amount();
+
+        if cfg.credit_agency != info.sender {
+            return Err(ContractError::RequiresCreditAgency {});
+        }
+
+        let mut response = Response::new();
+
+        let rebase_by = Decimal::from_ratio(ltoken_supply + funds_sent, ltoken_supply);
+
+        // Rebasing only the L Tokens basically means the funds get distributed to all the lenders
+        // according to their share of the supply.
+        let rebase_msg = to_binary(&isotonic_token::msg::ExecuteMsg::Rebase { ratio: rebase_by })?;
+        let rebase_msg = SubMsg::new(WasmMsg::Execute {
+            contract_addr: cfg.ltoken_contract.to_string(),
+            msg: rebase_msg,
+            funds: vec![],
+        });
+
+        response = response
+            .add_attribute("action", "distribute_as_ltokens")
+            .add_attribute("sender", info.sender)
+            .add_submessage(rebase_msg);
+        Ok(response)
     }
 }
 

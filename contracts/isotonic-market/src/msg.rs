@@ -78,6 +78,9 @@ pub enum ExecuteMsg {
         sell_limit: Uint128,
         buy: Coin,
     },
+    /// Deposits the market currency sent with this message and distributes the L Tokens to all existing lenders.
+    /// Only callable by the credit agency.
+    DistributeAsLTokens {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
