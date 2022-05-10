@@ -41,6 +41,10 @@ pub enum ExecuteMsg {
     /// X market_token must be sent along with this message. If it matches, X l_token is minted of the sender address.
     /// The underlying market_token is stored in this Market contract
     Deposit {},
+    /// Similar to `Deposit`, but allows the sender to deposit to someone else's account.
+    DepositTo {
+        account: String,
+    },
     /// This requests to withdraw the amount of L Tokens. More specifically,
     /// the contract will burn amount L Tokens and return that to the lender in base asset.
     Withdraw {

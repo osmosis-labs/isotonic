@@ -170,6 +170,10 @@ pub fn execute(
     use ExecuteMsg::*;
     match msg {
         Deposit {} => execute::deposit(deps, env, info),
+        DepositTo { account } => {
+            let account = deps.api.addr_validate(&account)?;
+            execute::deposit_to(deps, env, info, account)
+        }
         Withdraw { amount } => execute::withdraw(deps, env, info, amount),
         Borrow { amount } => execute::borrow(deps, env, info, amount),
         Repay {} => execute::repay(deps, env, info),
@@ -385,47 +389,8 @@ mod execute {
 
     /// Handler for `ExecuteMsg::Deposit`
     pub fn deposit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
-        let cfg = CONFIG.load(deps.storage)?;
-        let funds_sent = validate_funds(&info.funds, &cfg.market_token)?;
-
-        let mut response = Response::new();
-
-        if let Some(cap) = cfg.market_cap {
-            let ltoken_supply = query::token_info(deps.as_ref(), &cfg)?
-                .ltoken
-                .total_supply
-                .display_amount();
-            if ltoken_supply + funds_sent > cap {
-                return Err(ContractError::DepositOverCap {
-                    attempted_deposit: funds_sent,
-                    ltoken_supply,
-                    cap,
-                });
-            }
-        }
-
-        // Create rebase messagess for tokens based on interest and supply
-        let charge_msgs = charge_interest(deps, env)?;
-        if !charge_msgs.is_empty() {
-            response = response.add_submessages(charge_msgs);
-        }
-
-        let mint_msg = to_binary(&isotonic_token::msg::ExecuteMsg::Mint {
-            recipient: info.sender.to_string(),
-            amount: isotonic_token::DisplayAmount::raw(funds_sent),
-        })?;
-        let wrapped_msg = SubMsg::new(WasmMsg::Execute {
-            contract_addr: cfg.ltoken_contract.to_string(),
-            msg: mint_msg,
-            funds: vec![],
-        });
-
-        response = response
-            .add_attribute("action", "deposit")
-            .add_attribute("sender", info.sender.clone())
-            .add_submessage(wrapped_msg)
-            .add_submessage(enter_market(&cfg, &info.sender)?);
-        Ok(response)
+        let sender = info.sender.clone();
+        deposit_to(deps, env, info, sender)
     }
 
     /// Handler for `ExecuteMsg::Withdraw`
@@ -625,6 +590,56 @@ mod execute {
             .add_attribute("sender", info.sender)
             .add_attribute("debtor", account)
             .add_submessage(burn_msg);
+        Ok(response)
+    }
+
+    pub fn deposit_to(
+        deps: DepsMut,
+        env: Env,
+        info: MessageInfo,
+        account: Addr,
+    ) -> Result<Response, ContractError> {
+        let cfg = CONFIG.load(deps.storage)?;
+        let funds_sent = validate_funds(&info.funds, &cfg.market_token)?;
+
+        let mut response = Response::new();
+
+        if let Some(cap) = cfg.market_cap {
+            let ltoken_supply = query::token_info(deps.as_ref(), &cfg)?
+                .ltoken
+                .total_supply
+                .display_amount();
+            if ltoken_supply + funds_sent > cap {
+                return Err(ContractError::DepositOverCap {
+                    attempted_deposit: funds_sent,
+                    ltoken_supply,
+                    cap,
+                });
+            }
+        }
+
+        // Create rebase messagess for tokens based on interest and supply
+        let charge_msgs = charge_interest(deps, env)?;
+        if !charge_msgs.is_empty() {
+            response = response.add_submessages(charge_msgs);
+        }
+
+        let mint_msg = to_binary(&isotonic_token::msg::ExecuteMsg::Mint {
+            recipient: account.to_string(),
+            amount: isotonic_token::DisplayAmount::raw(funds_sent),
+        })?;
+        let wrapped_msg = SubMsg::new(WasmMsg::Execute {
+            contract_addr: cfg.ltoken_contract.to_string(),
+            msg: mint_msg,
+            funds: vec![],
+        });
+
+        response = response
+            .add_attribute("action", "deposit")
+            .add_attribute("sender", info.sender)
+            .add_attribute("destination", &account)
+            .add_submessage(wrapped_msg)
+            .add_submessage(enter_market(&cfg, &account)?);
         Ok(response)
     }
 
