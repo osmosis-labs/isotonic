@@ -1,8 +1,6 @@
 use super::suite::SuiteBuilder;
 use crate::error::ContractError;
 
-use cosmwasm_std::Decimal;
-
 #[test]
 fn market_create() {
     let mut suite = SuiteBuilder::new().with_gov("gov").build();
@@ -54,30 +52,6 @@ fn market_create_already_exists() {
         .unwrap_err();
     assert_eq!(
         ContractError::MarketAlreadyExists("OSMO".to_owned()),
-        err.downcast().unwrap()
-    );
-}
-
-#[test]
-fn collateral_ratio_higher_then_liquidation_price() {
-    let mut suite = SuiteBuilder::new()
-        .with_gov("gov")
-        .with_liquidation_price(Decimal::percent(92))
-        .build();
-
-    let err = suite
-        .create_market_quick("gov", "osmo", "OSMO", Decimal::percent(92), None, None)
-        .unwrap_err();
-    assert_eq!(
-        ContractError::MarketCfgCollateralFailure {},
-        err.downcast().unwrap()
-    );
-
-    let err = suite
-        .create_market_quick("gov", "osmo", "OSMO", Decimal::percent(93), None, None)
-        .unwrap_err();
-    assert_eq!(
-        ContractError::MarketCfgCollateralFailure {},
         err.downcast().unwrap()
     );
 }

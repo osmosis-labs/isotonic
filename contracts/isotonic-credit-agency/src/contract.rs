@@ -41,7 +41,6 @@ pub fn instantiate(
             .common_token
             .native()
             .ok_or(ContractError::Cw20TokensNotSupported)?,
-        liquidation_price: msg.liquidation_price,
         liquidation_fee: msg.liquidation_fee,
         liquidation_initiation_fee: msg.liquidation_initiation_fee,
     };
@@ -138,10 +137,15 @@ mod execute {
             ContractError::Unauthorized {}
         );
 
-        // Collateral ratio must be lower then liquidation price, otherwise
-        // liquidation could decrese debt less then it decreases potential credit.
-        if market_cfg.collateral_ratio >= cfg.liquidation_price {
-            return Err(ContractError::MarketCfgCollateralFailure {});
+        if cfg.liquidation_fee.is_zero() || cfg.liquidation_fee >= Decimal::one() {
+            return Err(ContractError::InvalidLiquidationFee(cfg.liquidation_fee));
+        }
+        if cfg.liquidation_initiation_fee.is_zero()
+            || cfg.liquidation_initiation_fee >= Decimal::one()
+        {
+            return Err(ContractError::InvalidLiquidationInitiationFee(
+                cfg.liquidation_initiation_fee,
+            ));
         }
 
         if let Some(state) = MARKETS.may_load(deps.storage, &market_token)? {
@@ -727,15 +731,9 @@ pub fn sudo(deps: DepsMut, _env: Env, msg: SudoMsg) -> Result<Response, Contract
             migrate_msg,
         } => sudo::migrate_market(deps, contract, migrate_msg),
         AdjustLiquidation {
-            liquidation_price,
             liquidation_fee,
             liquidation_initiation_fee,
-        } => sudo::adjust_liquidation(
-            deps,
-            liquidation_price,
-            liquidation_fee,
-            liquidation_initiation_fee,
-        ),
+        } => sudo::adjust_liquidation(deps, liquidation_fee, liquidation_initiation_fee),
     }
 }
 
@@ -789,14 +787,10 @@ mod sudo {
 
     pub fn adjust_liquidation(
         deps: DepsMut,
-        new_liquidation_price: Option<Decimal>,
         new_liquidation_fee: Option<Decimal>,
         new_liquidation_initiation_fee: Option<Decimal>,
     ) -> Result<Response, ContractError> {
         let mut cfg = CONFIG.load(deps.storage)?;
-        if let Some(new_price) = new_liquidation_price {
-            cfg.liquidation_price = new_price;
-        }
         if let Some(new_fee) = new_liquidation_fee {
             cfg.liquidation_fee = new_fee;
         }

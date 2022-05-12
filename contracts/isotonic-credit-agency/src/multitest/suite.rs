@@ -194,7 +194,6 @@ impl SuiteBuilder {
                     isotonic_token_id,
                     reward_token: Token::Native(self.reward_token),
                     common_token: Token::Native(common_token.clone()),
-                    liquidation_price: self.liquidation_price,
                     liquidation_fee: self.liquidation_fee,
                     liquidation_initiation_fee: self.liquidation_initiation_fee,
                 },

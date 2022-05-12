@@ -19,8 +19,6 @@ pub struct InstantiateMsg {
     pub reward_token: Token,
     /// Common Token denom (same for all markets)
     pub common_token: Token,
-    /// Price for collateral in exchange for paying debt during liquidation
-    pub liquidation_price: Decimal,
     /// The liquidation fee to be payed out to all lenders in the debt market
     pub liquidation_fee: Decimal,
     /// The liquidation triggering fee to be payed out to the person who "clicked the button"
@@ -134,7 +132,6 @@ pub enum SudoMsg {
         migrate_msg: MarketMigrateMsg,
     },
     AdjustLiquidation {
-        liquidation_price: Option<Decimal>,
         liquidation_fee: Option<Decimal>,
         liquidation_initiation_fee: Option<Decimal>,
     },
