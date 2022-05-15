@@ -229,7 +229,7 @@ mod execute {
                 .checked_add(initiation_fee)?
                 .checked_add(lender_fee)?,
         };
-        println!("1");
+
         let tcr = query::total_credit_line(deps.as_ref(), account.to_string())?;
         let total_credit_line = tcr.validate(&Token::Native(cfg.common_token.clone()))?;
         if total_credit_line.debt <= total_credit_line.credit_line {
@@ -251,12 +251,15 @@ mod execute {
             &MarketQueryMsg::PriceMarketLocalPerCommon {},
         )?;
         let debt_per_common_rate = debt_per_common_rate.rate_sell_per_buy;
+
         let amount_to_repay_common = coin_native(
             (amount_to_repay.amount * debt_per_common_rate).u128(),
             cfg.common_token,
         );
+        dbg!(&amount_to_repay_common);
         println!("4");
-        let simulated_debt = tcr.debt.checked_sub(amount_to_repay_common)?;
+        let simulated_debt = tcr.debt.saturating_sub(amount_to_repay_common)?;
+        dbg!(&simulated_debt);
 
         // this could probably reuse market::QueryMsg::TransferableAmount if we enhance it a bit?
         let sell_limit = if simulated_debt.amount.is_zero() {
@@ -264,12 +267,16 @@ mod execute {
             Uint128::MAX
         } else {
             let sell_limit_in_common = divide(
-                tcr.credit_line.checked_sub(simulated_debt)?.amount,
+                tcr.credit_line.saturating_sub(simulated_debt)?.amount,
                 collateral_market_cfg.collateral_ratio,
             )?;
             divide(sell_limit_in_common, collateral_per_common_rate)?
         };
         println!("5");
+
+        // TODO: if this doesn't succeed because the sell limit is too low,
+        // is there a way we can handle the "swap limit too low" error and
+        // return a nicer one?
         let msg = to_binary(&MarketExecuteMsg::SwapWithdrawFrom {
             account: account.to_string(),
             sell_limit,

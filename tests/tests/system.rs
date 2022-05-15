@@ -49,7 +49,6 @@ fn withdraw_whole_deposit_after_being_repaid() {
     let borrower = "borrower";
     let mut suite = SuiteBuilder::new()
         .with_common_token("OSMO")
-        .with_liquidation_price(Decimal::one())
         .with_funds(lender, &[coin(u128::MAX, "ATOM")])
         .with_funds(borrower, &[coin(u128::MAX, "ETH")])
         .with_pool(1, (coin(1, "OSMO"), coin(1, "ATOM")))

@@ -44,6 +44,21 @@ impl Coin {
         }
     }
 
+    pub fn saturating_sub(self, rhs: Self) -> Result<Self, CoinError> {
+        if self.denom == rhs.denom {
+            Ok(Self {
+                amount: self.amount.saturating_sub(rhs.amount),
+                denom: self.denom,
+            })
+        } else {
+            Err(CoinError::IncorrectDenoms {
+                operation: "subtraction".to_owned(),
+                denom1: self.denom,
+                denom2: rhs.denom,
+            })
+        }
+    }
+
     pub fn checked_sub(self, rhs: Self) -> Result<Self, CoinError> {
         if self.denom == rhs.denom {
             Ok(Self {
