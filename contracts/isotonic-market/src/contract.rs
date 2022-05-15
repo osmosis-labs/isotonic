@@ -604,20 +604,6 @@ mod execute {
 
         let mut response = Response::new();
 
-        if let Some(cap) = cfg.market_cap {
-            let ltoken_supply = query::token_info(deps.as_ref(), &cfg)?
-                .ltoken
-                .total_supply
-                .display_amount();
-            if ltoken_supply + funds_sent > cap {
-                return Err(ContractError::DepositOverCap {
-                    attempted_deposit: funds_sent,
-                    ltoken_supply,
-                    cap,
-                });
-            }
-        }
-
         // Create rebase messagess for tokens based on interest and supply
         let charge_msgs = charge_interest(deps, env)?;
         if !charge_msgs.is_empty() {
