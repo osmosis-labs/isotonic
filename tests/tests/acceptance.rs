@@ -59,7 +59,7 @@ fn liquidate_via_amm() {
             .unwrap()
             .ltokens
             .u128(),
-        324_999 // TODO: where's this rounding error coming from?
+        324_999 // rounding error due to how token amounts are calculated from a multiplier
     );
 
     // Bob earns interest from liquidation since he's a B token lender.
