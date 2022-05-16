@@ -256,10 +256,8 @@ mod execute {
             (amount_to_repay.amount * debt_per_common_rate).u128(),
             cfg.common_token,
         );
-        dbg!(&amount_to_repay_common);
-        println!("4");
+
         let simulated_debt = tcr.debt.saturating_sub(amount_to_repay_common)?;
-        dbg!(&simulated_debt);
 
         // this could probably reuse market::QueryMsg::TransferableAmount if we enhance it a bit?
         let sell_limit = if simulated_debt.amount.is_zero() {
@@ -272,7 +270,6 @@ mod execute {
             )?;
             divide(sell_limit_in_common, collateral_per_common_rate)?
         };
-        println!("5");
 
         // TODO: if this doesn't succeed because the sell limit is too low,
         // is there a way we can handle the "swap limit too low" error and
@@ -287,7 +284,7 @@ mod execute {
             msg,
             funds: vec![],
         });
-        println!("6");
+
         let msg = to_binary(&MarketExecuteMsg::RepayTo {
             account: account.to_string(),
             amount: amount_to_repay.amount,
@@ -323,7 +320,7 @@ mod execute {
                 amount_to_repay.denom.to_string(),
             )],
         });
-        println!("8");
+
         Ok(Response::new()
             .add_attribute("action", "liquidate")
             .add_attribute("liquidation_initiator", info.sender)
