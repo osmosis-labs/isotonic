@@ -290,86 +290,149 @@ mod execute {
 
     use super::*;
 
-    /// Function that is supposed to be called before every mint/burn operation.
-    /// It calculates ratio for increasing both btokens and ltokens.a
-    /// btokens formula:
-    /// b_ratio = calculate_interest() * epochs_passed * epoch_length / 31.556.736
-    /// ltokens formula:
-    /// l_ratio = b_supply() * b_ratio / l_supply()
-    pub fn charge_interest(deps: DepsMut, env: Env) -> Result<Vec<SubMsg>, ContractError> {
-        use isotonic_token::msg::ExecuteMsg;
+    pub(crate) mod helpers {
+        use super::*;
 
-        let mut cfg = CONFIG.load(deps.storage)?;
-        let epochs_passed = epochs_passed(&cfg, env)?;
-        cfg.last_charged += epochs_passed * cfg.interest_charge_period;
-        CONFIG.save(deps.storage, &cfg)?;
+        /// Function that is supposed to be called before every mint/burn operation.
+        /// It calculates ratio for increasing both btokens and ltokens.a
+        /// btokens formula:
+        /// b_ratio = calculate_interest() * epochs_passed * epoch_length / 31.556.736
+        /// ltokens formula:
+        /// l_ratio = b_supply() * b_ratio / l_supply()
+        pub(crate) fn charge_interest(
+            deps: DepsMut,
+            env: Env,
+        ) -> Result<Vec<SubMsg>, ContractError> {
+            use isotonic_token::msg::ExecuteMsg;
 
-        if epochs_passed == 0 {
-            return Ok(vec![]);
+            let mut cfg = CONFIG.load(deps.storage)?;
+            let epochs_passed = epochs_passed(&cfg, env)?;
+            cfg.last_charged += epochs_passed * cfg.interest_charge_period;
+            CONFIG.save(deps.storage, &cfg)?;
+
+            if epochs_passed == 0 {
+                return Ok(vec![]);
+            }
+
+            if let Some(InterestUpdate {
+                reserve,
+                ltoken_ratio,
+                btoken_ratio,
+            }) = calculate_interest(deps.as_ref(), epochs_passed)?
+            {
+                RESERVE.save(deps.storage, &reserve)?;
+
+                let btoken_rebase = to_binary(&ExecuteMsg::Rebase {
+                    ratio: btoken_ratio + Decimal::one(),
+                })?;
+                let bwrapped = SubMsg::new(WasmMsg::Execute {
+                    contract_addr: cfg.btoken_contract.to_string(),
+                    msg: btoken_rebase,
+                    funds: vec![],
+                });
+
+                let ltoken_rebase = to_binary(&ExecuteMsg::Rebase {
+                    ratio: ltoken_ratio + Decimal::one(),
+                })?;
+                let lwrapped = SubMsg::new(WasmMsg::Execute {
+                    contract_addr: cfg.ltoken_contract.to_string(),
+                    msg: ltoken_rebase,
+                    funds: vec![],
+                });
+
+                Ok(vec![bwrapped, lwrapped])
+            } else {
+                Ok(vec![])
+            }
         }
 
-        if let Some(InterestUpdate {
-            reserve,
-            ltoken_ratio,
-            btoken_ratio,
-        }) = calculate_interest(deps.as_ref(), epochs_passed)?
-        {
-            RESERVE.save(deps.storage, &reserve)?;
+        /// Validates funds sent with the message, that they contain only the base asset. Returns
+        /// amount of funds sent, or error if:
+        /// * No funds were passed with the message (`NoFundsSent` error)
+        /// * Multiple denoms were sent (`ExtraDenoms` error)
+        /// * A single denom different than cfg.market_token was sent (`InvalidDenom` error)
+        pub(crate) fn validate_funds(
+            funds: &[Coin],
+            market_token_denom: &str,
+        ) -> Result<Uint128, ContractError> {
+            match funds {
+                [] => Err(ContractError::NoFundsSent {}),
+                [Coin { denom, amount }] if denom == market_token_denom => Ok(*amount),
+                [_] => Err(ContractError::InvalidDenom(market_token_denom.to_string())),
+                _ => Err(ContractError::ExtraDenoms(market_token_denom.to_string())),
+            }
+        }
 
-            let btoken_rebase = to_binary(&ExecuteMsg::Rebase {
-                ratio: btoken_ratio + Decimal::one(),
+        pub(crate) fn enter_market(cfg: &Config, account: &Addr) -> StdResult<SubMsg> {
+            let msg = to_binary(&CreditAgencyExecuteMsg::EnterMarket {
+                account: account.to_string(),
             })?;
-            let bwrapped = SubMsg::new(WasmMsg::Execute {
-                contract_addr: cfg.btoken_contract.to_string(),
-                msg: btoken_rebase,
+
+            Ok(SubMsg::new(WasmMsg::Execute {
+                contract_addr: cfg.credit_agency.to_string(),
+                msg,
                 funds: vec![],
-            });
+            }))
+        }
 
-            let ltoken_rebase = to_binary(&ExecuteMsg::Rebase {
-                ratio: ltoken_ratio + Decimal::one(),
+        pub fn deposit_to(
+            deps: DepsMut,
+            env: Env,
+            info: MessageInfo,
+            cfg: Config,
+            account: Addr,
+            funds_sent: Uint128,
+        ) -> Result<Response, ContractError> {
+            let mut response = Response::new();
+
+            // Create rebase messagess for tokens based on interest and supply
+            let charge_msgs = charge_interest(deps, env)?;
+            if !charge_msgs.is_empty() {
+                response = response.add_submessages(charge_msgs);
+            }
+
+            let mint_msg = to_binary(&isotonic_token::msg::ExecuteMsg::Mint {
+                recipient: account.to_string(),
+                amount: isotonic_token::DisplayAmount::raw(funds_sent),
             })?;
-            let lwrapped = SubMsg::new(WasmMsg::Execute {
+            let wrapped_msg = SubMsg::new(WasmMsg::Execute {
                 contract_addr: cfg.ltoken_contract.to_string(),
-                msg: ltoken_rebase,
+                msg: mint_msg,
                 funds: vec![],
             });
 
-            Ok(vec![bwrapped, lwrapped])
-        } else {
-            Ok(vec![])
+            response = response
+                .add_attribute("action", "deposit")
+                .add_attribute("sender", info.sender)
+                .add_attribute("destination", &account)
+                .add_submessage(wrapped_msg)
+                .add_submessage(enter_market(&cfg, &account)?);
+            Ok(response)
         }
-    }
-
-    /// Validates funds sent with the message, that they contain only the base asset. Returns
-    /// amount of funds sent, or error if:
-    /// * No funds were passed with the message (`NoFundsSent` error)
-    /// * Multiple denoms were sent (`ExtraDenoms` error)
-    /// * A single denom different than cfg.market_token was sent (`InvalidDenom` error)
-    fn validate_funds(funds: &[Coin], market_token_denom: &str) -> Result<Uint128, ContractError> {
-        match funds {
-            [] => Err(ContractError::NoFundsSent {}),
-            [Coin { denom, amount }] if denom == market_token_denom => Ok(*amount),
-            [_] => Err(ContractError::InvalidDenom(market_token_denom.to_string())),
-            _ => Err(ContractError::ExtraDenoms(market_token_denom.to_string())),
-        }
-    }
-
-    fn enter_market(cfg: &Config, account: &Addr) -> StdResult<SubMsg> {
-        let msg = to_binary(&CreditAgencyExecuteMsg::EnterMarket {
-            account: account.to_string(),
-        })?;
-
-        Ok(SubMsg::new(WasmMsg::Execute {
-            contract_addr: cfg.credit_agency.to_string(),
-            msg,
-            funds: vec![],
-        }))
     }
 
     /// Handler for `ExecuteMsg::Deposit`
     pub fn deposit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+        let cfg = CONFIG.load(deps.storage)?;
+
         let sender = info.sender.clone();
-        deposit_to(deps, env, info, sender)
+        let funds_sent = helpers::validate_funds(&info.funds, &cfg.market_token)?;
+
+        if let Some(cap) = cfg.market_cap {
+            let ltoken_supply = query::token_info(deps.as_ref(), &cfg)?
+                .ltoken
+                .total_supply
+                .display_amount();
+            if ltoken_supply + funds_sent > cap {
+                return Err(ContractError::DepositOverCap {
+                    attempted_deposit: funds_sent,
+                    ltoken_supply,
+                    cap,
+                });
+            }
+        }
+
+        helpers::deposit_to(deps, env, info, cfg, sender, funds_sent)
     }
 
     /// Handler for `ExecuteMsg::Withdraw`
@@ -391,7 +454,7 @@ mod execute {
         let mut response = Response::new();
 
         // Create rebase messagess for tokens based on interest and supply
-        let charge_msgs = charge_interest(deps, env)?;
+        let charge_msgs = helpers::charge_interest(deps, env)?;
         if !charge_msgs.is_empty() {
             response = response.add_submessages(charge_msgs);
         }
@@ -440,7 +503,7 @@ mod execute {
         let mut response = Response::new();
 
         // Create rebase messagess for tokens based on interest and supply
-        let charge_msgs = charge_interest(deps, env)?;
+        let charge_msgs = helpers::charge_interest(deps, env)?;
         if !charge_msgs.is_empty() {
             response = response.add_submessages(charge_msgs);
         }
@@ -466,7 +529,7 @@ mod execute {
             .add_attribute("action", "borrow")
             .add_attribute("sender", info.sender.clone())
             .add_submessage(mint_msg)
-            .add_submessage(enter_market(&cfg, &info.sender)?)
+            .add_submessage(helpers::enter_market(&cfg, &info.sender)?)
             .add_message(bank_msg);
         Ok(response)
     }
@@ -478,7 +541,7 @@ mod execute {
         info: MessageInfo,
     ) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
-        let funds_sent = validate_funds(&info.funds, &cfg.market_token)?;
+        let funds_sent = helpers::validate_funds(&info.funds, &cfg.market_token)?;
 
         let debt = query::btoken_balance(deps.as_ref(), &cfg, &info.sender)?;
         // If there are more tokens sent then there are to repay, burn only desired
@@ -488,7 +551,7 @@ mod execute {
         let mut response = Response::new();
 
         // Create rebase messagess for tokens based on interest and supply
-        let charge_msgs = charge_interest(deps.branch(), env)?;
+        let charge_msgs = helpers::charge_interest(deps.branch(), env)?;
         if !charge_msgs.is_empty() {
             response = response.add_submessages(charge_msgs);
         }
@@ -535,7 +598,7 @@ mod execute {
             return Err(ContractError::RequiresCreditAgency {});
         }
 
-        let funds = validate_funds(&info.funds, &cfg.market_token)?;
+        let funds = helpers::validate_funds(&info.funds, &cfg.market_token)?;
 
         let btokens_balance = query::btoken_balance(deps.as_ref(), &cfg, &account)?;
         // if account has less btokens then caller wants to pay off, liquidation fails
@@ -549,7 +612,7 @@ mod execute {
         let mut response = Response::new();
 
         // Create rebase messagess for tokens based on interest and supply
-        let charge_msgs = charge_interest(deps, env)?;
+        let charge_msgs = helpers::charge_interest(deps, env)?;
         if !charge_msgs.is_empty() {
             response = response.add_submessages(charge_msgs);
         }
@@ -579,33 +642,10 @@ mod execute {
         account: Addr,
     ) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
-        let funds_sent = validate_funds(&info.funds, &cfg.market_token)?;
 
-        let mut response = Response::new();
+        let funds_sent = helpers::validate_funds(&info.funds, &cfg.market_token)?;
 
-        // Create rebase messagess for tokens based on interest and supply
-        let charge_msgs = charge_interest(deps, env)?;
-        if !charge_msgs.is_empty() {
-            response = response.add_submessages(charge_msgs);
-        }
-
-        let mint_msg = to_binary(&isotonic_token::msg::ExecuteMsg::Mint {
-            recipient: account.to_string(),
-            amount: isotonic_token::DisplayAmount::raw(funds_sent),
-        })?;
-        let wrapped_msg = SubMsg::new(WasmMsg::Execute {
-            contract_addr: cfg.ltoken_contract.to_string(),
-            msg: mint_msg,
-            funds: vec![],
-        });
-
-        response = response
-            .add_attribute("action", "deposit")
-            .add_attribute("sender", info.sender)
-            .add_attribute("destination", &account)
-            .add_submessage(wrapped_msg)
-            .add_submessage(enter_market(&cfg, &account)?);
-        Ok(response)
+        helpers::deposit_to(deps, env, info, cfg, account, funds_sent)
     }
 
     /// Handler for `ExecuteMsg::AdjustCommonToken`
@@ -749,7 +789,7 @@ mod execute {
         info: MessageInfo,
     ) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
-        let funds_sent = validate_funds(&info.funds, &cfg.market_token)?;
+        let funds_sent = helpers::validate_funds(&info.funds, &cfg.market_token)?;
 
         let ltoken_supply = query::token_info(deps.as_ref(), &cfg)?
             .ltoken
@@ -1109,7 +1149,7 @@ mod sudo {
         new_interest_rates: Interest,
     ) -> Result<Response, ContractError> {
         let mut cfg = CONFIG.load(deps.storage)?;
-        let charge_msgs = execute::charge_interest(deps.branch(), env)?;
+        let charge_msgs = execute::helpers::charge_interest(deps.branch(), env)?;
         let mut response = Response::new();
         if !charge_msgs.is_empty() {
             response = response.add_submessages(charge_msgs);
