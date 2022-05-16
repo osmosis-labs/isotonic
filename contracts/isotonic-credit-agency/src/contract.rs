@@ -277,7 +277,7 @@ mod execute {
         let msg = to_binary(&MarketExecuteMsg::SwapWithdrawFrom {
             account: account.to_string(),
             sell_limit,
-            buy: amount_to_cover.clone(),
+            buy: amount_to_cover,
         })?;
         let swap_withdraw_from_msg = SubMsg::new(WasmMsg::Execute {
             contract_addr: collateral_market.to_string(),
