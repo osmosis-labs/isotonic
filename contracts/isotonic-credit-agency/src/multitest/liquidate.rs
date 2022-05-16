@@ -1,7 +1,5 @@
 use super::suite::{SuiteBuilder, COMMON};
-use crate::{error::ContractError, msg::MarketConfig};
-
-use isotonic_token::error::ContractError as TokenContractError;
+use crate::error::ContractError;
 
 use cosmwasm_std::{coin, coins, Decimal, Uint128};
 use utils::credit_line::{CreditLineResponse, CreditLineValues};
@@ -18,9 +16,7 @@ fn account_doesnt_have_debt_bigger_then_credit_line() {
 
     let mut suite = SuiteBuilder::new()
         .with_gov("gov")
-        //.with_funds(liquidator, &coins(5000, denom))
         .with_funds(debtor, &coins(500, denom))
-        .with_liquidation_price(Decimal::percent(92))
         .with_pool(1, (coin(100, COMMON), coin(100, denom)))
         .build();
 
@@ -156,12 +152,10 @@ fn liquidating_whole_debt() {
     assert!(crl.debt.is_zero());
 }
 
-/// TODO: This kind of test requires that if we're repaying debt with collateral in the same token,
-/// liquidity on the market isn't needed. Currently the lack of liquidity in the OSMO market
-/// makes this fail, which makes no sense.
+/// Prerequisite: https://github.com/confio/isotonic/issues/142
 #[test]
 #[ignore]
-fn liquidating_whole_debt_same_market() {
+fn liquidating_whole_debt_collateral_and_debt_in_same_token() {
     let debtor = "debtor";
     let liquidator = "liquidator";
 
@@ -173,7 +167,7 @@ fn liquidating_whole_debt_same_market() {
         .with_gov("gov")
         .with_funds(liquidator, &coins(5000, osmo))
         .with_funds(debtor, &coins(600, osmo))
-        .with_liquidation_price(Decimal::percent(92))
+        .with_liquidation_fee(Decimal::percent(92))
         .with_pool(1, (coin(10_000, COMMON), coin(10_000, osmo)))
         .build();
 
@@ -263,8 +257,22 @@ fn liquidating_whole_debt_same_market() {
     );
 }
 
+/// Prerequisite: https://github.com/confio/isotonic/issues/142
 #[test]
-fn receive_reward_in_different_denom_fails_if_theres_no_reward_market() {
+#[ignore]
+fn liquidate_when_debt_is_in_common_token() {
+    todo!()
+}
+
+/// Prerequisite: https://github.com/confio/isotonic/issues/142
+#[test]
+#[ignore]
+fn liquidate_when_collateral_is_in_common_token() {
+    todo!()
+}
+
+#[test]
+fn liquidation_fails_if_no_collateral_market() {
     let debtor = "debtor";
     let liquidator = "liquidator";
 
@@ -275,7 +283,7 @@ fn receive_reward_in_different_denom_fails_if_theres_no_reward_market() {
         .with_gov("gov")
         .with_funds(liquidator, &coins(5000, denom))
         .with_funds(debtor, &coins(600, denom))
-        .with_liquidation_price(Decimal::percent(92))
+        .with_liquidation_fee(Decimal::percent(92))
         .with_pool(1, (coin(100, COMMON), coin(100, denom)))
         .with_pool(2, (coin(100, COMMON), coin(150, reward_denom)))
         .build();
@@ -314,360 +322,62 @@ fn receive_reward_in_different_denom_fails_if_theres_no_reward_market() {
 }
 
 #[test]
-#[ignore]
-fn receive_reward_different_denom_fails_if_debtor_has_not_enough_reward_tokens() {
+fn receive_reward_fails_when_insufficient_collateral() {
     let debtor = "debtor";
     let liquidator = "liquidator";
+    let some_investor = "investor";
 
-    let denom = "OSMO";
-    let reward_denom = "ETH";
+    let osmo = "OSMO";
+    let atom = "ATOM";
+    let juno = "JUNO";
 
     let mut suite = SuiteBuilder::new()
         .with_gov("gov")
-        .with_funds(liquidator, &coins(5000, denom))
-        .with_funds(debtor, &[coin(600, denom), coin(500, reward_denom)])
-        .with_liquidation_price(Decimal::percent(92))
-        .with_pool(1, (coin(100, COMMON), coin(100, denom)))
-        .with_pool(2, (coin(150, COMMON), coin(100, reward_denom)))
+        .with_common_token(osmo)
+        .with_liquidation_fee(Decimal::percent(5))
+        .with_liquidation_initiation_fee(Decimal::percent(1))
+        .with_funds(debtor, &coins(580, atom))
+        .with_funds(some_investor, &coins(500, juno))
+        .with_pool(
+            1,
+            (coin(100_000_000_000, osmo), coin(100_000_000_000, atom)),
+        )
+        .with_pool(2, (coin(80_000_000_000, osmo), coin(100_000_000_000, juno)))
         .build();
 
-    // create market with very high interest rates
     suite
-        .create_market_quick(
-            "gov",
-            "osmo",
-            denom,
-            Decimal::percent(80),
-            (Decimal::percent(80), Decimal::percent(45)),
-            None,
-        )
+        .create_market_quick("gov", "atom", atom, Decimal::percent(70), None, None)
         .unwrap();
-    // create reward_denom market
     suite
-        .create_market_quick("gov", "eth", reward_denom, Decimal::percent(80), None, None)
+        .create_market_quick("gov", "juno", juno, Decimal::percent(70), None, None)
+        .unwrap();
+
+    // This is just to make sure the JUNO market has enough liquidity to cover the loan below.
+    suite
+        .deposit_tokens_on_market(some_investor, coin(500, juno))
         .unwrap();
 
     suite
-        .deposit_tokens_on_market(debtor, coin(500, denom))
+        .deposit_tokens_on_market(debtor, coin(580, atom))
         .unwrap();
     suite
-        .borrow_tokens_from_market(debtor, coin(400, denom))
+        .borrow_tokens_from_market(debtor, coin(500, juno))
         .unwrap();
 
-    suite.advance_seconds(YEAR_IN_SECONDS);
-
-    // Repay some tokens to trigger interest rate charges
+    // Prices change. The debtor is now seriously underwater.
     suite
-        .repay_tokens_on_market(debtor, coin(10, denom))
+        .set_pool(&[(
+            2,
+            (coin(200_000_000_000, osmo), coin(100_000_000_000, juno)),
+        )])
         .unwrap();
 
-    // debtor deposits some tokens in reward_denom market
     suite
-        .deposit_tokens_on_market(debtor, coin(50, reward_denom))
-        .unwrap();
-
-    let total_credit_line = suite.query_total_credit_line(debtor).unwrap();
-    assert_eq!(
-        total_credit_line,
-        CreditLineValues {
-            collateral: Uint128::new(1039),
-            credit_line: Uint128::new(831),
-            debt: Uint128::new(854)
-        }
-        .make_response(suite.common_token().clone())
-    );
-
-    // TODO: divide by zero error when SwapWithdrawFrom calls OsmosisQuery::EstimateSwap - why?
-    let err = suite
         .liquidate(
             liquidator,
             debtor,
-            Token::Native(reward_denom.to_owned()),
-            coin(100, denom),
+            Token::Native(atom.into()),
+            coin(500, juno),
         )
         .unwrap_err();
-    // Transferable amount is available balance / collateral ratio
-    // balance = credit line - debt / price ratio = 830 - 755 (855 - 100 liquidated) / 1.5 = 50
-    assert_eq!(
-        TokenContractError::InsufficientTokens {
-            available: Uint128::new(50),
-            needed: Uint128::new(72)
-        },
-        err.downcast().unwrap()
-    );
-}
-
-#[test]
-#[ignore]
-fn receive_reward_in_different_denoms_no_interest_rates() {
-    let debtor = "debtor";
-    let liquidator = "liquidator";
-
-    let osmo = "OSMO";
-    let eth = "ETH";
-
-    let mut suite = SuiteBuilder::new()
-        .with_gov("gov")
-        .with_funds(liquidator, &coins(160000, eth))
-        .with_funds(debtor, &coins(5000, osmo))
-        .with_liquidation_price(Decimal::percent(92))
-        .with_pool(1, (coin(400_000, COMMON), coin(100_000, osmo)))
-        .with_pool(2, (coin(100_000, COMMON), coin(1_000_000, eth)))
-        .build();
-
-    // create market atom osmo
-    suite
-        .create_market_quick(
-            "gov",
-            "atom",
-            osmo,
-            Decimal::percent(50),                        // collateral price
-            (Decimal::percent(3), Decimal::percent(20)), // interest rates (base, slope)
-            None,
-        )
-        .unwrap();
-    // create ust market eth
-    suite
-        .create_market_quick(
-            "gov",
-            "ust",
-            eth,
-            Decimal::percent(60),                        // collateral price
-            (Decimal::percent(3), Decimal::percent(20)), // interest rates (base, slope)
-            None,
-        )
-        .unwrap();
-
-    // debtor deposits 4000 ust
-    suite
-        .deposit_tokens_on_market(debtor, coin(4000, osmo))
-        .unwrap();
-    // liquidator deposits 100000 ust
-    suite
-        .deposit_tokens_on_market(liquidator, coin(100000, eth))
-        .unwrap();
-    // debtor borrows 75_000 ust
-    suite
-        .borrow_tokens_from_market(debtor, coin(75000, eth))
-        .unwrap();
-
-    let total_credit_line = suite.query_total_credit_line(debtor).unwrap();
-    assert_eq!(
-        total_credit_line,
-        CreditLineValues {
-            collateral: Uint128::new(16000), // 4000 deposited * 4.0
-            credit_line: Uint128::new(8000), // 16000 collateral * 0.5 collateral price
-            debt: Uint128::new(7500)         // 75_000 * 0.1
-        }
-        .make_response(suite.common_token().clone())
-    );
-
-    suite
-        .set_pool(&[(1, (coin(300, COMMON), coin(100, osmo)))])
-        .unwrap();
-    let total_credit_line = suite.query_total_credit_line(debtor).unwrap();
-    assert_eq!(
-        total_credit_line,
-        CreditLineValues {
-            collateral: Uint128::new(12000), // 4000 deposited * 3.0
-            credit_line: Uint128::new(6000), // 12000 collateral * 0.5 collateral price
-            debt: Uint128::new(7500)         // 75_000 * 0.1
-        }
-        .make_response(suite.common_token().clone())
-    );
-
-    // TODO: again, EstimateSwap is failing with overflow subtraction for some reason (?)
-    // successful liquidation of 6000 tokens
-    suite
-        .liquidate(
-            liquidator,
-            debtor,
-            Token::Native(osmo.to_owned()),
-            coin(60_000, eth),
-        )
-        .unwrap();
-
-    // Liquidation price is 0.92
-    // Repaid value is 60_000 ust * 0.1 / 3.0 / 0.92 = 2000 / 0.92 ~= 1999 / 0.92 = 2173 LATOM
-    let total_credit_line = suite.query_total_credit_line(debtor).unwrap();
-    assert_eq!(
-        total_credit_line,
-        CreditLineValues {
-            // (4000 deposited - 2173 repaid) * 3.0 tokens price = 1827 * 3.0
-            collateral: Uint128::new(5481),
-            // 5481 * 0.5 collateral price
-            credit_line: Uint128::new(2740),
-            // 7500 - (60_000 * 0.1)
-            debt: Uint128::new(1500),
-        }
-        .make_response(suite.common_token().clone())
-    );
-    let balance = suite.query_tokens_balance(eth, debtor).unwrap();
-    assert_eq!(balance.btokens, Uint128::new(15000)); // 1500 / 0.1 price
-    let balance = suite.query_tokens_balance(osmo, debtor).unwrap();
-    assert_eq!(balance.ltokens, Uint128::new(1827)); // (4000 deposited - 2173 repaid)
-
-    let total_credit_line = suite.query_total_credit_line(liquidator).unwrap();
-    assert!(matches!(
-        total_credit_line,
-        CreditLineResponse {
-            collateral,
-            ..
-        // deposited 100_000 * 0.1 + repaid 2173 * 3.0 (actually 2172 - FIXME rounding error)
-        } if collateral.amount == Uint128::new(16_519)
-    ));
-    let balance = suite.query_tokens_balance(osmo, liquidator).unwrap();
-    assert_eq!(balance.ltokens, Uint128::new(2173)); // 2173 repaid
-}
-
-#[test]
-#[ignore]
-fn receive_reward_in_different_denoms_with_six_months_interests() {
-    let debtor = "debtor";
-    let liquidator = "liquidator";
-    let others = "others";
-
-    let osmo = "OSMO";
-    let eth = "ETH";
-
-    let mut suite = SuiteBuilder::new()
-        .with_gov("gov")
-        .with_funds(others, &[coin(100_000, eth), coin(10_000, osmo)])
-        .with_funds(liquidator, &coins(100_000, eth))
-        .with_funds(debtor, &coins(5000, osmo))
-        .with_liquidation_price(Decimal::percent(92))
-        .with_pool(1, (coin(400, COMMON), coin(100, osmo)))
-        .with_pool(2, (coin(10, COMMON), coin(100, eth)))
-        .build();
-
-    suite
-        .create_market(
-            "gov",
-            MarketConfig {
-                name: "atom".to_string(),
-                symbol: "atom".to_string(),
-                decimals: 9,
-                market_token: Token::new_native("OSMO"),
-                market_cap: None,
-                interest_rate: utils::interest::Interest::Linear {
-                    base: Decimal::percent(3),
-                    slope: Decimal::percent(20),
-                },
-                interest_charge_period: YEAR_IN_SECONDS / 2,
-                collateral_ratio: Decimal::percent(50),
-                price_oracle: suite.oracle_contract.to_string(),
-                reserve_factor: Decimal::percent(0),
-            },
-        )
-        .unwrap();
-
-    suite
-        .create_market(
-            "gov",
-            MarketConfig {
-                name: "ust".to_string(),
-                symbol: "ust".to_string(),
-                decimals: 9,
-                market_token: Token::new_native("ETH"),
-                market_cap: None,
-                interest_rate: utils::interest::Interest::Linear {
-                    base: Decimal::percent(3),
-                    slope: Decimal::percent(20),
-                },
-                interest_charge_period: YEAR_IN_SECONDS / 2,
-                collateral_ratio: Decimal::percent(60),
-                price_oracle: suite.oracle_contract.to_string(),
-                reserve_factor: Decimal::percent(0),
-            },
-        )
-        .unwrap();
-
-    // investments from the others
-    suite
-        .deposit_tokens_on_market(others, coin(10000, osmo))
-        .unwrap();
-    suite
-        .deposit_tokens_on_market(others, coin(100_000, eth))
-        .unwrap();
-    suite
-        .borrow_tokens_from_market(others, coin(2000, osmo))
-        .unwrap();
-    suite
-        .borrow_tokens_from_market(others, coin(20_000, eth))
-        .unwrap();
-
-    // debtor deposits 4000 atom
-    suite
-        .deposit_tokens_on_market(debtor, coin(4000, osmo))
-        .unwrap();
-    // debtor borrows 75_000 ust
-    suite
-        .borrow_tokens_from_market(debtor, coin(75000, eth))
-        .unwrap();
-
-    let total_credit_line = suite.query_total_credit_line(debtor).unwrap();
-    assert_eq!(
-        total_credit_line,
-        CreditLineValues {
-            collateral: Uint128::new(16000), // 4000 deposited * 4.0
-            credit_line: Uint128::new(8000), // 16000 collateral * 0.5 collateral price
-            debt: Uint128::new(7500)         // 75_000 * 0.1
-        }
-        .make_response(suite.common_token().clone())
-    );
-
-    suite.advance_seconds(YEAR_IN_SECONDS / 2);
-
-    // change ATOM price to 3.0 per common denom
-    suite
-        .set_pool(&[(1, (coin(300, COMMON), coin(100, osmo)))])
-        .unwrap();
-
-    // current interest rates
-    // rates = (base + slope * utilization) / 2 (half year)
-    // atom = (3% + 20% * (2000/(10_000 + 4000))) / 2 = (3% + 20% * 14.3%) / 2 = (3% + 2.8%) / 2 = 2.9% ~= 3%
-    // ust = (3% + 20% * ((20_000 + 75_000)/100_000)) / 2 = (3% + 20% * 95%) / 2 = (3% + 19%) / 2 = 11%
-
-    // expected numbers before liquidation
-    // LATOM = 4000 + (2000 * 0.03 * 4000/14000) = 4017
-    // BUST = 75_000 * 1.11 * 0.1 = 8325
-
-    // TODO: same problem as in the above test
-    // successful liquidation of 6000 tokens
-    suite
-        .liquidate(
-            liquidator,
-            debtor,
-            Token::Native(osmo.to_owned()),
-            coin(60_000, eth),
-        )
-        .unwrap();
-
-    // Liquidation price is 0.92
-    // Repaid value is 60_000 ust * 0.1 / 3.0 / 0.92 = 2000 / 0.92 ~= 1999 / 0.92 = 2172 LATO
-
-    let balance = suite.query_tokens_balance(eth, debtor).unwrap();
-    // 75_000 * 1.11 (interests) - 60_000 (repaid) = 83250 - 60000
-    assert_eq!(balance.btokens, Uint128::new(23250));
-    let balance = suite.query_tokens_balance(osmo, debtor).unwrap();
-    // amount left after paying liquidation reward
-    // 4017 - 2172 repaid = 1845 FIXME: rounding issue
-    assert_eq!(balance.ltokens, Uint128::new(1843));
-
-    let balance = suite.query_tokens_balance(osmo, liquidator).unwrap();
-    assert_eq!(balance.ltokens, Uint128::new(2172)); // repaid amount as reward
-
-    let total_credit_line = suite.query_total_credit_line(debtor).unwrap();
-    assert_eq!(
-        total_credit_line,
-        CreditLineValues {
-            // 1843 * 3 = 5529
-            collateral: Uint128::new(5529),
-            // 5529 * 0.5 collateral price
-            credit_line: Uint128::new(2764),
-            // 8375 - (60_000 * 0.1)
-            debt: Uint128::new(2325),
-        }
-        .make_response(suite.common_token().clone())
-    );
 }

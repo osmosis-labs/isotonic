@@ -5,7 +5,6 @@ use cosmwasm_std::{Addr, Coin, ContractInfoResponse, Decimal};
 use cw_multi_test::{AppResponse, Contract, ContractWrapper, Executor};
 use isotonic_market::msg::{
     ExecuteMsg as MarketExecuteMsg, MigrateMsg as MarketMigrateMsg, QueryMsg as MarketQueryMsg,
-    TokensBalanceResponse,
 };
 use isotonic_market::state::SECONDS_IN_YEAR;
 use isotonic_osmosis_oracle::msg::{
@@ -74,7 +73,6 @@ pub struct SuiteBuilder {
     reward_token: String,
     /// Initial funds to provide for testing
     funds: Vec<(Addr, Vec<Coin>)>,
-    liquidation_price: Decimal,
     liquidation_fee: Decimal,
     liquidation_initiation_fee: Decimal,
     common_token: String,
@@ -87,7 +85,6 @@ impl SuiteBuilder {
             gov_contract: "owner".to_string(),
             reward_token: "reward".to_string(),
             funds: vec![],
-            liquidation_price: Decimal::percent(92),
             liquidation_fee: Decimal::permille(45),
             liquidation_initiation_fee: Decimal::permille(5),
             common_token: COMMON.to_owned(),
@@ -108,11 +105,6 @@ impl SuiteBuilder {
     /// Sets initial amount of distributable tokens on address
     pub fn with_funds(mut self, addr: &str, funds: &[Coin]) -> Self {
         self.funds.push((Addr::unchecked(addr), funds.into()));
-        self
-    }
-
-    pub fn with_liquidation_price(mut self, liquidation_price: Decimal) -> Self {
-        self.liquidation_price = liquidation_price;
         self
     }
 
@@ -563,22 +555,6 @@ impl Suite {
         )?;
 
         Ok(resp.participating)
-    }
-
-    /// Queries l/btokens balance on market pointed by denom for given account
-    pub fn query_tokens_balance(
-        &self,
-        market_denom: &str,
-        account: &str,
-    ) -> AnyResult<TokensBalanceResponse> {
-        let market = self.query_market(market_denom)?;
-        let resp: TokensBalanceResponse = self.app.wrap().query_wasm_smart(
-            market.market,
-            &MarketQueryMsg::TokensBalance {
-                account: account.to_owned(),
-            },
-        )?;
-        Ok(resp)
     }
 
     /// Queries configuration from market selected by denom
