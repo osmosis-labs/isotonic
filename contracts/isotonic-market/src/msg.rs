@@ -63,14 +63,6 @@ pub enum ExecuteMsg {
         account: String,
         amount: Uint128,
     },
-    /// Helper to allow transfering Ltokens from account source to account destination.
-    /// Sender must be a Credit Agency
-    TransferFrom {
-        source: String,
-        destination: String,
-        amount: Uint128,
-        liquidation_price: Decimal,
-    },
     AdjustCommonToken {
         new_token: Token,
     },

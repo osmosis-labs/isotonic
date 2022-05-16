@@ -181,27 +181,6 @@ pub fn execute(
             let account = deps.api.addr_validate(&account)?;
             execute::repay_to(deps, env, info, account, amount)
         }
-        TransferFrom {
-            source,
-            destination,
-            amount,
-            liquidation_price,
-        } => {
-            let source = deps.api.addr_validate(&source)?;
-            let destination = deps.api.addr_validate(&destination)?;
-            if liquidation_price == Decimal::zero() {
-                return Err(ContractError::ZeroLiquidationPrice {});
-            }
-            execute::transfer_from(
-                deps,
-                env,
-                info,
-                source,
-                destination,
-                amount,
-                liquidation_price,
-            )
-        }
         AdjustCommonToken { new_token } => execute::adjust_common_token(
             deps,
             info.sender,
@@ -626,58 +605,6 @@ mod execute {
             .add_attribute("destination", &account)
             .add_submessage(wrapped_msg)
             .add_submessage(enter_market(&cfg, &account)?);
-        Ok(response)
-    }
-
-    /// Handler for `ExecuteMsg::TransferFrom`
-    /// Requires sender to be a Credit Agency, otherwise fails
-    /// Amount must be in common denom (from CA)
-    pub fn transfer_from(
-        mut deps: DepsMut,
-        env: Env,
-        info: MessageInfo,
-        source: Addr,
-        destination: Addr,
-        amount: Uint128,
-        liquidation_price: Decimal,
-    ) -> Result<Response, ContractError> {
-        let cfg = CONFIG.load(deps.storage)?;
-        if cfg.credit_agency != info.sender {
-            return Err(ContractError::RequiresCreditAgency {});
-        }
-
-        let mut response = Response::new();
-
-        // charge interests before transferring tokens
-        let charge_msgs = charge_interest(deps.branch(), env)?;
-        if !charge_msgs.is_empty() {
-            response = response.add_submessages(charge_msgs);
-        }
-
-        // calculate repaid value
-        let price_rate = query::price_market_local_per_common(deps.as_ref())?.rate_sell_per_buy;
-
-        let repaid_value = cr_utils::divide(amount, price_rate * liquidation_price)
-            .map_err(|_| ContractError::ZeroPrice {})?;
-
-        // transfer claimed amount of ltokens from account source to destination
-        let msg = to_binary(&isotonic_token::msg::ExecuteMsg::TransferFrom {
-            sender: source.to_string(),
-            recipient: destination.to_string(),
-            amount: isotonic_token::DisplayAmount::raw(repaid_value),
-        })?;
-        let transfer_msg = SubMsg::new(WasmMsg::Execute {
-            contract_addr: cfg.ltoken_contract.to_string(),
-            msg,
-            funds: vec![],
-        });
-
-        response = response
-            .add_submessage(enter_market(&cfg, &destination)?)
-            .add_attribute("action", "transfer_from")
-            .add_attribute("from", source)
-            .add_attribute("to", destination)
-            .add_submessage(transfer_msg);
         Ok(response)
     }
 
