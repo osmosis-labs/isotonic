@@ -1,7 +1,138 @@
 use super::suite::{SuiteBuilder, COMMON};
+use crate::error::ContractError;
 
-use cosmwasm_std::{coin, Decimal, Uint128};
+use cosmwasm_std::{coin, Addr, Decimal, Uint128};
 use utils::{coin::coin_native, credit_line::CreditLineValues};
+
+#[test]
+fn not_on_market() {
+    let mut suite = SuiteBuilder::new().with_gov("gov").build();
+
+    let user = "user";
+    let osmo = "OSMO";
+    let ust = "UST";
+    suite
+        .create_market_quick(
+            "gov",
+            "osmo",
+            osmo,
+            None,
+            (Decimal::zero(), Decimal::zero()),
+            None,
+        )
+        .unwrap();
+    let osmo_market = suite.query_market(osmo).unwrap().market;
+
+    suite
+        .create_market_quick(
+            "gov",
+            "ust",
+            ust,
+            None,
+            (Decimal::zero(), Decimal::zero()),
+            None,
+        )
+        .unwrap();
+    let ust_market = suite.query_market(ust).unwrap().market;
+
+    let err = suite
+        .repay_with_collateral(
+            user,
+            coin_native(1_000_000, osmo),
+            coin_native(1_000_000, "UST"),
+        )
+        .unwrap_err();
+    assert_eq!(
+        ContractError::NotOnMarket {
+            address: Addr::unchecked(user),
+            market: osmo_market.clone()
+        },
+        err.downcast().unwrap()
+    );
+
+    suite.enter_market(osmo_market.as_str(), user).unwrap();
+    let err = suite
+        .repay_with_collateral(
+            user,
+            coin_native(1_000_000, osmo),
+            coin_native(1_000_000, ust),
+        )
+        .unwrap_err();
+    assert_eq!(
+        ContractError::NotOnMarket {
+            address: Addr::unchecked(user),
+            market: ust_market
+        },
+        err.downcast().unwrap()
+    );
+}
+
+#[test]
+fn simulated_debt_bigger_then_credit_line() {
+    let deposit_one = "deposit1";
+    let deposit_two = "deposit2";
+    let user = "user";
+
+    let osmo_denom = "OSMO";
+    let eth_denom = "ETH";
+
+    let mut suite = SuiteBuilder::new()
+        .with_gov("gov")
+        .with_funds(deposit_one, &[coin(10_000_000, osmo_denom)])
+        .with_funds(deposit_two, &[coin(10_000_000, eth_denom)])
+        .with_funds(user, &[coin(5_000_000, osmo_denom)])
+        .with_pool(1, (coin(10_000_000, COMMON), coin(10_000_000, osmo_denom)))
+        .with_pool(2, (coin(5_000_000, COMMON), coin(10_000_000, eth_denom)))
+        .build();
+
+    suite
+        .create_market_quick(
+            "gov",
+            "osmo",
+            osmo_denom,
+            None,
+            (Decimal::zero(), Decimal::zero()),
+            None,
+        )
+        .unwrap();
+    suite
+        .create_market_quick(
+            "gov",
+            "ethereum",
+            eth_denom,
+            None,
+            (Decimal::zero(), Decimal::zero()),
+            None,
+        )
+        .unwrap();
+
+    suite
+        .deposit_tokens_on_market(deposit_one, coin(10_000_000, osmo_denom))
+        .unwrap();
+    suite
+        .deposit_tokens_on_market(deposit_two, coin(10_000_000, eth_denom))
+        .unwrap();
+
+    suite
+        .deposit_tokens_on_market(user, coin(1_000_000, osmo_denom))
+        .unwrap();
+    suite
+        .borrow_tokens_from_market(user, coin(1_000_000, eth_denom))
+        .unwrap();
+
+    // Try to repay not-whole-loan using all your collateral
+    let err = suite
+        .repay_with_collateral(
+            user,
+            coin_native(1_000_000, osmo_denom),
+            coin_native(800_000, eth_denom),
+        )
+        .unwrap_err();
+    assert_eq!(
+        ContractError::RepayingLoanUsingCollateralFailed {},
+        err.downcast().unwrap()
+    );
+}
 
 #[test]
 fn on_two_markets() {

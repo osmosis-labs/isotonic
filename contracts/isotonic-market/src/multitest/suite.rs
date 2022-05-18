@@ -439,6 +439,25 @@ impl Suite {
         )
     }
 
+    pub fn swap_withdraw_from(
+        &mut self,
+        sender: impl Into<String>,
+        account: impl Into<String>,
+        sell_limit: Uint128,
+        buy: utils::coin::Coin,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            Addr::unchecked(sender),
+            self.contract.clone(),
+            &ExecuteMsg::SwapWithdrawFrom {
+                account: account.into(),
+                sell_limit,
+                buy,
+            },
+            &[],
+        )
+    }
+
     pub fn adjust_common_token(&mut self, sender: &str, new_token: &str) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             Addr::unchecked(sender),
