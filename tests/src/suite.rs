@@ -559,7 +559,7 @@ impl Suite {
         self.app.execute_contract(
             Addr::unchecked(sender),
             self.credit_agency.clone(),
-            &ExecuteMsg::Liquidate {
+            &CAExecuteMsg::Liquidate {
                 account: account.to_string(),
                 collateral_denom: Token::new_native(collateral_denom),
                 amount_to_repay: amount_to_repay.into(),
