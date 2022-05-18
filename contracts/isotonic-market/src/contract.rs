@@ -697,6 +697,22 @@ mod execute {
         Ok(Response::new())
     }
 
+    fn query_pool_id(
+        deps: Deps,
+        cfg: &Config,
+        denom1: impl Into<String>,
+        denom2: impl Into<String>,
+    ) -> Result<u64, ContractError> {
+        let pool_id: u64 = deps.querier.query_wasm_smart(
+            cfg.price_oracle.clone(),
+            &OracleQueryMsg::PoolId {
+                denom1: denom1.into(),
+                denom2: denom2.into(),
+            },
+        )?;
+        Ok(pool_id)
+    }
+
     pub fn swap_withdraw_from(
         deps: DepsMut,
         sender: Addr,
@@ -709,30 +725,52 @@ mod execute {
             return Err(ContractError::RequiresCreditAgency {});
         }
 
-        let pool_id_market_common: u64 = deps.querier.query_wasm_smart(
-            cfg.price_oracle.clone(),
-            &OracleQueryMsg::PoolId {
-                denom1: cfg.market_token.clone(),
-                denom2: cfg.common_token.clone(),
-            },
-        )?;
-        let swap = Swap::new(
-            pool_id_market_common,
-            cfg.market_token.clone(),
-            cfg.common_token.clone(),
-        );
+        let send_msg = CosmosMsg::Bank(BankMsg::Send {
+            to_address: sender.to_string(),
+            amount: vec![coin(buy.amount.u128(), buy.denom.to_string())],
+        });
 
-        let pool_id_common_buy: u64 = deps.querier.query_wasm_smart(
-            cfg.price_oracle.clone(),
-            &OracleQueryMsg::PoolId {
-                denom1: cfg.common_token.clone(),
-                denom2: buy.denom.to_string(),
-            },
-        )?;
-        let route = vec![osmo_bindings::Step::new(
-            pool_id_common_buy,
-            buy.denom.to_string(),
-        )];
+        // if swap is between same denoms, only send tokens
+        if cfg.market_token == buy.denom.to_string() {
+            return Ok(Response::new().add_message(send_msg));
+        }
+
+        let (swap, route) = if cfg.market_token == cfg.common_token {
+            let pool_id = query_pool_id(
+                deps.as_ref(),
+                &cfg,
+                &cfg.common_token,
+                buy.denom.to_string(),
+            )?;
+            let swap = Swap::new(pool_id, cfg.common_token.clone(), buy.denom.to_string());
+
+            // if market uses common token, there is no need for extra route
+            (swap, vec![])
+        } else if cfg.common_token == buy.denom.to_string() {
+            let pool_id = query_pool_id(
+                deps.as_ref(),
+                &cfg,
+                &cfg.market_token,
+                buy.denom.to_string(),
+            )?;
+            let swap = Swap::new(pool_id, cfg.market_token.clone(), buy.denom.to_string());
+
+            // if buy denom is common token, there is no need for extra route
+            (swap, vec![])
+        } else {
+            let pool_id = query_pool_id(deps.as_ref(), &cfg, &cfg.market_token, &cfg.common_token)?;
+            let swap = Swap::new(pool_id, cfg.market_token.clone(), cfg.common_token.clone());
+
+            let pool_id = query_pool_id(
+                deps.as_ref(),
+                &cfg,
+                &cfg.common_token,
+                buy.denom.to_string(),
+            )?;
+            let route = vec![osmo_bindings::Step::new(pool_id, buy.denom.to_string())];
+
+            (swap, route)
+        };
 
         let amount = SwapAmountWithLimit::ExactOut {
             output: buy.amount,
@@ -765,10 +803,6 @@ mod execute {
             funds: vec![],
         });
 
-        let send_msg = CosmosMsg::Bank(BankMsg::Send {
-            to_address: sender.to_string(),
-            amount: vec![coin(buy.amount.u128(), buy.denom.to_string())],
-        });
         let swap_msg = CosmosMsg::Custom(OsmosisMsg::Swap {
             first: swap,
             route,
