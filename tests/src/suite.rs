@@ -2,7 +2,9 @@ use anyhow::Result as AnyResult;
 use derivative::Derivative;
 use std::collections::HashMap;
 
-use cosmwasm_std::{coin, Addr, BankMsg, Coin, ContractInfoResponse, Decimal, Uint128};
+use cosmwasm_std::{
+    coin, Addr, BankMsg, Coin, ContractInfoResponse, Decimal, QueryRequest, Uint128,
+};
 use cw_multi_test::{AppResponse, Contract, ContractWrapper, Executor};
 use isotonic_market::msg::{
     ExecuteMsg as MarketExecuteMsg, MigrateMsg as MarketMigrateMsg, QueryMsg as MarketQueryMsg,
@@ -11,7 +13,7 @@ use isotonic_market::msg::{
 use isotonic_osmosis_oracle::msg::{
     ExecuteMsg as OracleExecuteMsg, InstantiateMsg as OracleInstantiateMsg,
 };
-use osmo_bindings::{OsmosisMsg, OsmosisQuery, Step, Swap};
+use osmo_bindings::{EstimatePriceResponse, OsmosisMsg, OsmosisQuery, Step, Swap, SwapAmount};
 use osmo_bindings_test::{OsmosisApp, Pool};
 use utils::{credit_line::CreditLineResponse, token::Token};
 
@@ -132,7 +134,7 @@ impl SuiteBuilder {
     #[track_caller]
     pub fn build(self) -> Suite {
         let mut app = OsmosisApp::default();
-        let owner = Addr::unchecked("owner");
+        let owner = Addr::unchecked(self.gov_contract.clone());
         let common_token = self.common_token.clone();
 
         let oracle_id = app.store_code(contract_osmosis_oracle());
@@ -148,6 +150,7 @@ impl SuiteBuilder {
                 Some(owner.to_string()),
             )
             .unwrap();
+        dbg!(&oracle_contract);
 
         // initialize the pools for osmosis oracle
         app.init_modules(|router, _, storage| -> AnyResult<()> {
@@ -182,7 +185,7 @@ impl SuiteBuilder {
                 contract_id,
                 owner.clone(),
                 &InstantiateMsg {
-                    gov_contract: self.gov_contract,
+                    gov_contract: self.gov_contract.clone(),
                     isotonic_market_id,
                     isotonic_token_id,
                     reward_token: Token::Native(self.reward_token),
@@ -195,7 +198,7 @@ impl SuiteBuilder {
                 Some(owner.to_string()),
             )
             .unwrap();
-
+        dbg!(&credit_agency);
         for market in self.markets {
             app.execute_contract(
                 owner.clone(),
@@ -221,6 +224,7 @@ impl SuiteBuilder {
 
         Suite {
             app,
+            gov: owner,
             credit_agency,
             common_token: Token::Native(common_token),
             oracle_contract,
@@ -233,6 +237,8 @@ impl SuiteBuilder {
 pub struct Suite {
     /// The multitest app
     app: OsmosisApp,
+    /// CA's admin
+    gov: Addr,
     /// Address of the Credit Agency contract
     credit_agency: Addr,
     /// Common token
@@ -366,6 +372,40 @@ impl Suite {
             },
         )?;
         Ok(resp)
+    }
+
+    pub fn set_pool(&mut self, pools: &[(u64, (Coin, Coin))]) -> AnyResult<()> {
+        let owner = self.gov.clone();
+        let oracle = self.oracle_contract.clone();
+
+        self.app
+            .init_modules(|router, _, storage| -> AnyResult<()> {
+                for (pool_id, (coin1, coin2)) in pools {
+                    router.custom.set_pool(
+                        storage,
+                        *pool_id,
+                        &Pool::new(coin1.clone(), coin2.clone()),
+                    )?;
+                }
+
+                Ok(())
+            })
+            .unwrap();
+        for (pool_id, (coin1, coin2)) in pools {
+            self.app
+                .execute_contract(
+                    owner.clone(),
+                    oracle.clone(),
+                    &OracleExecuteMsg::RegisterPool {
+                        pool_id: *pool_id,
+                        denom1: coin1.denom.clone(),
+                        denom2: coin2.denom.clone(),
+                    },
+                    &[],
+                )
+                .unwrap();
+        }
+        Ok(())
     }
 
     pub fn swap_exact_in(&mut self, sender: &str, sell: Coin, buy: &str) -> AnyResult<AppResponse> {
@@ -652,7 +692,7 @@ impl Suite {
     }
 
     pub fn query_contract_code_id(&mut self, contract_denom: &str) -> AnyResult<u64> {
-        use cosmwasm_std::{QueryRequest, WasmQuery};
+        use cosmwasm_std::WasmQuery;
         let market = self.query_market(contract_denom)?;
         let query_result: ContractInfoResponse =
             self.app
@@ -661,6 +701,50 @@ impl Suite {
                     contract_addr: market.market.to_string(),
                 }))?;
         Ok(query_result.code_id)
+    }
+
+    pub fn estimate_swap_exact_out(&self, sell: &str, buy: Coin) -> AnyResult<Uint128> {
+        let common = self.common_token.as_native().unwrap();
+
+        if sell == buy.denom {
+            Ok(buy.amount)
+        } else if sell != common && buy.denom != common {
+            let pool1 = self.app.wrap().query_wasm_smart(
+                self.oracle_contract.clone(),
+                &isotonic_osmosis_oracle::msg::QueryMsg::PoolId {
+                    denom1: sell.to_string(),
+                    denom2: common.to_string(),
+                },
+            )?;
+            let pool2 = self.app.wrap().query_wasm_smart(
+                self.oracle_contract.clone(),
+                &isotonic_osmosis_oracle::msg::QueryMsg::PoolId {
+                    denom1: common.to_string(),
+                    denom2: buy.denom.to_string(),
+                },
+            )?;
+
+            let estimation: EstimatePriceResponse =
+                self.app
+                    .wrap()
+                    .query(&QueryRequest::Custom(OsmosisQuery::EstimateSwap {
+                        sender: self.gov.to_string(),
+                        first: Swap {
+                            pool_id: pool1,
+                            denom_in: sell.to_string(),
+                            denom_out: common.to_string(),
+                        },
+                        route: vec![Step {
+                            pool_id: pool2,
+                            denom_out: buy.denom.to_string(),
+                        }],
+                        amount: SwapAmount::Out(buy.amount),
+                    }))?;
+
+            Ok(estimation.amount.as_in())
+        } else {
+            unimplemented!()
+        }
     }
 
     pub fn sudo_adjust_market_id(&mut self, new_market_id: u64) -> AnyResult<AppResponse> {
