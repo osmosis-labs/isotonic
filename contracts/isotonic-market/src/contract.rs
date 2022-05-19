@@ -789,16 +789,17 @@ mod execute {
         info: MessageInfo,
     ) -> Result<Response, ContractError> {
         let cfg = CONFIG.load(deps.storage)?;
+
+        if cfg.credit_agency != info.sender {
+            return Err(ContractError::RequiresCreditAgency {});
+        }
+
         let funds_sent = helpers::validate_funds(&info.funds, &cfg.market_token)?;
 
         let ltoken_supply = query::token_info(deps.as_ref(), &cfg)?
             .ltoken
             .total_supply
             .display_amount();
-
-        if cfg.credit_agency != info.sender {
-            return Err(ContractError::RequiresCreditAgency {});
-        }
 
         let mut response = Response::new();
 
