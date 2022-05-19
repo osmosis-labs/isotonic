@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Decimal, DivideByZeroError, OverflowError, StdError, Uint128};
+use cosmwasm_std::{Addr, DivideByZeroError, OverflowError, StdError, Uint128};
 use utils::coin::Coin;
 use utils::{coin::CoinError, credit_line::InvalidCommonTokenDenom, price::PriceError};
 
@@ -18,11 +18,11 @@ pub enum ContractError {
     #[error("Unauthorized")]
     Unauthorized {},
 
-    #[error("The liquidation fee needs to be in the (0, 1) range, but is {0}")]
-    InvalidLiquidationFee(Decimal),
+    #[error("The liquidation fee needs to be larger than 0")]
+    InvalidLiquidationFee {},
 
-    #[error("The liquidation initiation fee needs to be in the (0, 1) range, but is {0}")]
-    InvalidLiquidationInitiationFee(Decimal),
+    #[error("The liquidation initiation fee needs to be larger than 0")]
+    InvalidLiquidationInitiationFee {},
 
     #[error("Unrecognised reply id: {0}")]
     UnrecognisedReply(u64),

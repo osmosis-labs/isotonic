@@ -137,15 +137,11 @@ mod execute {
             ContractError::Unauthorized {}
         );
 
-        if cfg.liquidation_fee.is_zero() || cfg.liquidation_fee >= Decimal::one() {
-            return Err(ContractError::InvalidLiquidationFee(cfg.liquidation_fee));
+        if cfg.liquidation_fee.is_zero() {
+            return Err(ContractError::InvalidLiquidationFee {});
         }
-        if cfg.liquidation_initiation_fee.is_zero()
-            || cfg.liquidation_initiation_fee >= Decimal::one()
-        {
-            return Err(ContractError::InvalidLiquidationInitiationFee(
-                cfg.liquidation_initiation_fee,
-            ));
+        if cfg.liquidation_initiation_fee.is_zero() {
+            return Err(ContractError::InvalidLiquidationInitiationFee {});
         }
 
         if let Some(state) = MARKETS.may_load(deps.storage, &market_token)? {
