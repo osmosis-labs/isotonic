@@ -89,9 +89,6 @@ pub enum ContractError {
     #[error("Repaying loan using collateral not allowed with these values - the account could end up undercollateralized")]
     RepayingLoanUsingCollateralFailed {},
 
-    #[error("Liquidation not allowed with these values - the account would still be undercollateralized")]
-    LiquidationUndercollateralized {},
-
     #[error("{0}")]
     DivisionByZero(#[from] DivideByZeroError),
 
