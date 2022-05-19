@@ -161,8 +161,6 @@ fn liquidating_whole_debt_collateral_and_debt_in_same_token() {
 
     let osmo = "OSMO";
 
-    // TODO:
-
     let mut suite = SuiteBuilder::new()
         .with_gov("gov")
         .with_funds(liquidator, &coins(5000, osmo))
