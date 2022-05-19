@@ -801,8 +801,6 @@ mod execute {
             .total_supply
             .display_amount();
 
-        let mut response = Response::new();
-
         let rebase_by = Decimal::from_ratio(ltoken_supply + funds_sent, ltoken_supply);
 
         // Rebasing only the L Tokens basically means the funds get distributed to all the lenders
@@ -814,11 +812,10 @@ mod execute {
             funds: vec![],
         });
 
-        response = response
+        Ok(Response::new()
             .add_attribute("action", "distribute_as_ltokens")
             .add_attribute("sender", info.sender)
-            .add_submessage(rebase_msg);
-        Ok(response)
+            .add_submessage(rebase_msg))
     }
 }
 
