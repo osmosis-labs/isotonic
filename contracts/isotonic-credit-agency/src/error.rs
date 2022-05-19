@@ -18,10 +18,10 @@ pub enum ContractError {
     #[error("Unauthorized")]
     Unauthorized {},
 
-    #[error("The liquidation fee needs to be in the (0, 1) range, but it's {0}")]
+    #[error("The liquidation fee needs to be in the (0, 1) range, but is {0}")]
     InvalidLiquidationFee(Decimal),
 
-    #[error("The liquidation initiation fee needs to be in the (0, 1) range, but it's {0}")]
+    #[error("The liquidation initiation fee needs to be in the (0, 1) range, but is {0}")]
     InvalidLiquidationInitiationFee(Decimal),
 
     #[error("Unrecognised reply id: {0}")]
@@ -92,7 +92,7 @@ pub enum ContractError {
     #[error("Liquidation not allowed with these values - the account would still be undercollateralized")]
     LiquidationUndercollateralized {},
 
-    #[error("Something went very wrong: {0}")]
+    #[error("{0}")]
     DivisionByZero(#[from] DivideByZeroError),
 
     #[error("{0}")]

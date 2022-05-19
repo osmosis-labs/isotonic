@@ -19,9 +19,9 @@ pub struct InstantiateMsg {
     pub reward_token: Token,
     /// Common Token denom (same for all markets)
     pub common_token: Token,
-    /// The liquidation fee to be payed out to all lenders in the debt market
+    /// The liquidation fee to be paid out to all lenders in the debt market
     pub liquidation_fee: Decimal,
-    /// The liquidation triggering fee to be payed out to the person who "clicked the button"
+    /// The liquidation triggering fee to be paid out to the person who "clicked the button"
     pub liquidation_initiation_fee: Decimal,
 }
 
