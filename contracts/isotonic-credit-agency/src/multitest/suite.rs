@@ -147,6 +147,7 @@ impl SuiteBuilder {
                 Some(owner.to_string()),
             )
             .unwrap();
+        dbg!(&oracle_contract);
 
         // initialize the pools for osmosis oracle
         app.init_modules(|router, _, storage| -> AnyResult<()> {
@@ -176,7 +177,7 @@ impl SuiteBuilder {
         let isotonic_market_id = app.store_code(contract_market());
         let isotonic_token_id = app.store_code(contract_token());
         let contract_id = app.store_code(contract_credit_agency());
-        let contract = app
+        let ca_contract = app
             .instantiate_contract(
                 contract_id,
                 owner.clone(),
@@ -194,6 +195,7 @@ impl SuiteBuilder {
                 Some(owner.to_string()),
             )
             .unwrap();
+        dbg!(&ca_contract);
 
         let funds = self.funds;
 
@@ -208,7 +210,7 @@ impl SuiteBuilder {
         Suite {
             app,
             owner,
-            contract,
+            contract: ca_contract,
             common_token: Token::Native(common_token),
             oracle_contract,
             starting_pools: self.pools,
@@ -298,12 +300,19 @@ impl Suite {
     }
 
     pub fn create_market(&mut self, caller: &str, cfg: MarketConfig) -> AnyResult<AppResponse> {
-        self.app.execute_contract(
+        let denom = cfg.market_token.as_native().unwrap().to_string();
+        let res = self.app.execute_contract(
             Addr::unchecked(caller),
             self.contract.clone(),
             &ExecuteMsg::CreateMarket(cfg),
             &[],
-        )
+        );
+
+        if let Ok(market) = self.query_market(&denom) {
+            println!("{}: {}", denom, market.market);
+        }
+
+        res
     }
 
     pub fn create_market_quick(
