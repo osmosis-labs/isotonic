@@ -192,7 +192,7 @@ pub fn execute(
             account,
             sell_limit,
             buy,
-        } => execute::swap_withdraw_from(deps, info.sender, account, sell_limit, buy),
+        } => execute::swap_withdraw_from(deps, env, info.sender, account, sell_limit, buy),
         DistributeAsLTokens {} => execute::distribute_as_ltokens(deps, info),
     }
 }
@@ -684,6 +684,7 @@ mod execute {
 
     pub fn swap_withdraw_from(
         deps: DepsMut,
+        env: Env,
         sender: Addr,
         account: String,
         sell_limit: Uint128,
@@ -699,9 +700,21 @@ mod execute {
             amount: vec![coin(buy.amount.u128(), buy.denom.to_string())],
         });
 
-        // if swap is between same denoms, only send tokens
+        // if swap is between same denoms, don't perform a swap
         if cfg.market_token == buy.denom.to_string() {
-            return Ok(Response::new().add_message(send_msg));
+            // Burn the L tokens
+            let burn_msg = to_binary(&isotonic_token::msg::ExecuteMsg::BurnFrom {
+                owner: account,
+                amount: isotonic_token::DisplayAmount::raw(buy.amount),
+            })?;
+            let burn_msg = SubMsg::new(WasmMsg::Execute {
+                contract_addr: cfg.ltoken_contract.to_string(),
+                msg: burn_msg,
+                funds: vec![],
+            });
+            return Ok(Response::new()
+                .add_submessage(burn_msg)
+                .add_message(send_msg));
         }
 
         let (swap, route) = if cfg.market_token == cfg.common_token {
@@ -761,6 +774,14 @@ mod execute {
             }
         };
 
+        let mut response = Response::new();
+
+        // Create rebase messagess for tokens based on interest and supply
+        let charge_msgs = helpers::charge_interest(deps, env)?;
+        if !charge_msgs.is_empty() {
+            response = response.add_submessages(charge_msgs);
+        }
+
         // Burn the L tokens
         let burn_msg = to_binary(&isotonic_token::msg::ExecuteMsg::BurnFrom {
             owner: account,
@@ -778,10 +799,11 @@ mod execute {
             amount,
         });
 
-        Ok(Response::new()
+        let response = response
             .add_submessage(burn_msg)
             .add_message(swap_msg)
-            .add_message(send_msg))
+            .add_message(send_msg);
+        Ok(response)
     }
 
     pub fn distribute_as_ltokens(
