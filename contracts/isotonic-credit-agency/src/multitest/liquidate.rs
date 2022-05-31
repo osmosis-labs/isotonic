@@ -2,6 +2,7 @@ use super::suite::{SuiteBuilder, COMMON};
 use crate::error::ContractError;
 
 use cosmwasm_std::{coin, coins, Decimal, Uint128};
+use osmo_bindings::Swap;
 use utils::credit_line::{CreditLineResponse, CreditLineValues};
 use utils::token::Token;
 
@@ -253,7 +254,7 @@ fn liquidating_whole_debt_collateral_and_debt_in_same_token() {
     );
 
     // The liquidation initiator earns 1% of 442, meaning 4
-    // TODO: why is it only 3 here?
+    // TODO: why is it only 3 here? is it a rounding error because of the token multiplier?
     let total_credit_line = suite.query_total_credit_line(liquidator).unwrap();
     assert_eq!(
         total_credit_line,
@@ -266,18 +267,180 @@ fn liquidating_whole_debt_collateral_and_debt_in_same_token() {
     );
 }
 
-/// Prerequisite: https://github.com/confio/isotonic/issues/142
 #[test]
-#[ignore]
 fn liquidate_when_debt_is_in_common_token() {
-    todo!()
+    let debtor = "debtor";
+    let liquidator = "liquidator";
+    let depositor = "depositor";
+
+    let osmo = "OSMO";
+
+    let mut suite = SuiteBuilder::new()
+        .with_gov("gov")
+        .with_funds(debtor, &coins(600, osmo))
+        .with_funds(depositor, &coins(600, COMMON))
+        .with_liquidation_fee(Decimal::percent(5))
+        .with_liquidation_initiation_fee(Decimal::percent(1))
+        .with_pool(1, (coin(10_000, COMMON), coin(10_000, osmo)))
+        .build();
+
+    suite
+        .create_market_quick("gov", "osmo", osmo, Decimal::percent(60), None, None)
+        .unwrap();
+    suite
+        .create_market_quick("gov", "common", COMMON, Decimal::percent(60), None, None)
+        .unwrap();
+
+    suite
+        .deposit_tokens_on_market(depositor, coin(300, COMMON))
+        .unwrap();
+    suite
+        .deposit_tokens_on_market(debtor, coin(500, osmo))
+        .unwrap();
+    suite
+        .borrow_tokens_from_market(debtor, coin(300, COMMON))
+        .unwrap();
+
+    suite
+        .set_pool(&[(1, (coin(10_000, COMMON), coin(12_500, osmo)))])
+        .unwrap();
+
+    let total_credit_line = suite.query_total_credit_line(debtor).unwrap();
+    assert_eq!(
+        total_credit_line
+            .validate(&Token::new_native(COMMON))
+            .unwrap(),
+        CreditLineValues {
+            collateral: Uint128::new(400),
+            credit_line: Uint128::new(240),
+            debt: Uint128::new(300),
+        }
+    );
+
+    let swap_in = suite
+        .estimate_swap_exact_out(
+            Swap {
+                pool_id: 1,
+                denom_in: osmo.to_string(),
+                denom_out: COMMON.to_string(),
+            },
+            &[],
+            Uint128::new(318), // debt + liquidation fees
+        )
+        .unwrap();
+    dbg!(swap_in);
+
+    suite
+        .liquidate(
+            liquidator,
+            debtor,
+            Token::new_native(osmo),
+            coin(300, COMMON),
+        )
+        .unwrap();
+    suite.reset_pools().unwrap(); // back to 1:1 COMMON:OSMO
+
+    let total_credit_line = suite.query_total_credit_line(debtor).unwrap();
+    let expected_collateral = Uint128::new(500) - swap_in;
+    let expected_crl = expected_collateral * Decimal::percent(60);
+    assert_eq!(
+        total_credit_line
+            .validate(&Token::new_native(COMMON))
+            .unwrap(),
+        CreditLineValues {
+            collateral: expected_collateral,
+            credit_line: expected_crl,
+            debt: Uint128::zero(),
+        }
+    );
 }
 
-/// Prerequisite: https://github.com/confio/isotonic/issues/142
 #[test]
-#[ignore]
 fn liquidate_when_collateral_is_in_common_token() {
-    todo!()
+    let debtor = "debtor";
+    let liquidator = "liquidator";
+    let depositor = "depositor";
+
+    let osmo = "OSMO";
+
+    let mut suite = SuiteBuilder::new()
+        .with_gov("gov")
+        .with_funds(debtor, &coins(600, COMMON))
+        .with_funds(depositor, &coins(600, osmo))
+        .with_liquidation_fee(Decimal::percent(5))
+        .with_liquidation_initiation_fee(Decimal::percent(1))
+        .with_pool(1, (coin(10_000, COMMON), coin(10_000, osmo)))
+        .build();
+
+    suite
+        .create_market_quick("gov", "osmo", osmo, Decimal::percent(60), None, None)
+        .unwrap();
+    suite
+        .create_market_quick("gov", "common", COMMON, Decimal::percent(60), None, None)
+        .unwrap();
+
+    suite
+        .deposit_tokens_on_market(depositor, coin(300, osmo))
+        .unwrap();
+    suite
+        .deposit_tokens_on_market(debtor, coin(500, COMMON))
+        .unwrap();
+    suite
+        .borrow_tokens_from_market(debtor, coin(300, osmo))
+        .unwrap();
+
+    suite
+        .set_pool(&[(1, (coin(10_000, osmo), coin(12_500, COMMON)))])
+        .unwrap();
+
+    let total_credit_line = suite.query_total_credit_line(debtor).unwrap();
+    assert_eq!(
+        total_credit_line
+            .validate(&Token::new_native(COMMON))
+            .unwrap(),
+        CreditLineValues {
+            collateral: Uint128::new(500),
+            credit_line: Uint128::new(300),
+            debt: Uint128::new(375),
+        }
+    );
+
+    let swap_in = suite
+        .estimate_swap_exact_out(
+            Swap {
+                pool_id: 1,
+                denom_in: COMMON.to_string(),
+                denom_out: osmo.to_string(),
+            },
+            &[],
+            Uint128::new(318), // debt + liquidation fees
+        )
+        .unwrap();
+    dbg!(swap_in);
+
+    suite
+        .liquidate(
+            liquidator,
+            debtor,
+            Token::new_native(COMMON),
+            coin(300, osmo),
+        )
+        .unwrap();
+    suite.reset_pools().unwrap(); // back to 1:1 COMMON:OSMO
+
+    let total_credit_line = suite.query_total_credit_line(debtor).unwrap();
+    let expected_collateral = Uint128::new(500) - swap_in;
+    let expected_crl = expected_collateral * Decimal::percent(60);
+    assert_eq!(
+        total_credit_line
+            .validate(&Token::new_native(COMMON))
+            .unwrap(),
+        CreditLineValues {
+            collateral: expected_collateral,
+            credit_line: expected_crl,
+            debt: Uint128::zero(),
+        }
+    );
 }
 
 #[test]

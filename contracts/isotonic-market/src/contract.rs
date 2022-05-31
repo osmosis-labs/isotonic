@@ -694,7 +694,7 @@ mod execute {
         if cfg.credit_agency != sender {
             return Err(ContractError::RequiresCreditAgency {});
         }
-
+        dbg!(&buy);
         let send_msg = CosmosMsg::Bank(BankMsg::Send {
             to_address: sender.to_string(),
             amount: vec![coin(buy.amount.u128(), buy.denom.to_string())],

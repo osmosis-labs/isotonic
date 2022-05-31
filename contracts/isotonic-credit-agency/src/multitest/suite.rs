@@ -1,7 +1,7 @@
 use anyhow::Result as AnyResult;
 use std::collections::HashMap;
 
-use cosmwasm_std::{Addr, Coin, ContractInfoResponse, Decimal};
+use cosmwasm_std::{Addr, Coin, ContractInfoResponse, Decimal, QueryRequest, Uint128};
 use cw_multi_test::{AppResponse, Contract, ContractWrapper, Executor};
 use isotonic_market::msg::{
     ExecuteMsg as MarketExecuteMsg, MigrateMsg as MarketMigrateMsg, QueryMsg as MarketQueryMsg,
@@ -10,7 +10,7 @@ use isotonic_market::state::SECONDS_IN_YEAR;
 use isotonic_osmosis_oracle::msg::{
     ExecuteMsg as OracleExecuteMsg, InstantiateMsg as OracleInstantiateMsg,
 };
-use osmo_bindings::{OsmosisMsg, OsmosisQuery};
+use osmo_bindings::{EstimatePriceResponse, OsmosisMsg, OsmosisQuery, Step, Swap, SwapAmount};
 use osmo_bindings_test::{OsmosisApp, Pool};
 use utils::{credit_line::CreditLineResponse, interest::Interest, token::Token};
 
@@ -182,7 +182,7 @@ impl SuiteBuilder {
                 contract_id,
                 owner.clone(),
                 &InstantiateMsg {
-                    gov_contract: self.gov_contract,
+                    gov_contract: self.gov_contract.clone(),
                     isotonic_market_id,
                     isotonic_token_id,
                     reward_token: Token::Native(self.reward_token),
@@ -208,6 +208,7 @@ impl SuiteBuilder {
         .unwrap();
 
         Suite {
+            gov: Addr::unchecked(self.gov_contract),
             app,
             owner,
             contract: ca_contract,
@@ -220,6 +221,8 @@ impl SuiteBuilder {
 
 /// Test suite
 pub struct Suite {
+    /// The gov address
+    gov: Addr,
     /// The multitest app
     app: OsmosisApp,
     /// Contract's owner
@@ -406,6 +409,25 @@ impl Suite {
         Ok(resp)
     }
 
+    pub fn estimate_swap_exact_out(
+        &self,
+        first: Swap,
+        route: &[Step],
+        amount: impl Into<Uint128>,
+    ) -> AnyResult<Uint128> {
+        let estimation: EstimatePriceResponse =
+            self.app
+                .wrap()
+                .query(&QueryRequest::Custom(OsmosisQuery::EstimateSwap {
+                    sender: self.gov.to_string(),
+                    first,
+                    route: route.to_vec(),
+                    amount: SwapAmount::Out(amount.into()),
+                }))?;
+
+        Ok(estimation.amount.as_in())
+    }
+
     pub fn assert_market(&self, asset: &str) {
         let res = self.query_market(asset).unwrap();
         assert_eq!(res.market_token.native().unwrap(), asset);
@@ -578,7 +600,7 @@ impl Suite {
     }
 
     pub fn query_contract_code_id(&mut self, contract_denom: &str) -> AnyResult<u64> {
-        use cosmwasm_std::{QueryRequest, WasmQuery};
+        use cosmwasm_std::WasmQuery;
         let market = self.query_market(contract_denom)?;
         let query_result: ContractInfoResponse =
             self.app
