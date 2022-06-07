@@ -544,7 +544,7 @@ fn receive_reward_fails_when_insufficient_collateral() {
         )])
         .unwrap();
 
-    suite
+    let err = suite
         .liquidate(
             liquidator,
             debtor,
@@ -552,4 +552,11 @@ fn receive_reward_fails_when_insufficient_collateral() {
             coin(500, juno),
         )
         .unwrap_err();
+    assert_eq!(
+        isotonic_token::ContractError::InsufficientTokens {
+            available: Uint128::new(580),
+            needed: Uint128::new(1068)
+        },
+        err.downcast().unwrap()
+    );
 }
