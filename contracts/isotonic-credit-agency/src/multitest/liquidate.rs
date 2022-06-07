@@ -328,7 +328,6 @@ fn liquidate_when_debt_is_in_common_token() {
             Uint128::new(318), // debt + liquidation fees
         )
         .unwrap();
-    dbg!(swap_in);
 
     suite
         .liquidate(

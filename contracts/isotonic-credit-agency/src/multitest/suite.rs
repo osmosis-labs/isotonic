@@ -147,7 +147,6 @@ impl SuiteBuilder {
                 Some(owner.to_string()),
             )
             .unwrap();
-        dbg!(&oracle_contract);
 
         // initialize the pools for osmosis oracle
         app.init_modules(|router, _, storage| -> AnyResult<()> {
@@ -195,7 +194,6 @@ impl SuiteBuilder {
                 Some(owner.to_string()),
             )
             .unwrap();
-        dbg!(&ca_contract);
 
         let funds = self.funds;
 
@@ -310,10 +308,6 @@ impl Suite {
             &ExecuteMsg::CreateMarket(cfg),
             &[],
         );
-
-        if let Ok(market) = self.query_market(&denom) {
-            println!("{}: {}", denom, market.market);
-        }
 
         res
     }
