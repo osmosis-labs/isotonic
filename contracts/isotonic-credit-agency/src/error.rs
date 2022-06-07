@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, StdError, Uint128};
+use cosmwasm_std::{Addr, DivideByZeroError, OverflowError, StdError, Uint128};
 use utils::coin::Coin;
 use utils::{coin::CoinError, credit_line::InvalidCommonTokenDenom, price::PriceError};
 
@@ -18,8 +18,11 @@ pub enum ContractError {
     #[error("Unauthorized")]
     Unauthorized {},
 
-    #[error("Creating Market failure - collateral ratio must be lower than liquidation price")]
-    MarketCfgCollateralFailure {},
+    #[error("The liquidation fee needs to be larger than 0")]
+    InvalidLiquidationFee {},
+
+    #[error("The liquidation initiation fee needs to be larger than 0")]
+    InvalidLiquidationInitiationFee {},
 
     #[error("Unrecognised reply id: {0}")]
     UnrecognisedReply(u64),
@@ -83,6 +86,12 @@ pub enum ContractError {
     #[error("Cw20 tokens are not supported yet")]
     Cw20TokensNotSupported,
 
-    #[error("Repaying loan using collateral failed - your debt is bigger then your credit line")]
+    #[error("Repaying loan using collateral not allowed with these values - the account could end up undercollateralized")]
     RepayingLoanUsingCollateralFailed {},
+
+    #[error("{0}")]
+    DivisionByZero(#[from] DivideByZeroError),
+
+    #[error("{0}")]
+    Overflow(#[from] OverflowError),
 }

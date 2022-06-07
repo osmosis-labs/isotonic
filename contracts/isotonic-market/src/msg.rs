@@ -41,6 +41,10 @@ pub enum ExecuteMsg {
     /// X market_token must be sent along with this message. If it matches, X l_token is minted of the sender address.
     /// The underlying market_token is stored in this Market contract
     Deposit {},
+    /// Similar to `Deposit`, but allows the sender to deposit to someone else's account.
+    DepositTo {
+        account: String,
+    },
     /// This requests to withdraw the amount of L Tokens. More specifically,
     /// the contract will burn amount L Tokens and return that to the lender in base asset.
     Withdraw {
@@ -59,14 +63,6 @@ pub enum ExecuteMsg {
         account: String,
         amount: Uint128,
     },
-    /// Helper to allow transfering Ltokens from account source to account destination.
-    /// Sender must be a Credit Agency
-    TransferFrom {
-        source: String,
-        destination: String,
-        amount: Uint128,
-        liquidation_price: Decimal,
-    },
     AdjustCommonToken {
         new_token: Token,
     },
@@ -78,6 +74,9 @@ pub enum ExecuteMsg {
         sell_limit: Uint128,
         buy: Coin,
     },
+    /// Deposits the market currency sent with this message and distributes the L Tokens to all existing lenders.
+    /// Only callable by the credit agency.
+    DistributeAsLTokens {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

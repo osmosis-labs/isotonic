@@ -76,6 +76,8 @@ pub struct SuiteBuilder {
     cap: Option<Uint128>,
     /// Initial funds to provide for testing
     funds: Vec<(Addr, Vec<Coin>)>,
+    /// Initial CA funds
+    ca_funds: Vec<Coin>,
     /// Initial funds stored on contract
     contract_funds: Option<Coin>,
     /// Initial interest rate
@@ -102,6 +104,7 @@ impl SuiteBuilder {
             market_token: "native_denom".to_owned(),
             cap: None,
             funds: vec![],
+            ca_funds: vec![],
             contract_funds: None,
             interest_base: Decimal::percent(3),
             interest_slope: Decimal::percent(20),
@@ -136,6 +139,12 @@ impl SuiteBuilder {
     /// Sets initial amount of distributable tokens on address
     pub fn with_funds(mut self, addr: &str, funds: &[Coin]) -> Self {
         self.funds.push((Addr::unchecked(addr), funds.into()));
+        self
+    }
+
+    /// Sets initial amount of distributable tokens on credit agency
+    pub fn with_ca_funds(mut self, funds: &[Coin]) -> Self {
+        self.ca_funds.extend(funds.iter().cloned());
         self
     }
 
@@ -259,6 +268,7 @@ impl SuiteBuilder {
             .unwrap();
 
         let funds = self.funds;
+        let ca_funds = self.ca_funds;
         let contract_funds = self.contract_funds;
 
         app.init_modules(|router, _, storage| -> AnyResult<()> {
@@ -271,6 +281,7 @@ impl SuiteBuilder {
                     .bank
                     .init_balance(storage, &contract, vec![contract_funds])?;
             }
+            router.bank.init_balance(storage, &ca_contract, ca_funds)?;
 
             Ok(())
         })
@@ -455,6 +466,15 @@ impl Suite {
                 buy,
             },
             &[],
+        )
+    }
+
+    pub fn distribute_as_ltokens(&mut self, sender: &str, funds: Coin) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            Addr::unchecked(sender),
+            self.contract.clone(),
+            &ExecuteMsg::DistributeAsLTokens {},
+            &[funds],
         )
     }
 

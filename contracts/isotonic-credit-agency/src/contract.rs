@@ -1,13 +1,12 @@
+use crate::error::ContractError;
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, SudoMsg};
+use crate::state::{Config, CONFIG, NEXT_REPLY_ID};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_binary, Addr, Binary, Env, MessageInfo, Reply};
 use cw2::set_contract_version;
 use cw_utils::parse_reply_instantiate_data;
 use osmo_bindings::{OsmosisMsg, OsmosisQuery};
-
-use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, SudoMsg};
-use crate::state::{Config, CONFIG, NEXT_REPLY_ID};
 
 use either::Either;
 use utils::token::Token;
@@ -42,7 +41,8 @@ pub fn instantiate(
             .common_token
             .native()
             .ok_or(ContractError::Cw20TokensNotSupported)?,
-        liquidation_price: msg.liquidation_price,
+        liquidation_fee: msg.liquidation_fee,
+        liquidation_initiation_fee: msg.liquidation_initiation_fee,
     };
     CONFIG.save(deps.storage, &cfg)?;
     NEXT_REPLY_ID.save(deps.storage, &0)?;
@@ -66,6 +66,7 @@ pub fn execute(
         Liquidate {
             account,
             collateral_denom,
+            amount_to_repay,
         } => {
             let account = deps.api.addr_validate(&account)?;
             execute::liquidate(
@@ -75,6 +76,7 @@ pub fn execute(
                 collateral_denom
                     .native()
                     .ok_or(ContractError::Cw20TokensNotSupported)?,
+                amount_to_repay,
             )
         }
         EnterMarket { account } => {
@@ -95,11 +97,13 @@ pub fn execute(
 mod execute {
     use super::*;
 
-    use cosmwasm_std::{ensure_eq, StdError, SubMsg, WasmMsg};
+    use cosmwasm_std::{
+        ensure_eq, Decimal, DivideByZeroError, Fraction, StdError, SubMsg, Uint128, WasmMsg,
+    };
     use utils::{
         coin::{coin_native, Coin},
         credit_line::{CreditLineResponse, CreditLineValues},
-        price::{coin_times_price_rate, PriceRate},
+        price::PriceRate,
     };
 
     use crate::{
@@ -110,6 +114,10 @@ mod execute {
         msg::{ExecuteMsg as MarketExecuteMsg, QueryMsg as MarketQueryMsg},
         state::Config as MarketConfiguration,
     };
+
+    pub fn divide(top: Uint128, bottom: Decimal) -> Result<Uint128, DivideByZeroError> {
+        (top * bottom.denominator()).checked_div(bottom.numerator())
+    }
 
     pub fn create_market(
         deps: DepsMut,
@@ -129,10 +137,11 @@ mod execute {
             ContractError::Unauthorized {}
         );
 
-        // Collateral ratio must be lower then liquidation price, otherwise
-        // liquidation could decrese debt less then it decreases potential credit.
-        if market_cfg.collateral_ratio >= cfg.liquidation_price {
-            return Err(ContractError::MarketCfgCollateralFailure {});
+        if cfg.liquidation_fee.is_zero() {
+            return Err(ContractError::InvalidLiquidationFee {});
+        }
+        if cfg.liquidation_initiation_fee.is_zero() {
+            return Err(ContractError::InvalidLiquidationInitiationFee {});
         }
 
         if let Some(state) = MARKETS.may_load(deps.storage, &market_token)? {
@@ -184,64 +193,139 @@ mod execute {
         info: MessageInfo,
         account: Addr,
         collateral_denom: String,
+        amount_to_repay: Coin,
     ) -> Result<Response, ContractError> {
-        // assert that only one denom was sent and it matches the existing market
-        if info.funds.is_empty() || info.funds.len() != 1 {
-            return Err(ContractError::LiquidationOnlyOneDenomRequired {});
+        let collateral_market = query::market(deps.as_ref(), collateral_denom.to_string())?.market;
+        let debt_market = query::market(deps.as_ref(), amount_to_repay.denom.to_string())?.market;
+
+        let markets = ENTERED_MARKETS
+            .may_load(deps.storage, &account)?
+            .unwrap_or_default();
+
+        if !markets.contains(&collateral_market) {
+            return Err(ContractError::NotOnMarket {
+                address: account,
+                market: collateral_market,
+            });
+        } else if !markets.contains(&debt_market) {
+            return Err(ContractError::NotOnMarket {
+                address: account,
+                market: debt_market,
+            });
         }
-        let funds = info.funds[0].clone();
+
         let cfg = CONFIG.load(deps.storage)?;
-        // assert that given account actually has more debt then credit
-        let total_credit_line = query::total_credit_line(deps.as_ref(), account.to_string())?;
-        let total_credit_line = total_credit_line.validate(&Token::Native(cfg.common_token))?;
+
+        let initiation_fee = amount_to_repay.amount * cfg.liquidation_initiation_fee;
+        let lender_fee = amount_to_repay.amount * cfg.liquidation_fee;
+        let amount_to_cover = Coin {
+            denom: amount_to_repay.denom.clone(),
+            amount: amount_to_repay
+                .amount
+                .checked_add(initiation_fee)?
+                .checked_add(lender_fee)?,
+        };
+
+        let tcr = query::total_credit_line(deps.as_ref(), account.to_string())?;
+        let total_credit_line = tcr.validate(&Token::Native(cfg.common_token.clone()))?;
         if total_credit_line.debt <= total_credit_line.credit_line {
             return Err(ContractError::LiquidationNotAllowed {});
         }
 
-        // Count btokens and burn then on account
-        // this requires that market returns error if repaying more then balance
-        let debt_market = query::market(deps.as_ref(), funds.denom.clone())?.market;
-        let msg = to_binary(&isotonic_market::msg::ExecuteMsg::RepayTo {
-            account: account.to_string(),
-            amount: funds.amount,
-        })?;
-        let repay_from_msg = SubMsg::new(WasmMsg::Execute {
-            contract_addr: debt_market.to_string(),
-            msg,
-            funds: vec![funds.clone()],
-        });
+        let collateral_market_cfg: MarketConfiguration = deps
+            .querier
+            .query_wasm_smart(collateral_market.clone(), &MarketQueryMsg::Configuration {})?;
 
-        // find price rate of collateral denom
-        let price_response: PriceRate = deps.querier.query_wasm_smart(
-            debt_market.to_string(),
+        let collateral_per_common_rate: PriceRate = deps.querier.query_wasm_smart(
+            collateral_market.clone(),
             &MarketQueryMsg::PriceMarketLocalPerCommon {},
         )?;
+        let collateral_per_common_rate = collateral_per_common_rate.rate_sell_per_buy;
 
-        // find market with wanted collateral_denom
-        let collateral_market = query::market(deps.as_ref(), collateral_denom.clone())?.market;
+        let debt_per_common_rate: PriceRate = deps.querier.query_wasm_smart(
+            debt_market.clone(),
+            &MarketQueryMsg::PriceMarketLocalPerCommon {},
+        )?;
+        let debt_per_common_rate = debt_per_common_rate.rate_sell_per_buy;
 
-        // transfer claimed amount as reward
-        let msg = to_binary(&isotonic_market::msg::ExecuteMsg::TransferFrom {
-            source: account.to_string(),
-            destination: info.sender.to_string(),
-            // transfer repaid amount represented as amount of common tokens, which is
-            // calculated into collateral_denom's amount later in the market
-            amount: coin_times_price_rate(&funds, &price_response)?.amount,
-            liquidation_price: cfg.liquidation_price,
+        let amount_to_repay_common = coin_native(
+            (amount_to_repay.amount * debt_per_common_rate).u128(),
+            cfg.common_token,
+        );
+
+        let simulated_debt = tcr.debt.saturating_sub(amount_to_repay_common)?;
+
+        // this could probably reuse market::QueryMsg::TransferableAmount if we enhance it a bit?
+        let sell_limit = if simulated_debt.amount.is_zero() {
+            // if this is going to erase all debt, just allow the selling of all collateral
+            Uint128::MAX
+        } else {
+            let sell_limit_in_common = divide(
+                tcr.credit_line.saturating_sub(simulated_debt)?.amount,
+                collateral_market_cfg.collateral_ratio,
+            )?;
+            divide(sell_limit_in_common, collateral_per_common_rate)?
+        };
+
+        // TODO: if this doesn't succeed because the sell limit is too low,
+        // is there a way we can handle the "swap limit too low" error and
+        // return a nicer one?
+        let msg = to_binary(&MarketExecuteMsg::SwapWithdrawFrom {
+            account: account.to_string(),
+            sell_limit,
+            buy: amount_to_cover,
         })?;
-        let transfer_from_msg = SubMsg::new(WasmMsg::Execute {
+        let swap_withdraw_from_msg = SubMsg::new(WasmMsg::Execute {
             contract_addr: collateral_market.to_string(),
             msg,
             funds: vec![],
         });
 
+        let msg = to_binary(&MarketExecuteMsg::RepayTo {
+            account: account.to_string(),
+            amount: amount_to_repay.amount,
+        })?;
+
+        let repay_to_msg = SubMsg::new(WasmMsg::Execute {
+            contract_addr: debt_market.to_string(),
+            msg,
+            funds: vec![cosmwasm_std::coin(
+                amount_to_repay.amount.u128(),
+                amount_to_repay.denom.to_string(),
+            )],
+        });
+
+        let msg = to_binary(&MarketExecuteMsg::DistributeAsLTokens {})?;
+        let distribute_ltokens_msg = SubMsg::new(WasmMsg::Execute {
+            contract_addr: debt_market.to_string(),
+            msg,
+            funds: vec![cosmwasm_std::coin(
+                lender_fee.u128(),
+                amount_to_repay.denom.to_string(),
+            )],
+        });
+
+        let msg = to_binary(&MarketExecuteMsg::DepositTo {
+            account: info.sender.to_string(),
+        })?;
+        let initiation_fee_msg = SubMsg::new(WasmMsg::Execute {
+            contract_addr: debt_market.to_string(),
+            msg,
+            funds: vec![cosmwasm_std::coin(
+                initiation_fee.u128(),
+                amount_to_repay.denom.to_string(),
+            )],
+        });
+
         Ok(Response::new()
             .add_attribute("action", "liquidate")
-            .add_attribute("liquidator", info.sender)
+            .add_attribute("liquidation_initiator", info.sender)
             .add_attribute("account", account)
             .add_attribute("collateral_denom", collateral_denom)
-            .add_submessage(repay_from_msg)
-            .add_submessage(transfer_from_msg))
+            .add_submessage(swap_withdraw_from_msg)
+            .add_submessage(repay_to_msg)
+            .add_submessage(distribute_ltokens_msg)
+            .add_submessage(initiation_fee_msg))
     }
 
     pub fn enter_market(
@@ -646,6 +730,10 @@ pub fn sudo(deps: DepsMut, _env: Env, msg: SudoMsg) -> Result<Response, Contract
             contract,
             migrate_msg,
         } => sudo::migrate_market(deps, contract, migrate_msg),
+        AdjustLiquidation {
+            liquidation_fee,
+            liquidation_initiation_fee,
+        } => sudo::adjust_liquidation(deps, liquidation_fee, liquidation_initiation_fee),
     }
 }
 
@@ -653,7 +741,7 @@ mod sudo {
     use super::*;
     use crate::state::{MarketState, MARKETS};
 
-    use cosmwasm_std::{Order, WasmMsg};
+    use cosmwasm_std::{Decimal, Order, WasmMsg};
 
     use isotonic_market::msg::{ExecuteMsg as MarketExecuteMsg, MigrateMsg as MarketMigrateMsg};
 
@@ -695,6 +783,22 @@ mod sudo {
             .collect::<Vec<SubMsg>>();
 
         Ok(Response::new().add_submessages(messages))
+    }
+
+    pub fn adjust_liquidation(
+        deps: DepsMut,
+        new_liquidation_fee: Option<Decimal>,
+        new_liquidation_initiation_fee: Option<Decimal>,
+    ) -> Result<Response, ContractError> {
+        let mut cfg = CONFIG.load(deps.storage)?;
+        if let Some(new_fee) = new_liquidation_fee {
+            cfg.liquidation_fee = new_fee;
+        }
+        if let Some(new_fee) = new_liquidation_initiation_fee {
+            cfg.liquidation_initiation_fee = new_fee;
+        }
+        CONFIG.save(deps.storage, &cfg)?;
+        Ok(Response::new())
     }
 
     fn find_market(deps: Deps, market_addr: &Addr) -> bool {

@@ -4,6 +4,7 @@ mod ca_mock;
 mod common;
 mod credit_line;
 mod deposit;
+mod distribute_as_ltokens;
 mod interest;
 mod migration;
 mod reserve;

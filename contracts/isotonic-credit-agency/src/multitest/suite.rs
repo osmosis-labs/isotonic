@@ -1,17 +1,16 @@
 use anyhow::Result as AnyResult;
 use std::collections::HashMap;
 
-use cosmwasm_std::{Addr, Coin, ContractInfoResponse, Decimal};
+use cosmwasm_std::{Addr, Coin, ContractInfoResponse, Decimal, QueryRequest, Uint128};
 use cw_multi_test::{AppResponse, Contract, ContractWrapper, Executor};
 use isotonic_market::msg::{
     ExecuteMsg as MarketExecuteMsg, MigrateMsg as MarketMigrateMsg, QueryMsg as MarketQueryMsg,
-    TokensBalanceResponse,
 };
 use isotonic_market::state::SECONDS_IN_YEAR;
 use isotonic_osmosis_oracle::msg::{
     ExecuteMsg as OracleExecuteMsg, InstantiateMsg as OracleInstantiateMsg,
 };
-use osmo_bindings::{OsmosisMsg, OsmosisQuery};
+use osmo_bindings::{EstimatePriceResponse, OsmosisMsg, OsmosisQuery, Step, Swap, SwapAmount};
 use osmo_bindings_test::{OsmosisApp, Pool};
 use utils::{credit_line::CreditLineResponse, interest::Interest, token::Token};
 
@@ -74,7 +73,8 @@ pub struct SuiteBuilder {
     reward_token: String,
     /// Initial funds to provide for testing
     funds: Vec<(Addr, Vec<Coin>)>,
-    liquidation_price: Decimal,
+    liquidation_fee: Decimal,
+    liquidation_initiation_fee: Decimal,
     common_token: String,
     pools: HashMap<u64, (Coin, Coin)>,
 }
@@ -85,7 +85,8 @@ impl SuiteBuilder {
             gov_contract: "owner".to_string(),
             reward_token: "reward".to_string(),
             funds: vec![],
-            liquidation_price: Decimal::percent(92),
+            liquidation_fee: Decimal::permille(45),
+            liquidation_initiation_fee: Decimal::permille(5),
             common_token: COMMON.to_owned(),
             pools: HashMap::new(),
         }
@@ -107,8 +108,13 @@ impl SuiteBuilder {
         self
     }
 
-    pub fn with_liquidation_price(mut self, liquidation_price: Decimal) -> Self {
-        self.liquidation_price = liquidation_price;
+    pub fn with_liquidation_fee(mut self, liquidation_fee: Decimal) -> Self {
+        self.liquidation_fee = liquidation_fee;
+        self
+    }
+
+    pub fn with_liquidation_initiation_fee(mut self, liquidation_initiation_fee: Decimal) -> Self {
+        self.liquidation_initiation_fee = liquidation_initiation_fee;
         self
     }
 
@@ -170,17 +176,18 @@ impl SuiteBuilder {
         let isotonic_market_id = app.store_code(contract_market());
         let isotonic_token_id = app.store_code(contract_token());
         let contract_id = app.store_code(contract_credit_agency());
-        let contract = app
+        let ca_contract = app
             .instantiate_contract(
                 contract_id,
                 owner.clone(),
                 &InstantiateMsg {
-                    gov_contract: self.gov_contract,
+                    gov_contract: self.gov_contract.clone(),
                     isotonic_market_id,
                     isotonic_token_id,
                     reward_token: Token::Native(self.reward_token),
                     common_token: Token::Native(common_token.clone()),
-                    liquidation_price: self.liquidation_price,
+                    liquidation_fee: self.liquidation_fee,
+                    liquidation_initiation_fee: self.liquidation_initiation_fee,
                 },
                 &[],
                 "credit-agency",
@@ -199,9 +206,10 @@ impl SuiteBuilder {
         .unwrap();
 
         Suite {
+            gov: Addr::unchecked(self.gov_contract),
             app,
             owner,
-            contract,
+            contract: ca_contract,
             common_token: Token::Native(common_token),
             oracle_contract,
             starting_pools: self.pools,
@@ -211,6 +219,8 @@ impl SuiteBuilder {
 
 /// Test suite
 pub struct Suite {
+    /// The gov address
+    gov: Addr,
     /// The multitest app
     app: OsmosisApp,
     /// Contract's owner
@@ -291,12 +301,15 @@ impl Suite {
     }
 
     pub fn create_market(&mut self, caller: &str, cfg: MarketConfig) -> AnyResult<AppResponse> {
-        self.app.execute_contract(
+        let denom = cfg.market_token.as_native().unwrap().to_string();
+        let res = self.app.execute_contract(
             Addr::unchecked(caller),
             self.contract.clone(),
             &ExecuteMsg::CreateMarket(cfg),
             &[],
-        )
+        );
+
+        res
     }
 
     pub fn create_market_quick(
@@ -390,6 +403,25 @@ impl Suite {
         Ok(resp)
     }
 
+    pub fn estimate_swap_exact_out(
+        &self,
+        first: Swap,
+        route: &[Step],
+        amount: impl Into<Uint128>,
+    ) -> AnyResult<Uint128> {
+        let estimation: EstimatePriceResponse =
+            self.app
+                .wrap()
+                .query(&QueryRequest::Custom(OsmosisQuery::EstimateSwap {
+                    sender: self.gov.to_string(),
+                    first,
+                    route: route.to_vec(),
+                    amount: SwapAmount::Out(amount.into()),
+                }))?;
+
+        Ok(estimation.amount.as_in())
+    }
+
     pub fn assert_market(&self, asset: &str) {
         let res = self.query_market(asset).unwrap();
         assert_eq!(res.market_token.native().unwrap(), asset);
@@ -466,8 +498,8 @@ impl Suite {
         &mut self,
         sender: &str,
         account: &str,
-        tokens: &[Coin],
         collateral_denom: Token,
+        amount_to_repay: Coin,
     ) -> AnyResult<AppResponse> {
         let ca = self.contract.clone();
 
@@ -476,9 +508,10 @@ impl Suite {
             ca,
             &ExecuteMsg::Liquidate {
                 account: account.to_owned(),
-                collateral_denom,
+                collateral_denom: Token::Native(collateral_denom.to_string()),
+                amount_to_repay: amount_to_repay.into(),
             },
-            tokens,
+            &[],
         )
     }
 
@@ -549,22 +582,6 @@ impl Suite {
         Ok(resp.participating)
     }
 
-    /// Queries l/btokens balance on market pointed by denom for given account
-    pub fn query_tokens_balance(
-        &self,
-        market_denom: &str,
-        account: &str,
-    ) -> AnyResult<TokensBalanceResponse> {
-        let market = self.query_market(market_denom)?;
-        let resp: TokensBalanceResponse = self.app.wrap().query_wasm_smart(
-            market.market,
-            &MarketQueryMsg::TokensBalance {
-                account: account.to_owned(),
-            },
-        )?;
-        Ok(resp)
-    }
-
     /// Queries configuration from market selected by denom
     pub fn query_market_config(&self, denom: &str) -> AnyResult<isotonic_market::state::Config> {
         let market = self.query_market(denom)?;
@@ -577,7 +594,7 @@ impl Suite {
     }
 
     pub fn query_contract_code_id(&mut self, contract_denom: &str) -> AnyResult<u64> {
-        use cosmwasm_std::{QueryRequest, WasmQuery};
+        use cosmwasm_std::WasmQuery;
         let market = self.query_market(contract_denom)?;
         let query_result: ContractInfoResponse =
             self.app

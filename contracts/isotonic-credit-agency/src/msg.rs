@@ -19,18 +19,21 @@ pub struct InstantiateMsg {
     pub reward_token: Token,
     /// Common Token denom (same for all markets)
     pub common_token: Token,
-    /// Price for collateral in exchange for paying debt during liquidation
-    pub liquidation_price: Decimal,
+    /// The liquidation fee to be paid out to all lenders in the debt market
+    pub liquidation_fee: Decimal,
+    /// The liquidation triggering fee to be paid out to the person who "clicked the button"
+    pub liquidation_initiation_fee: Decimal,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     CreateMarket(MarketConfig),
-    /// Tries to perform liquidation on passed account using collateral's denom
+    /// Tries to perform liquidation on passed account using a specific kind of collateral
     Liquidate {
         account: String,
         collateral_denom: Token,
+        amount_to_repay: Coin,
     },
     /// Ensures a given account has entered a market. Meant to be called by a specific
     /// market contract - so the sender of the msg would be the market
@@ -127,6 +130,10 @@ pub enum SudoMsg {
     MigrateMarket {
         contract: String,
         migrate_msg: MarketMigrateMsg,
+    },
+    AdjustLiquidation {
+        liquidation_fee: Option<Decimal>,
+        liquidation_initiation_fee: Option<Decimal>,
     },
 }
 
