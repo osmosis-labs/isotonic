@@ -48,3 +48,4 @@ Then add it to CI, by editing `.circleci/config.yml`. Just copy the `contract_tg
 rename it, pointing to your new contract.
 
 Finally, update `Cargo.toml` to use the current version used by all other contracts in this repo.
+
