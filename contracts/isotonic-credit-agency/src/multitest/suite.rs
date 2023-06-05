@@ -301,15 +301,14 @@ impl Suite {
     }
 
     pub fn create_market(&mut self, caller: &str, cfg: MarketConfig) -> AnyResult<AppResponse> {
-        let denom = cfg.market_token.as_native().unwrap().to_string();
-        let res = self.app.execute_contract(
+        let _denom = cfg.market_token.as_native().unwrap().to_string();
+
+        self.app.execute_contract(
             Addr::unchecked(caller),
             self.contract.clone(),
             &ExecuteMsg::CreateMarket(cfg),
             &[],
-        );
-
-        res
+        )
     }
 
     pub fn create_market_quick(

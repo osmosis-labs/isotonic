@@ -957,7 +957,7 @@ mod query {
                 transferable: Uint128::zero(),
             })
         } else if token == config.ltoken_contract {
-            let transferable = cr_utils::transferable_amount(deps, &config, &account)?;
+            let transferable = cr_utils::transferable_amount(deps, &config, account)?;
             Ok(TransferableAmountResponse { transferable })
         } else {
             Err(ContractError::UnrecognisedToken(token.to_string()))
@@ -1200,7 +1200,7 @@ mod tests {
     fn divide_u128_by_decimal_rounding() {
         assert_eq!(
             cr_utils::divide(60u128.into(), Decimal::percent(60)).unwrap(),
-            100u128.into()
+            Uint128::new(100)
         );
     }
 }

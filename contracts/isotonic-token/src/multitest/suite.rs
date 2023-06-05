@@ -374,7 +374,7 @@ impl Suite {
         let amount = self
             .app
             .wrap()
-            .query_balance(&Addr::unchecked(addr), token)?
+            .query_balance(Addr::unchecked(addr), token)?
             .amount;
         Ok(amount.into())
     }

@@ -1,4 +1,5 @@
 use cosmwasm_std::{coin, Decimal};
+use std::str::FromStr;
 
 use super::suite::{SuiteBuilder, COMMON};
 
@@ -15,7 +16,10 @@ fn nothing_on_market() {
         .build();
 
     let apy = suite.query_apy().unwrap();
-    assert_eq!(apy.borrower, "0.030454529542178457".parse().unwrap());
+    assert_eq!(
+        apy.borrower,
+        Decimal::from_str("0.030454529542178457").unwrap()
+    );
     assert_eq!(apy.lender, Decimal::zero());
 }
 
@@ -33,7 +37,10 @@ fn nothing_borrowed() {
     suite.deposit(lender, &[coin(1000, market_token)]).unwrap();
 
     let apy = suite.query_apy().unwrap();
-    assert_eq!(apy.borrower, "0.030454529542178457".parse().unwrap());
+    assert_eq!(
+        apy.borrower,
+        Decimal::from_str("0.030454529542178457").unwrap()
+    );
     assert_eq!(apy.lender, Decimal::zero());
 }
 
@@ -55,8 +62,14 @@ fn half_borrowed() {
     suite.borrow(borrower, 500).unwrap();
 
     let apy = suite.query_apy().unwrap();
-    assert_eq!(apy.borrower, "0.138828291780615352".parse().unwrap());
-    assert_eq!(apy.lender, "0.069414145890307676".parse().unwrap());
+    assert_eq!(
+        apy.borrower,
+        Decimal::from_str("0.138828291780615352").unwrap()
+    );
+    assert_eq!(
+        apy.lender,
+        Decimal::from_str("0.069414145890307676").unwrap()
+    );
 }
 
 #[test]
@@ -77,8 +90,14 @@ fn whole_borrowed() {
     suite.borrow(borrower, 1000).unwrap();
 
     let apy = suite.query_apy().unwrap();
-    assert_eq!(apy.borrower, "0.258599693244403384".parse().unwrap());
-    assert_eq!(apy.lender, "0.258599693244403384".parse().unwrap());
+    assert_eq!(
+        apy.borrower,
+        Decimal::from_str("0.258599693244403384").unwrap()
+    );
+    assert_eq!(
+        apy.lender,
+        Decimal::from_str("0.258599693244403384").unwrap()
+    );
 }
 
 #[test]
@@ -100,6 +119,12 @@ fn with_reserve_factor() {
     suite.borrow(borrower, 500).unwrap();
 
     let apy = suite.query_apy().unwrap();
-    assert_eq!(apy.borrower, "0.138828291780615352".parse().unwrap());
-    assert_eq!(apy.lender, "0.05553131671224614".parse().unwrap());
+    assert_eq!(
+        apy.borrower,
+        Decimal::from_str("0.138828291780615352").unwrap()
+    );
+    assert_eq!(
+        apy.lender,
+        Decimal::from_str("0.05553131671224614").unwrap()
+    );
 }
