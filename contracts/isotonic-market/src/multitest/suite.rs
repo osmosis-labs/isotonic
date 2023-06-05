@@ -494,7 +494,7 @@ impl Suite {
         let amount = self
             .app
             .wrap()
-            .query_balance(owner, &self.market_token.clone().native().unwrap())?
+            .query_balance(owner, self.market_token.clone().native().unwrap())?
             .amount;
         Ok(amount.into())
     }

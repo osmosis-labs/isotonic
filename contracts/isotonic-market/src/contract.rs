@@ -958,7 +958,7 @@ mod query {
                 transferable: Uint128::zero(),
             })
         } else if token == config.ltoken_contract {
-            let transferable = cr_utils::transferable_amount(deps, &config, &account)?;
+            let transferable = cr_utils::transferable_amount(deps, &config, account)?;
             Ok(TransferableAmountResponse { transferable })
         } else {
             Err(ContractError::UnrecognisedToken(token.to_string()))
