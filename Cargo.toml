@@ -2,6 +2,9 @@
 members = ["packages/*", "contracts/*", "tests"]
 resolver = "2"
 
+[workspace.package]
+license = "MIT"
+
 [profile.release.package.isotonic-token]
 codegen-units = 1
 incremental = false
