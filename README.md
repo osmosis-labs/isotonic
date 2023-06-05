@@ -1,7 +1,15 @@
 # Isotonic
 
 This repo maintains contracts and support libraries for implementation of Isotonic protocol.
-These are **not** available under an open source license, you need permission from Confio to use them.
+This was originally developed by Confio for use on Osmosis in early 2022.
+However, as Mars Protocol came to launch on Osmosis, this project was never released.
+
+One year later, Confio and Osmosis have agreed to release this code under a permissive MIT license
+as an example both of a lending protocol, as well as how to design contracts to interact with
+Osmosis AMM pools. It shows how to query spot prices and auto-liquidate on Osmosis AMMs.
+
+We couldn't use TWAP as it was not available a the time of development, but please never use spot
+price as an oracle. This is a huge cause of DeFi hacks. Use TWAP or other oracle solutions.
 
 It is organized like [`cosmwasm-plus`](https://github.com/CosmWasm/cosmwasm-plus). You can use that as a reference.
 
@@ -49,3 +57,6 @@ rename it, pointing to your new contract.
 
 Finally, update `Cargo.toml` to use the current version used by all other contracts in this repo.
 
+## License
+
+All code is released under an MIT license. See [LICENSE](./LICENSE).
