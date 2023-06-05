@@ -5,6 +5,7 @@ authors = ["Jakub Bogucki <jakub@confio.gmbh>"]
 edition = "2021"
 description = "Implementation of Market contract"
 repository = "https://github.com/confio/isotonic"
+license = { workspace = true }
 
 [lib]
 crate-type = ["cdylib", "rlib"]

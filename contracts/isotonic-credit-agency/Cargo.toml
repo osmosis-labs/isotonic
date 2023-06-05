@@ -5,6 +5,7 @@ authors = ["Tomasz Kurcz <tom@confio.gmbh>"]
 edition = "2021"
 description = "Isotonic Credit Agency smart contract"
 repository = "https://github.com/confio/isotonic"
+license = { workspace = true }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
