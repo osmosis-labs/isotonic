@@ -28,6 +28,6 @@ utils = { version = "0.5.0", path = "../../packages/utils" }
 [dev-dependencies]
 anyhow = "1"
 cosmwasm-schema = "1.2.6"
-cw-multi-test = "0.16.4"
+cw-multi-test = "0.13.4"
 derivative = "2"
 osmo-bindings-test = "0.6.0"

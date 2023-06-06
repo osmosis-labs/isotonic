@@ -7,7 +7,7 @@ publish = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cosmwasm-std = "1.0.0-beta6"
+cosmwasm-std = "1.2.6"
 isotonic-credit-agency = { path = "../contracts/isotonic-credit-agency", version = "0.5.0", features = ["library"] }
 isotonic-market = { path = "../contracts/isotonic-market", version = "0.5.0", features = ["library"] }
 isotonic-osmosis-oracle = { path = "../contracts/isotonic-osmosis-oracle", version = "0.5.0", features = ["library"] }
@@ -15,6 +15,6 @@ isotonic-token = { path = "../contracts/isotonic-token", version = "0.5.0", feat
 osmo-bindings = "0.6.0"
 utils = { version = "0.5.0", path = "../packages/utils" }
 anyhow = "1"
-cw-multi-test = "0.13.0"
+cw-multi-test = "0.13.4"
 osmo-bindings-test = "0.6.0"
 derivative = "2.2.0"
