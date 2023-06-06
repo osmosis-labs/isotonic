@@ -15,12 +15,12 @@ backtraces = ["cosmwasm-std/backtraces"]
 library = []
 
 [dependencies]
-cosmwasm-std = "1.0.0-beta6"
-cosmwasm-storage = "1.0.0-beta6"
-cw-storage-plus = "0.13.0"
-cw-utils = "0.13.0"
-cw2 = "0.13.0"
-cw20 = "0.13.0"
+cosmwasm-std = "1.2.6"
+cosmwasm-storage = "1.2.6"
+cw-storage-plus = "1.0.1"
+cw-utils = "1.0.1"
+cw2 = "1.0.1"
+cw20 = "1.0.1"
 isotonic-osmosis-oracle = { path = "../isotonic-osmosis-oracle", version = "0.5.0", features = ["library"] }
 isotonic-token = { path = "../isotonic-token", version = "0.5.0", features = ["library"] }
 osmo-bindings = "0.6.0"
@@ -31,6 +31,6 @@ utils = { version = "0.5.0", path = "../../packages/utils" }
 
 [dev-dependencies]
 anyhow = "1"
-cosmwasm-schema = "1.0.0-beta6"
-cw-multi-test = "0.13.0"
+cosmwasm-schema = "1.2.6"
+cw-multi-test = "0.13.4"
 osmo-bindings-test = "0.6.0"
