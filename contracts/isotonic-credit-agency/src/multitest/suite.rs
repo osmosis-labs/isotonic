@@ -10,7 +10,7 @@ use isotonic_market::state::SECONDS_IN_YEAR;
 use isotonic_osmosis_oracle::msg::{
     ExecuteMsg as OracleExecuteMsg, InstantiateMsg as OracleInstantiateMsg,
 };
-use osmo_bindings::{EstimatePriceResponse, OsmosisMsg, OsmosisQuery, Step, Swap, SwapAmount};
+use osmo_bindings::{OsmosisMsg, OsmosisQuery, Step, Swap, SwapAmount, SwapResponse};
 use osmo_bindings_test::{OsmosisApp, Pool};
 use utils::{credit_line::CreditLineResponse, interest::Interest, token::Token};
 
@@ -408,7 +408,7 @@ impl Suite {
         route: &[Step],
         amount: impl Into<Uint128>,
     ) -> AnyResult<Uint128> {
-        let estimation: EstimatePriceResponse =
+        let estimation: SwapResponse =
             self.app
                 .wrap()
                 .query(&QueryRequest::Custom(OsmosisQuery::EstimateSwap {
