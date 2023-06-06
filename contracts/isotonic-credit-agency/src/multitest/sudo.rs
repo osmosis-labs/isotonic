@@ -88,7 +88,7 @@ fn migrate_non_existing_market() {
 
     let err = suite
         .sudo_migrate_market(
-            "OSMO",
+            "osmo",
             MarketMigrateMsg {
                 isotonic_token_id: None,
             },
@@ -97,7 +97,7 @@ fn migrate_non_existing_market() {
 
     assert_eq!(
         ContractError::MarketSearchError {
-            market: "OSMO".to_owned(),
+            market: "osmo".to_owned(),
         },
         err.downcast().unwrap()
     );
