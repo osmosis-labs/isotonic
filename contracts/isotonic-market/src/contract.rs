@@ -1200,7 +1200,7 @@ mod tests {
     fn divide_u128_by_decimal_rounding() {
         assert_eq!(
             cr_utils::divide(60u128.into(), Decimal::percent(60)).unwrap(),
-            100u128.into()
+            Uint128::new(100)
         );
     }
 }
