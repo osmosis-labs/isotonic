@@ -9,7 +9,6 @@ use osmo_bindings::{OsmosisMsg, OsmosisQuery};
 
 use crate::contract::query::token_info;
 use crate::error::ContractError;
-use crate::math::DecimalExt;
 use crate::msg::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, QueryTotalCreditLine, SudoMsg,
     TransferableAmountResponse,
@@ -281,7 +280,7 @@ mod cr_utils {
 mod execute {
     use cosmwasm_std::{CosmosMsg, QueryRequest};
     use isotonic_osmosis_oracle::msg::QueryMsg as OracleQueryMsg;
-    use osmo_bindings::{EstimatePriceResponse, Swap, SwapAmount, SwapAmountWithLimit};
+    use osmo_bindings::{Swap, SwapAmount, SwapAmountWithLimit, SwapResponse};
 
     use crate::{
         interest::{calculate_interest, epochs_passed, InterestUpdate},
@@ -759,7 +758,7 @@ mod execute {
             max_input: sell_limit,
         };
 
-        let estimate: EstimatePriceResponse =
+        let estimate: SwapResponse =
             deps.querier
                 .query(&QueryRequest::Custom(OsmosisQuery::EstimateSwap {
                     sender: account.clone(),
