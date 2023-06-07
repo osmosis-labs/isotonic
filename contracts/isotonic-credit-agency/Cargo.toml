@@ -1,6 +1,6 @@
 [package]
 name = "isotonic-credit-agency"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Tomasz Kurcz <tom@confio.gmbh>"]
 edition = "2021"
 description = "Isotonic Credit Agency smart contract"
@@ -20,14 +20,14 @@ cosmwasm-storage = { version = "1.2.6" }
 cw-storage-plus = "1.0.1"
 cw-utils = "1.0.1"
 cw2 = "1.0.1"
-isotonic-market = { path = "../isotonic-market", version = "0.5.0", features = ["library"] }
-isotonic-osmosis-oracle = { path = "../isotonic-osmosis-oracle", version = "0.5.0", features = ["library"] }
-isotonic-token = { path = "../isotonic-token", version = "0.5.0", features = ["library"] }
+isotonic-market = { path = "../isotonic-market", version = "0.6.0", features = ["library"] }
+isotonic-osmosis-oracle = { path = "../isotonic-osmosis-oracle", version = "0.6.0", features = ["library"] }
+isotonic-token = { path = "../isotonic-token", version = "0.6.0", features = ["library"] }
 osmo-bindings = "0.6.0"
 schemars = "0.8.3"
 serde = { version = "1.0.127", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.26" }
-utils = { version = "0.5.0", path = "../../packages/utils" }
+utils = { version = "0.6.0", path = "../../packages/utils" }
 either = "1.6"
 
 [dev-dependencies]
