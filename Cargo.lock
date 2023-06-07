@@ -473,7 +473,7 @@ dependencies = [
 
 [[package]]
 name = "isotonic-credit-agency"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "cosmwasm-schema",
@@ -497,7 +497,7 @@ dependencies = [
 
 [[package]]
 name = "isotonic-market"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "cosmwasm-schema",
@@ -520,7 +520,7 @@ dependencies = [
 
 [[package]]
 name = "isotonic-osmosis-oracle"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "cosmwasm-schema",
@@ -540,7 +540,7 @@ dependencies = [
 
 [[package]]
 name = "isotonic-token"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "cosmwasm-schema",
@@ -887,7 +887,7 @@ dependencies = [
 
 [[package]]
 name = "tests"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "cosmwasm-std",
@@ -948,7 +948,7 @@ checksum = "b15811caf2415fb889178633e7724bad2509101cde276048e013b9def5e51fa0"
 
 [[package]]
 name = "utils"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "cosmwasm-std",
  "cw-storage-plus 1.0.1",
