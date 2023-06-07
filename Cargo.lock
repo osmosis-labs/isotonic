@@ -225,25 +225,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cw-multi-test"
-version = "0.16.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a18afd2e201221c6d72a57f0886ef2a22151bbc9e6db7af276fde8a91081042"
-dependencies = [
- "anyhow",
- "cosmwasm-std",
- "cw-storage-plus 1.0.1",
- "cw-utils 1.0.1",
- "derivative",
- "itertools",
- "k256",
- "prost",
- "schemars",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "cw-storage-plus"
 version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -498,7 +479,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
- "cw-multi-test 0.13.4",
+ "cw-multi-test",
  "cw-storage-plus 1.0.1",
  "cw-utils 1.0.1",
  "cw2",
@@ -522,7 +503,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
- "cw-multi-test 0.13.4",
+ "cw-multi-test",
  "cw-storage-plus 1.0.1",
  "cw-utils 1.0.1",
  "cw2",
@@ -545,7 +526,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
- "cw-multi-test 0.13.4",
+ "cw-multi-test",
  "cw-storage-plus 1.0.1",
  "cw2",
  "derivative",
@@ -565,7 +546,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
- "cw-multi-test 0.16.4",
+ "cw-multi-test",
  "cw-storage-plus 1.0.1",
  "cw2",
  "cw20",
@@ -639,7 +620,7 @@ checksum = "482a51bff55bde05b3a581d44b200de9ab207a3412c4697eb02f342a75214677"
 dependencies = [
  "anyhow",
  "cosmwasm-std",
- "cw-multi-test 0.13.4",
+ "cw-multi-test",
  "cw-storage-plus 0.13.4",
  "itertools",
  "osmo-bindings",
@@ -910,7 +891,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cosmwasm-std",
- "cw-multi-test 0.13.4",
+ "cw-multi-test",
  "derivative",
  "isotonic-credit-agency",
  "isotonic-market",
