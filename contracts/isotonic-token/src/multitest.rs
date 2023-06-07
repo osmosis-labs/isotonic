@@ -615,7 +615,7 @@ mod distribution {
         Event::new("wasm")
             .add_attribute("sender", sender)
             .add_attribute("denom", denom)
-            .add_attribute("amount", &amount.to_string())
+            .add_attribute("amount", amount.to_string())
     }
 
     #[test]

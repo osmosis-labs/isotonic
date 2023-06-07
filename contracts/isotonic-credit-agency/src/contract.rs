@@ -641,7 +641,7 @@ mod query {
         start_after: Option<String>,
         limit: Option<u32>,
     ) -> Result<ListEnteredMarketsResponse, ContractError> {
-        let account = Addr::unchecked(&account);
+        let account = Addr::unchecked(account);
         let markets = ENTERED_MARKETS
             .may_load(deps.storage, &account)?
             .unwrap_or_default()
@@ -667,8 +667,8 @@ mod query {
         account: String,
         market: String,
     ) -> Result<IsOnMarketResponse, ContractError> {
-        let account = Addr::unchecked(&account);
-        let market = Addr::unchecked(&market);
+        let account = Addr::unchecked(account);
+        let market = Addr::unchecked(market);
         let markets = ENTERED_MARKETS
             .may_load(deps.storage, &account)?
             .unwrap_or_default();

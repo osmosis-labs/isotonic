@@ -1,4 +1,3 @@
-use crate::math::DecimalExt;
 use cosmwasm_std::{Decimal, Env, Fraction, Uint128};
 use isotonic_token::msg::TokenInfoResponse;
 

@@ -385,7 +385,7 @@ pub fn distribute(
         .add_attribute("action", "distribute_tokens")
         .add_attribute("sender", sender.as_str())
         .add_attribute("denom", &distribution.denom)
-        .add_attribute("amount", &amount.to_string());
+        .add_attribute("amount", amount.to_string());
 
     Ok(resp)
 }
@@ -412,7 +412,7 @@ fn withdraw_funds(deps: DepsMut, info: MessageInfo) -> Result<Response, Contract
         .add_attribute("action", "withdraw_tokens")
         .add_attribute("owner", info.sender.as_str())
         .add_attribute("token", &token.denom)
-        .add_attribute("amount", &token.amount.to_string())
+        .add_attribute("amount", token.amount.to_string())
         .add_submessage(SubMsg::new(BankMsg::Send {
             to_address: info.sender.to_string(),
             amount: vec![token],
@@ -520,7 +520,7 @@ pub fn query_undistributed_funds(deps: Deps, env: Env) -> StdResult<FundsRespons
 
 /// Handler for `QueryMsg::WithdrawableFunds`
 pub fn query_withdrawable_funds(deps: Deps, owner: String) -> StdResult<FundsResponse> {
-    let owner = Addr::unchecked(&owner);
+    let owner = Addr::unchecked(owner);
     let distribution = DISTRIBUTION.load(deps.storage)?;
     let adjustment = WITHDRAW_ADJUSTMENT
         .may_load(deps.storage, &owner)?

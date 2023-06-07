@@ -375,7 +375,7 @@ impl Suite {
             Addr::unchecked(sender),
             self.contract.clone(),
             &ExecuteMsg::Withdraw {
-                amount: amount.into(),
+                amount: Uint128::from(amount),
             },
             &[],
         )
@@ -412,7 +412,7 @@ impl Suite {
             Addr::unchecked(sender),
             self.contract.clone(),
             &ExecuteMsg::Borrow {
-                amount: amount.into(),
+                amount: Uint128::from(amount),
             },
             &[],
         )
@@ -494,7 +494,7 @@ impl Suite {
         let amount = self
             .app
             .wrap()
-            .query_balance(owner, &self.market_token.clone().native().unwrap())?
+            .query_balance(owner, self.market_token.clone().native().unwrap())?
             .amount;
         Ok(amount.into())
     }
@@ -761,21 +761,21 @@ impl Suite {
 
     pub fn assert_debt(&self, account: impl ToString, amount: u128) {
         let crl = self.query_credit_line(account).unwrap();
-        assert_eq!(crl.debt.amount, amount.into());
+        assert_eq!(crl.debt.amount, Uint128::from(amount));
     }
 
     pub fn assert_collateral(&self, account: impl ToString, amount: u128) {
         let crl = self.query_credit_line(account).unwrap();
-        assert_eq!(crl.collateral.amount, amount.into());
+        assert_eq!(crl.collateral.amount, Uint128::from(amount));
     }
 
     pub fn assert_withdrawable(&self, account: impl ToString, amount: u128) {
         let withdrawable = self.query_withdrawable(account).unwrap();
-        assert_eq!(withdrawable.amount, amount.into());
+        assert_eq!(withdrawable.amount, Uint128::from(amount));
     }
 
     pub fn assert_borrowable(&self, account: impl ToString, amount: u128) {
         let borrowable = self.query_borrowable(account).unwrap();
-        assert_eq!(borrowable.amount, amount.into());
+        assert_eq!(borrowable.amount, Uint128::from(amount));
     }
 }

@@ -9,7 +9,6 @@ use osmo_bindings::{OsmosisMsg, OsmosisQuery};
 
 use crate::contract::query::token_info;
 use crate::error::ContractError;
-use crate::math::DecimalExt;
 use crate::msg::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, QueryTotalCreditLine, SudoMsg,
     TransferableAmountResponse,
@@ -281,7 +280,7 @@ mod cr_utils {
 mod execute {
     use cosmwasm_std::{CosmosMsg, QueryRequest};
     use isotonic_osmosis_oracle::msg::QueryMsg as OracleQueryMsg;
-    use osmo_bindings::{EstimatePriceResponse, Swap, SwapAmount, SwapAmountWithLimit};
+    use osmo_bindings::{Swap, SwapAmount, SwapAmountWithLimit, SwapResponse};
 
     use crate::{
         interest::{calculate_interest, epochs_passed, InterestUpdate},
@@ -759,7 +758,7 @@ mod execute {
             max_input: sell_limit,
         };
 
-        let estimate: EstimatePriceResponse =
+        let estimate: SwapResponse =
             deps.querier
                 .query(&QueryRequest::Custom(OsmosisQuery::EstimateSwap {
                     sender: account.clone(),
@@ -958,7 +957,7 @@ mod query {
                 transferable: Uint128::zero(),
             })
         } else if token == config.ltoken_contract {
-            let transferable = cr_utils::transferable_amount(deps, &config, &account)?;
+            let transferable = cr_utils::transferable_amount(deps, &config, account)?;
             Ok(TransferableAmountResponse { transferable })
         } else {
             Err(ContractError::UnrecognisedToken(token.to_string()))
@@ -1201,7 +1200,7 @@ mod tests {
     fn divide_u128_by_decimal_rounding() {
         assert_eq!(
             cr_utils::divide(60u128.into(), Decimal::percent(60)).unwrap(),
-            100u128.into()
+            Uint128::new(100)
         );
     }
 }
