@@ -31,7 +31,7 @@ workflows:
 jobs:
   contract_isotonic_credit_agency:
     docker:
-      - image: rust:1.57.0
+      - image: rust:1.67.1
     working_directory: ~/project/contracts/isotonic-credit-agency
     steps:
       - checkout:
@@ -41,7 +41,7 @@ jobs:
           command: rustc --version; cargo --version; rustup --version
       - restore_cache:
           keys:
-            - cargocache-isotonic-credit-agency-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+            - cargocache-isotonic-credit-agency-rust:1.67.1-{{ checksum "~/project/Cargo.lock" }}
       - run:
           name: Unit Tests
           environment:
@@ -54,11 +54,11 @@ jobs:
           paths:
             - /usr/local/cargo/registry
             - target
-          key: cargocache-isotonic-credit-agency-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+          key: cargocache-isotonic-credit-agency-rust:1.67.1-{{ checksum "~/project/Cargo.lock" }}
 
   contract_isotonic_market:
     docker:
-      - image: rust:1.57.0
+      - image: rust:1.67.1
     working_directory: ~/project/contracts/isotonic-market
     steps:
       - checkout:
@@ -68,7 +68,7 @@ jobs:
           command: rustc --version; cargo --version; rustup --version
       - restore_cache:
           keys:
-            - cargocache-isotonic-market-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+            - cargocache-isotonic-market-rust:1.67.1-{{ checksum "~/project/Cargo.lock" }}
       - run:
           name: Unit Tests
           environment:
@@ -81,11 +81,11 @@ jobs:
           paths:
             - /usr/local/cargo/registry
             - target
-          key: cargocache-isotonic-market-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+          key: cargocache-isotonic-market-rust:1.67.1-{{ checksum "~/project/Cargo.lock" }}
 
   contract_isotonic_osmosis_oracle:
     docker:
-      - image: rust:1.57.0
+      - image: rust:1.67.1
     working_directory: ~/project/contracts/isotonic-osmosis-oracle
     steps:
       - checkout:
@@ -95,7 +95,7 @@ jobs:
           command: rustc --version; cargo --version; rustup --version
       - restore_cache:
           keys:
-            - cargocache-isotonic-osmosis-oracle-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+            - cargocache-isotonic-osmosis-oracle-rust:1.67.1-{{ checksum "~/project/Cargo.lock" }}
       - run:
           name: Unit Tests
           environment:
@@ -108,11 +108,11 @@ jobs:
           paths:
             - /usr/local/cargo/registry
             - target
-          key: cargocache-isotonic-osmosis-oracle-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+          key: cargocache-isotonic-osmosis-oracle-rust:1.67.1-{{ checksum "~/project/Cargo.lock" }}
 
   contract_isotonic_token:
     docker:
-      - image: rust:1.57.0
+      - image: rust:1.67.1
     working_directory: ~/project/contracts/isotonic-token
     steps:
       - checkout:
@@ -122,7 +122,7 @@ jobs:
           command: rustc --version; cargo --version; rustup --version
       - restore_cache:
           keys:
-            - cargocache-isotonic-token-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+            - cargocache-isotonic-token-rust:1.67.1-{{ checksum "~/project/Cargo.lock" }}
       - run:
           name: Unit Tests
           environment:
@@ -135,11 +135,11 @@ jobs:
           paths:
             - /usr/local/cargo/registry
             - target
-          key: cargocache-isotonic-token-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+          key: cargocache-isotonic-token-rust:1.67.1-{{ checksum "~/project/Cargo.lock" }}
 
   package_utils:
     docker:
-      - image: rust:1.57.0
+      - image: rust:1.67.1
     working_directory: ~/project/packages/utils
     steps:
       - checkout:
@@ -149,7 +149,7 @@ jobs:
           command: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - restore_cache:
           keys:
-            - cargocache-v2-utils:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+            - cargocache-v2-utils:1.67.1-{{ checksum "~/project/Cargo.lock" }}
       - run:
           name: Build library for native target
           command: cargo build --locked
@@ -160,11 +160,11 @@ jobs:
           paths:
             - /usr/local/cargo/registry
             - target
-          key: cargocache-v2-utils:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+          key: cargocache-v2-utils:1.67.1-{{ checksum "~/project/Cargo.lock" }}
 
   acceptance_tests:
     docker:
-      - image: rust:1.57.0
+      - image: rust:1.67.1
     working_directory: ~/project/tests
     steps:
       - checkout:
@@ -174,7 +174,7 @@ jobs:
           command: rustc --version; cargo --version; rustup --version
       - restore_cache:
           keys:
-            - cargocache-tests-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+            - cargocache-tests-rust:1.67.1-{{ checksum "~/project/Cargo.lock" }}
       - run:
           name: Tests
           environment:
@@ -184,11 +184,11 @@ jobs:
           paths:
             - /usr/local/cargo/registry
             - target
-          key: cargocache-tests-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+          key: cargocache-tests-rust:1.67.1-{{ checksum "~/project/Cargo.lock" }}
 
   lint:
     docker:
-      - image: rust:1.57.0
+      - image: rust:1.67.1
     steps:
       - checkout
       - run:
@@ -196,7 +196,7 @@ jobs:
           command: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - restore_cache:
           keys:
-            - cargocache-v2-lint-rust:1.57.0-{{ checksum "Cargo.lock" }}
+            - cargocache-v2-lint-rust:1.67.1-{{ checksum "Cargo.lock" }}
       - run:
           name: Add rustfmt component
           command: rustup component add rustfmt
@@ -215,7 +215,7 @@ jobs:
             - target/debug/.fingerprint
             - target/debug/build
             - target/debug/deps
-          key: cargocache-v2-lint-rust:1.57.0-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-lint-rust:1.67.1-{{ checksum "Cargo.lock" }}
 
   # This runs one time on the top level to ensure all contracts compile properly into wasm.
   # We don't run the wasm build per contract build, and then reuse a lot of the same dependencies, so this speeds up CI time
@@ -223,7 +223,7 @@ jobs:
   # We also sanity-check the resultant wasm files.
   wasm_build:
     docker:
-      - image: rust:1.57.0
+      - image: rust:1.67.1
     steps:
       - checkout:
           path: ~/project
@@ -232,7 +232,7 @@ jobs:
           command: rustc --version; cargo --version; rustup --version
       - restore_cache:
           keys:
-            - cargocache-wasm-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+            - cargocache-wasm-rust:1.67.1-{{ checksum "~/project/Cargo.lock" }}
       - run:
           name: Add wasm32 target
           command: rustup target add wasm32-unknown-unknown
@@ -252,7 +252,7 @@ jobs:
           paths:
             - /usr/local/cargo/registry
             - target
-          key: cargocache-wasm-rust:1.57.0-{{ checksum "~/project/Cargo.lock" }}
+          key: cargocache-wasm-rust:1.67.1-{{ checksum "~/project/Cargo.lock" }}
       - run:
           name: Check wasm contracts
           command: |
@@ -310,7 +310,7 @@ jobs:
 
   build_and_upload_schemas:
     docker:
-      - image: rust:1.57.0
+      - image: rust:1.67.1
     working_directory: ~/project
     steps:
       - checkout:
