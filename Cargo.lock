@@ -459,8 +459,8 @@ dependencies = [
  "isotonic-market",
  "isotonic-osmosis-oracle",
  "isotonic-token",
- "osmo-bindings 0.6.0",
- "osmo-bindings-test 0.6.0",
+ "osmo-bindings",
+ "osmo-bindings-test",
  "schemars",
  "serde",
  "thiserror",
@@ -482,8 +482,8 @@ dependencies = [
  "cw20",
  "isotonic-osmosis-oracle",
  "isotonic-token",
- "osmo-bindings 0.6.0",
- "osmo-bindings-test 0.6.0",
+ "osmo-bindings",
+ "osmo-bindings-test",
  "schemars",
  "serde",
  "thiserror",
@@ -502,8 +502,8 @@ dependencies = [
  "cw-storage-plus",
  "cw2",
  "derivative",
- "osmo-bindings 0.6.0",
- "osmo-bindings-test 0.6.0",
+ "osmo-bindings",
+ "osmo-bindings-test",
  "schemars",
  "serde",
  "thiserror",
@@ -575,17 +575,6 @@ checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
 name = "osmo-bindings"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d29a49bf5df140714e63e3a13b6d6c7b7903620c4e3451476bb59cf50c1c7f88"
-dependencies = [
- "cosmwasm-std",
- "schemars",
- "serde",
-]
-
-[[package]]
-name = "osmo-bindings"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "577e323bcb744c74efb396caa96a245262a19fe0c8aaa504d89a93abe9a122e8"
@@ -593,23 +582,6 @@ dependencies = [
  "cosmwasm-std",
  "schemars",
  "serde",
-]
-
-[[package]]
-name = "osmo-bindings-test"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f96719fd1b214bb8aecbe066bb9965052cae11df4f540978122ab243d9f0a15e"
-dependencies = [
- "anyhow",
- "cosmwasm-std",
- "cw-multi-test",
- "cw-storage-plus",
- "itertools",
- "osmo-bindings 0.5.1",
- "schemars",
- "serde",
- "thiserror",
 ]
 
 [[package]]
@@ -623,7 +595,7 @@ dependencies = [
  "cw-multi-test",
  "cw-storage-plus",
  "itertools",
- "osmo-bindings 0.6.0",
+ "osmo-bindings",
  "schemars",
  "serde",
  "thiserror",
@@ -891,8 +863,8 @@ dependencies = [
  "isotonic-market",
  "isotonic-osmosis-oracle",
  "isotonic-token",
- "osmo-bindings 0.5.1",
- "osmo-bindings-test 0.5.1",
+ "osmo-bindings",
+ "osmo-bindings-test",
  "utils",
 ]
 
