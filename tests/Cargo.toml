@@ -12,9 +12,9 @@ isotonic-credit-agency = { path = "../contracts/isotonic-credit-agency", version
 isotonic-market = { path = "../contracts/isotonic-market", version = "0.5.0", features = ["library"] }
 isotonic-osmosis-oracle = { path = "../contracts/isotonic-osmosis-oracle", version = "0.5.0", features = ["library"] }
 isotonic-token = { path = "../contracts/isotonic-token", version = "0.5.0", features = ["library"] }
-osmo-bindings = "0.5.1"
+osmo-bindings = "0.6.0"
 utils = { version = "0.5.0", path = "../packages/utils" }
 anyhow = "1"
 cw-multi-test = "0.13.0"
-osmo-bindings-test = "0.5.1"
+osmo-bindings-test = "0.6.0"
 derivative = "2.2.0"

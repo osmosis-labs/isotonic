@@ -13,7 +13,7 @@ use isotonic_market::msg::{
 use isotonic_osmosis_oracle::msg::{
     ExecuteMsg as OracleExecuteMsg, InstantiateMsg as OracleInstantiateMsg,
 };
-use osmo_bindings::{EstimatePriceResponse, OsmosisMsg, OsmosisQuery, Step, Swap, SwapAmount};
+use osmo_bindings::{OsmosisMsg, OsmosisQuery, Step, Swap, SwapAmount, SwapResponse};
 use osmo_bindings_test::{OsmosisApp, Pool};
 use utils::{credit_line::CreditLineResponse, token::Token};
 
@@ -724,7 +724,7 @@ impl Suite {
                 },
             )?;
 
-            let estimation: EstimatePriceResponse =
+            let estimation: SwapResponse =
                 self.app
                     .wrap()
                     .query(&QueryRequest::Custom(OsmosisQuery::EstimateSwap {
