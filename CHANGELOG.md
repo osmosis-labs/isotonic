@@ -1,8 +1,69 @@
 # Changelog
 
-## [Unreleased](https://github.com/confio/isotonic/tree/HEAD)
+## [Unreleased](https://github.com/osmosis-labs/isotonic/tree/HEAD)
 
-[Full Changelog](https://github.com/confio/isotonic/compare/v0.5.0...HEAD)
+[Full Changelog](https://github.com/osmosis-labs/isotonic/compare/v0.6.0...HEAD)
+
+## [v0.6.0](https://github.com/osmosis-labs/isotonic/tree/v0.6.0) (2023-06-07)
+
+[Full Changelog](https://github.com/osmosis-labs/isotonic/compare/v0.5.0...v0.6.0)
+
+**Fixed bugs:**
+
+- user cannot withdraw amount listed on the screen [\#125](https://github.com/osmosis-labs/isotonic/issues/125)
+- Market: Credit line should include existing debt [\#122](https://github.com/osmosis-labs/isotonic/issues/122)
+- Add missing `entry_point` wrapper to market [\#114](https://github.com/osmosis-labs/isotonic/issues/114)
+- Compounding might be broken [\#102](https://github.com/osmosis-labs/isotonic/issues/102)
+
+**Closed issues:**
+
+- Update Rust edition to 2021 [\#143](https://github.com/osmosis-labs/isotonic/issues/143)
+- \[market\] SwapWithdrawFrom - optimize edge cases for lower fees [\#142](https://github.com/osmosis-labs/isotonic/issues/142)
+- \[CA, Market\] Update osmosis-bindings-test to support swaps with a non-empty route [\#127](https://github.com/osmosis-labs/isotonic/issues/127)
+- Market: Use proper collateral in `credit_line` query [\#121](https://github.com/osmosis-labs/isotonic/issues/121)
+- Fix Rounding [\#120](https://github.com/osmosis-labs/isotonic/issues/120)
+- Query: APY endpoint [\#117](https://github.com/osmosis-labs/isotonic/issues/117)
+- Find a planning poker tool [\#116](https://github.com/osmosis-labs/isotonic/issues/116)
+- Give CircleCI access to osmosis-bindings [\#113](https://github.com/osmosis-labs/isotonic/issues/113)
+- Cut v0.5.0 release [\#106](https://github.com/osmosis-labs/isotonic/issues/106)
+- Repay loans using collateral [\#101](https://github.com/osmosis-labs/isotonic/issues/101)
+- Lending whitelist for markets [\#100](https://github.com/osmosis-labs/isotonic/issues/100)
+- Liquidate via AMM [\#92](https://github.com/osmosis-labs/isotonic/issues/92)
+- OSMOSIS bindings-test for mocking OSMOSIS in test suites [\#84](https://github.com/osmosis-labs/isotonic/issues/84)
+- OSMOSIS bindings [\#83](https://github.com/osmosis-labs/isotonic/issues/83)
+- Acceptance tests [\#71](https://github.com/osmosis-labs/isotonic/issues/71)
+- Define APIs to accept cw20 and native [\#69](https://github.com/osmosis-labs/isotonic/issues/69)
+- Real price oracle drawing from AMM price feeds  [\#67](https://github.com/osmosis-labs/isotonic/issues/67)
+- Simulate interest payments when querying balances [\#56](https://github.com/osmosis-labs/isotonic/issues/56)
+
+**Merged pull requests:**
+
+- Update to latest osmosis-bindings 0.6.0 [\#152](https://github.com/osmosis-labs/isotonic/pull/152) ([maurolacy](https://github.com/maurolacy))
+- Clarify license in README [\#150](https://github.com/osmosis-labs/isotonic/pull/150) ([ethanfrey](https://github.com/ethanfrey))
+- Place everything under MIT license [\#149](https://github.com/osmosis-labs/isotonic/pull/149) ([ethanfrey](https://github.com/ethanfrey))
+- \[market\] SwapWithdrawFrom - optimize edge cases [\#147](https://github.com/osmosis-labs/isotonic/pull/147) ([ueco-jb](https://github.com/ueco-jb))
+- `swap_withdraw_from`/`repay_with_collateral` - more mutlitest cases  [\#146](https://github.com/osmosis-labs/isotonic/pull/146) ([ueco-jb](https://github.com/ueco-jb))
+- Liquidate via AMM [\#145](https://github.com/osmosis-labs/isotonic/pull/145) ([uint](https://github.com/uint))
+- Update Rust edition to 2021 [\#144](https://github.com/osmosis-labs/isotonic/pull/144) ([ueco-jb](https://github.com/ueco-jb))
+- use osmo-bindings from crates.io, not github [\#141](https://github.com/osmosis-labs/isotonic/pull/141) ([uint](https://github.com/uint))
+- Acceptance/regression test crate [\#140](https://github.com/osmosis-labs/isotonic/pull/140) ([uint](https://github.com/uint))
+- The last of rounding issues [\#138](https://github.com/osmosis-labs/isotonic/pull/138) ([uint](https://github.com/uint))
+- Update osmo-bindings [\#137](https://github.com/osmosis-labs/isotonic/pull/137) ([uint](https://github.com/uint))
+- market: make doc comments more consistent [\#136](https://github.com/osmosis-labs/isotonic/pull/136) ([uint](https://github.com/uint))
+- market: borrowable query [\#134](https://github.com/osmosis-labs/isotonic/pull/134) ([uint](https://github.com/uint))
+- market: withdrawable query [\#133](https://github.com/osmosis-labs/isotonic/pull/133) ([uint](https://github.com/uint))
+- Oracle: remove unused contract [\#131](https://github.com/osmosis-labs/isotonic/pull/131) ([ueco-jb](https://github.com/ueco-jb))
+- \[CA, Market\] Use Osmosis Oracle [\#130](https://github.com/osmosis-labs/isotonic/pull/130) ([ueco-jb](https://github.com/ueco-jb))
+- Osmosis Oracle: add `QueryMsg::PoolId` [\#129](https://github.com/osmosis-labs/isotonic/pull/129) ([ueco-jb](https://github.com/ueco-jb))
+- Rounding improvements [\#126](https://github.com/osmosis-labs/isotonic/pull/126) ([hashedone](https://github.com/hashedone))
+- Repay loans using collateral [\#124](https://github.com/osmosis-labs/isotonic/pull/124) ([ueco-jb](https://github.com/ueco-jb))
+- isotonic-market: APY query [\#123](https://github.com/osmosis-labs/isotonic/pull/123) ([hashedone](https://github.com/hashedone))
+- Update issue templates [\#119](https://github.com/osmosis-labs/isotonic/pull/119) ([ueco-jb](https://github.com/ueco-jb))
+- Market: Add missing entry\_point decorator do query handler [\#115](https://github.com/osmosis-labs/isotonic/pull/115) ([ueco-jb](https://github.com/ueco-jb))
+- Osmosis DEX price oracle [\#112](https://github.com/osmosis-labs/isotonic/pull/112) ([uint](https://github.com/uint))
+- market: handle compound interest properly [\#109](https://github.com/osmosis-labs/isotonic/pull/109) ([uint](https://github.com/uint))
+- All tokens replaced with being either native or cw20 [\#108](https://github.com/osmosis-labs/isotonic/pull/108) ([hashedone](https://github.com/hashedone))
+- Simulate interest payments on query [\#103](https://github.com/osmosis-labs/isotonic/pull/103) ([uint](https://github.com/uint))
 
 ## [v0.5.0](https://github.com/confio/isotonic/tree/v0.5.0) (2022-03-08)
 
